@@ -1,0 +1,77 @@
+specVersion: 1
+services:
+  - type: web
+    name: myst-site
+    env: node
+    plan: starter
+    region: virginia
+    rootDir: apps/site
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mystos-db
+          property: connectionString
+      - key: NEXT_PUBLIC_SITE_URL
+        sync: false
+      - key: NEXT_PUBLIC_GA4_ID
+        sync: false
+      - key: NEXT_PUBLIC_META_PIXEL_ID
+        sync: false
+      - key: NEXT_PUBLIC_API_BASE_URL
+        sync: false
+    buildFilter:
+      paths:
+        - apps/site/**
+        - packages/**
+        - package.json
+        - pnpm-lock.yaml
+        - turbo.json
+  - type: web
+    name: myst-api
+    env: node
+    plan: starter
+    region: virginia
+    rootDir: apps/api
+    buildCommand: pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm start
+    preDeployCommand: pnpm -w db:migrate
+    healthCheckPath: /healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: mystos-db
+          property: connectionString
+      - key: GA4_MEASUREMENT_ID
+        sync: false
+      - key: GA4_API_SECRET
+        sync: false
+    buildFilter:
+      paths:
+        - apps/api/**
+        - packages/**
+        - drizzle.config.ts
+        - package.json
+        - pnpm-lock.yaml
+        - turbo.json
+  - type: redis
+    name: myst-redis
+    plan: starter
+    region: virginia
+databases:
+  - name: mystos-db
+    plan: standard
+    region: virginia
+    databaseName: mystos
+    user: myst
+    ipAllowList: []

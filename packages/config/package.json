@@ -1,0 +1,35 @@
+{
+  "name": "@myst-os/config",
+  "version": "0.1.0",
+  "private": true,
+  "files": [
+    "eslint",
+    "prettier",
+    "tsconfig",
+    "jest"
+  ],
+  "exports": {
+    "./eslint/base": "./eslint/base.cjs",
+    "./eslint/next": "./eslint/next.cjs",
+    "./prettier": "./prettier/index.cjs",
+    "./tsconfig/base": "./tsconfig/base.json",
+    "./tsconfig/next": "./tsconfig/next.json",
+    "./tsconfig/library": "./tsconfig/library.json",
+    "./jest/node": "./jest/node.cjs"
+  },
+  "peerDependencies": {
+    "@types/jest": "^29.5.12",
+    "@typescript-eslint/eslint-plugin": "^8.15.0",
+    "@typescript-eslint/parser": "^8.15.0",
+    "eslint": "^9.14.0",
+    "eslint-config-next": "15.5.5",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-jsx-a11y": "^6.9.0",
+    "eslint-plugin-react": "^7.37.2",
+    "eslint-plugin-react-hooks": "^5.1.0",
+    "jest": "^29.7.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.6.3"
+  }
+}

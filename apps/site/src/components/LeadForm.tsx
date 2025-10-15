@@ -1,0 +1,806 @@
+'use client';
+
+import * as React from "react";
+import { useSearchParams } from "next/navigation";
+import { availabilityWindows } from "@myst-os/pricing";
+import { Button, cn } from "@myst-os/ui";
+import { useUTM } from "../lib/use-utm";
+
+interface ServiceOption {
+  slug: string;
+  title: string;
+  description?: string;
+}
+
+interface LeadFormProps extends React.HTMLAttributes<HTMLDivElement> {
+  services?: ServiceOption[];
+}
+
+type IdleState = { status: "idle" | "submitting" };
+type ErrorState = { status: "error"; message: string };
+type SuccessState = {
+  status: "success";
+  message: string;
+  appointmentId: string | null;
+  rescheduleToken: string | null;
+  startAtIso: string | null;
+  preferredDate: string | null;
+  timeWindow: string | null;
+  durationMinutes: number | null;
+  services: string[];
+};
+
+type FormState = IdleState | ErrorState | SuccessState;
+
+const INITIAL_STATE: FormState = { status: "idle" };
+
+const APPOINTMENT_TIME_ZONE =
+  process.env["NEXT_PUBLIC_APPOINTMENT_TIMEZONE"] ?? "America/New_York";
+
+const DEFAULT_SERVICES: ServiceOption[] = [
+  { slug: "house-wash", title: "Whole Home Soft Wash", description: "Siding, brick, and trim" },
+  { slug: "driveway", title: "Driveway & Walkway", description: "Concrete, pavers, and pads" },
+  { slug: "roof", title: "Roof Treatment", description: "Soft wash for shingles and tile" },
+  { slug: "deck", title: "Deck & Patio", description: "Wood, composite, or stone surfaces" },
+  { slug: "windows", title: "Exterior Windows", description: "Spot-free rinse and detailing" },
+  { slug: "gutter", title: "Gutters & Downspouts", description: "Clear, flush, and brighten" }
+];
+
+export function LeadForm({ services, className, ...props }: LeadFormProps) {
+  const serviceOptions = services?.length ? services : DEFAULT_SERVICES;
+  const utm = useUTM();
+  const searchParams = useSearchParams();
+  const [formState, setFormState] = React.useState<FormState>(INITIAL_STATE);
+  const [selectedServices, setSelectedServices] = React.useState<string[]>([]);
+  const [preferredDate, setPreferredDate] = React.useState<string>("");
+  const [timeWindow, setTimeWindow] = React.useState<string>("");
+  const [localError, setLocalError] = React.useState<string | null>(null);
+  const [isRescheduleOpen, setIsRescheduleOpen] = React.useState(false);
+  const [rescheduleDate, setRescheduleDate] = React.useState<string>("");
+  const [rescheduleWindow, setRescheduleWindow] = React.useState<string>("");
+  const [rescheduleStatus, setRescheduleStatus] =
+    React.useState<"idle" | "submitting" | "success" | "error">("idle");
+  const [rescheduleFeedback, setRescheduleFeedback] = React.useState<string | null>(null);
+  const [initialTokenHandled, setInitialTokenHandled] = React.useState(false);
+  const formRef = React.useRef<HTMLFormElement>(null);
+  const apiBase = process.env["NEXT_PUBLIC_API_BASE_URL"]?.replace(/\/$/, "");
+  const submitUrl = `${apiBase ?? ""}/api/web/lead-intake`;
+  const serviceLabelMap = React.useMemo(
+    () => new Map(serviceOptions.map((service) => [service.slug, service.title])),
+    [serviceOptions]
+  );
+  const availabilityMap = React.useMemo(
+    () => new Map(availabilityWindows.map((window) => [window.id, window])),
+    []
+  );
+  const timeFormatter = React.useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        dateStyle: "full",
+        timeStyle: "short",
+        timeZone: APPOINTMENT_TIME_ZONE
+      }),
+    []
+  );
+  const dateFormatter = React.useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-US", {
+        dateStyle: "full",
+        timeZone: APPOINTMENT_TIME_ZONE
+      }),
+    []
+  );
+  const serviceTitles = React.useMemo(() => {
+    if (formState.status !== "success") {
+      return [] as string[];
+    }
+    return formState.services.map((slug) => serviceLabelMap.get(slug) ?? slug);
+  }, [formState, serviceLabelMap]);
+  const appointmentDisplay = React.useMemo(() => {
+    if (formState.status !== "success") {
+      return null as string | null;
+    }
+    if (formState.startAtIso) {
+      const date = new Date(formState.startAtIso);
+      return timeFormatter.format(date);
+    }
+    if (formState.preferredDate) {
+      const parsed = new Date(`${formState.preferredDate}T00:00:00`);
+      const dateText = dateFormatter.format(parsed);
+      if (formState.timeWindow) {
+        const window = availabilityMap.get(formState.timeWindow);
+        const label = window?.label ?? formState.timeWindow;
+        return `${dateText} (${label})`;
+      }
+      return dateText;
+    }
+    return null;
+  }, [formState, availabilityMap, timeFormatter, dateFormatter]);
+  React.useEffect(() => {
+    if (initialTokenHandled) {
+      return;
+    }
+
+    const appointmentIdParam = searchParams?.get("appointmentId");
+    const tokenParam = searchParams?.get("token");
+
+    if (appointmentIdParam && tokenParam && formState.status === "idle") {
+      setFormState({
+        status: "success",
+        message: "Let's pick a new time for your on-site estimate.",
+        appointmentId: appointmentIdParam,
+        rescheduleToken: tokenParam,
+        startAtIso: null,
+        preferredDate: null,
+        timeWindow: null,
+        durationMinutes: null,
+        services: []
+      });
+      setIsRescheduleOpen(true);
+      setRescheduleStatus("idle");
+      setRescheduleFeedback(null);
+      setRescheduleDate("");
+      setRescheduleWindow("");
+      setInitialTokenHandled(true);
+    }
+  }, [searchParams, formState.status, initialTokenHandled]);
+
+  const toggleService = (slug: string) => {
+    setSelectedServices((prev) =>
+      prev.includes(slug) ? prev.filter((item) => item !== slug) : [...prev, slug]
+    );
+  };
+
+  const resetForm = () => {
+    setFormState({ status: "idle" });
+    setSelectedServices([]);
+    setPreferredDate("");
+    setTimeWindow("");
+    setLocalError(null);
+    setIsRescheduleOpen(false);
+    setRescheduleDate("");
+    setRescheduleWindow("");
+    setRescheduleStatus("idle");
+    setRescheduleFeedback(null);
+    setInitialTokenHandled(true);
+    formRef.current?.reset();
+  };
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (formState.status === "submitting") {
+      return;
+    }
+
+    setLocalError(null);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    const consentChecked = formData.get("consent") === "on";
+    if (!selectedServices.length) {
+      setLocalError("Select at least one service for your in-person estimate.");
+      return;
+    }
+    if (!preferredDate) {
+      setLocalError("Choose a preferred visit date.");
+      return;
+    }
+    if (!timeWindow) {
+      setLocalError("Pick a time window that works for you.");
+      return;
+    }
+    if (!consentChecked) {
+      setLocalError("Please approve appointment updates and tips so we can reach you.");
+      return;
+    }
+
+    const getValue = (key: string): string => {
+      const value = formData.get(key);
+      return typeof value === "string" ? value.trim() : "";
+    };
+
+    const getOptionalValue = (key: string): string | undefined => {
+      const value = formData.get(key);
+      const trimmed = typeof value === "string" ? value.trim() : "";
+      return trimmed.length > 0 ? trimmed : undefined;
+    };
+
+    const utmRaw = formData.get("utm");
+    let utmPayload: Record<string, unknown> = {};
+    if (typeof utmRaw === "string" && utmRaw.trim().length > 0) {
+      try {
+        const parsed = JSON.parse(utmRaw) as unknown;
+        if (parsed && typeof parsed === "object") {
+          utmPayload = parsed as Record<string, unknown>;
+        }
+      } catch {
+        // ignore malformed payload
+      }
+    }
+
+    setFormState({ status: "submitting" });
+    const servicesSnapshot = [...selectedServices];
+
+    const payload = {
+      appointmentType: "in_person_estimate" as const,
+      services: selectedServices,
+      name: getValue("name"),
+      phone: getValue("phone"),
+      email: getOptionalValue("email"),
+      addressLine1: getValue("addressLine1"),
+      city: getValue("city"),
+      state: getValue("state"),
+      postalCode: getValue("postalCode"),
+      notes: getOptionalValue("notes"),
+      consent: consentChecked,
+      scheduling: {
+        preferredDate,
+        timeWindow,
+        alternateDate: getOptionalValue("alternateDate")
+      },
+      utm: utmPayload,
+      gclid: getOptionalValue("gclid"),
+      fbclid: getOptionalValue("fbclid"),
+      hp_company: getOptionalValue("company")
+    };
+
+    try {
+      const response = await fetch(submitUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = (await response.json().catch(() => null)) as
+        | {
+            ok?: boolean;
+            appointmentId?: string | null;
+            rescheduleToken?: string | null;
+            startAt?: string | null;
+            durationMinutes?: number | null;
+            preferredDate?: string | null;
+            timeWindow?: string | null;
+          }
+        | null;
+
+      if (!response.ok || !result?.ok) {
+        throw new Error("Submission failed");
+      }
+
+      const preferredDateValue = result.preferredDate ?? preferredDate ?? "";
+      const timeWindowValue = result.timeWindow ?? timeWindow ?? "";
+
+      setFormState({
+        status: "success",
+        message: "Thanks! We'll confirm shortly and send reminders before we arrive.",
+        appointmentId: result.appointmentId ?? null,
+        rescheduleToken: result.rescheduleToken ?? null,
+        startAtIso: result.startAt ?? null,
+        preferredDate: preferredDateValue || null,
+        timeWindow: timeWindowValue || null,
+        durationMinutes: result.durationMinutes ?? null,
+        services: servicesSnapshot
+      });
+      setRescheduleDate(preferredDateValue);
+      setRescheduleWindow(timeWindowValue);
+      setRescheduleStatus("idle");
+      setRescheduleFeedback(null);
+      setIsRescheduleOpen(false);
+      setInitialTokenHandled(true);
+      form.reset();
+      setSelectedServices([]);
+      setPreferredDate("");
+      setTimeWindow("");
+    } catch (error) {
+      console.error(error);
+      setFormState({
+        status: "error",
+        message:
+          "We couldn&apos;t schedule your estimate. Please call or text and we&apos;ll assist right away."
+      });
+    }
+  };
+
+  const handleRescheduleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (
+      formState.status !== "success" ||
+      !formState.appointmentId ||
+      !formState.rescheduleToken
+    ) {
+      return;
+    }
+
+    if (!rescheduleDate) {
+      setRescheduleStatus("error");
+      setRescheduleFeedback("Pick a new visit date to reschedule your estimate.");
+      return;
+    }
+
+    if (!rescheduleWindow) {
+      setRescheduleStatus("error");
+      setRescheduleFeedback("Select a preferred time window to reschedule.");
+      return;
+    }
+
+    setRescheduleStatus("submitting");
+    setRescheduleFeedback(null);
+
+    try {
+      const response = await fetch(
+        `${apiBase ?? ""}/api/web/appointments/${formState.appointmentId}/reschedule`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            preferredDate: rescheduleDate,
+            timeWindow: rescheduleWindow,
+            rescheduleToken: formState.rescheduleToken
+          })
+        }
+      );
+
+      const result = (await response.json().catch(() => null)) as
+        | {
+            ok?: boolean;
+            startAt?: string | null;
+            preferredDate?: string | null;
+            timeWindow?: string | null;
+            durationMinutes?: number | null;
+            rescheduleToken?: string | null;
+          }
+        | null;
+
+      if (!response.ok || !result?.ok) {
+        throw new Error("reschedule_failed");
+      }
+
+      setRescheduleStatus("success");
+      setRescheduleFeedback("Appointment updated. We'll send refreshed reminders.");
+      setFormState((previous) => {
+        if (previous.status !== "success") {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          message: "Appointment updated. We'll send reminders before we arrive.",
+          startAtIso: result.startAt ?? previous.startAtIso,
+          preferredDate: (result.preferredDate ?? rescheduleDate) || null,
+          timeWindow: (result.timeWindow ?? rescheduleWindow) || null,
+          durationMinutes: result.durationMinutes ?? previous.durationMinutes,
+          rescheduleToken: result.rescheduleToken ?? previous.rescheduleToken
+        } satisfies SuccessState;
+      });
+      setIsRescheduleOpen(false);
+    } catch (error) {
+      console.error(error);
+      setRescheduleStatus("error");
+      setRescheduleFeedback(
+        "We couldn't reschedule right now. Please call or text and we'll adjust manually."
+      );
+    }
+  };
+
+  if (formState.status === "success") {
+    return (
+      <div
+        className={cn(
+          "rounded-xl bg-white p-8 shadow-float shadow-primary-900/10",
+          className
+        )}
+        {...props}
+      >
+        <h3 className="font-display text-headline text-primary-800">
+          You&apos;re on our in-person schedule!
+        </h3>
+        <p className="mt-3 text-body text-neutral-600">
+          {appointmentDisplay
+            ? `We&apos;ll see you ${appointmentDisplay}.`
+            : "We&apos;ll call to confirm a time that works best for you."}
+        </p>
+        <p className="mt-2 text-sm text-neutral-500">{formState.message}</p>
+        {serviceTitles.length ? (
+          <div className="mt-6">
+            <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">
+              Services to review
+            </h4>
+            <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-neutral-600">
+              {serviceTitles.map((title) => (
+                <li key={title}>{title}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {rescheduleFeedback ? (
+          <div
+            role="status"
+            className={cn(
+              "mt-6 rounded-md border px-4 py-3 text-sm",
+              rescheduleStatus === "error"
+                ? "border-danger-200 bg-danger-50 text-danger-700"
+                : "border-accent-200 bg-accent-50 text-accent-700"
+            )}
+          >
+            {rescheduleFeedback}
+          </div>
+        ) : null}
+        {isRescheduleOpen ? (
+          <form
+            onSubmit={(event) => void handleRescheduleSubmit(event)}
+            className="mt-6 space-y-5 rounded-lg border border-neutral-200 bg-neutral-50/60 p-4"
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <label htmlFor="rescheduleDate" className="text-sm font-medium text-neutral-700">
+                  New visit date
+                </label>
+                <input
+                  id="rescheduleDate"
+                  name="rescheduleDate"
+                  type="date"
+                  required
+                  value={rescheduleDate}
+                  onChange={(event) => setRescheduleDate(event.target.value)}
+                  className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-sm text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+                />
+              </div>
+              <div>
+                <span className="text-sm font-medium text-neutral-700">Preferred time window</span>
+                <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                  {availabilityWindows.map((window) => (
+                    <label
+                      key={window.id}
+                      className={cn(
+                        "flex cursor-pointer flex-col gap-1 rounded-lg border p-3 text-xs transition",
+                        rescheduleWindow === window.id
+                          ? "border-accent-500 bg-accent-50/80 shadow-soft"
+                          : "border-neutral-200 bg-white hover:border-neutral-300"
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="rescheduleWindow"
+                        value={window.id}
+                        checked={rescheduleWindow === window.id}
+                        onChange={(event) => setRescheduleWindow(event.target.value)}
+                        className="sr-only"
+                        required
+                      />
+                      <span className="font-semibold text-neutral-700">{window.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <Button type="submit" disabled={rescheduleStatus === "submitting"}>
+                {rescheduleStatus === "submitting" ? "Saving..." : "Confirm new time"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setIsRescheduleOpen(false);
+                  setRescheduleStatus("idle");
+                  setRescheduleFeedback(null);
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                setIsRescheduleOpen(true);
+                setRescheduleStatus("idle");
+                setRescheduleFeedback(null);
+                setRescheduleDate(formState.preferredDate ?? "");
+                setRescheduleWindow(formState.timeWindow ?? "");
+              }}
+              disabled={!formState.appointmentId || !formState.rescheduleToken}
+            >
+              Reschedule
+            </Button>
+            <Button type="button" onClick={resetForm}>
+              Schedule another estimate
+            </Button>
+          </div>
+        )}
+        <p className="mt-6 text-xs text-neutral-500">
+          Need faster help? Call{" "}
+          <a href="tel:17705550110" className="text-accent-600 underline">
+            (770) 555-0110
+          </a>{" "}
+          and mention your estimate request.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className={cn(
+        "rounded-xl bg-white p-8 shadow-soft shadow-primary-900/10",
+        className
+      )}
+      {...props}
+    >
+      <div className="mb-6 space-y-2">
+        <h3 className="font-display text-2xl text-primary-800">
+          Book your in-person estimate
+        </h3>
+        <p className="text-sm text-neutral-600">
+          Choose the services you&apos;d like to review on-site, tell us about the property, and pick a
+          time window. we&apos;ll confirm details and send reminders by text and email.
+        </p>
+      </div>
+
+      {localError ? (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="mb-4 rounded-md border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700"
+        >
+          {localError}
+        </div>
+      ) : null}
+
+      {formState.status === "error" ? (
+        <div
+          role="alert"
+          aria-live="assertive"
+          className="mb-4 rounded-md border border-danger-200 bg-danger-50 px-4 py-3 text-sm text-danger-700"
+        >
+          {formState.message}
+        </div>
+      ) : null}
+
+      <form ref={formRef} onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
+        <section className="space-y-3">
+          <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">
+            Services to review
+          </h4>
+          <div className="grid gap-3 md:grid-cols-2">
+            {serviceOptions.map((service) => {
+              const isSelected = selectedServices.includes(service.slug);
+              return (
+                <label
+                  key={service.slug}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition",
+                    isSelected
+                      ? "border-accent-500 bg-accent-50/80 shadow-soft"
+                      : "border-neutral-200 bg-white hover:border-neutral-300"
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    name="selectedServices"
+                    value={service.slug}
+                    checked={isSelected}
+                    onChange={() => toggleService(service.slug)}
+                    className="mt-1 h-4 w-4 accent-accent-500"
+                  />
+                  <div className="space-y-1">
+                    <p className="font-medium text-neutral-800">{service.title}</p>
+                    {service.description ? (
+                      <p className="text-sm text-neutral-600">{service.description}</p>
+                    ) : null}
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label htmlFor="name" className="text-sm font-medium text-neutral-700">
+              Full name
+            </label>
+            <input
+              id="name"
+              name="name"
+              type="text"
+              required
+              placeholder="Jamie Customer"
+              className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-body text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            />
+          </div>
+          <div>
+            <label htmlFor="email" className="text-sm font-medium text-neutral-700">
+              Email
+            </label>
+            <input
+              id="email"
+              name="email"
+              type="email"
+              required
+              placeholder="you@email.com"
+              className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-body text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            />
+          </div>
+          <div>
+            <label htmlFor="phone" className="text-sm font-medium text-neutral-700">
+              Mobile phone
+            </label>
+            <input
+              id="phone"
+              name="phone"
+              type="tel"
+              required
+              placeholder="(770) 555-0110"
+              className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-body text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            />
+          </div>
+        </section>
+
+        <section className="space-y-4">
+          <div>
+            <label htmlFor="addressLine1" className="text-sm font-medium text-neutral-700">
+              Service address
+            </label>
+            <input
+              id="addressLine1"
+              name="addressLine1"
+              type="text"
+              required
+              placeholder="Street address"
+              className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-body text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            />
+          </div>
+          <div className="grid gap-4 md:grid-cols-[2fr_1fr_1fr]">
+            <div>
+              <label htmlFor="city" className="text-sm font-medium text-neutral-700">
+                City
+              </label>
+              <input
+                id="city"
+                name="city"
+                type="text"
+                required
+                placeholder="Woodstock"
+                className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-body text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              />
+            </div>
+            <div>
+              <label htmlFor="state" className="text-sm font-medium text-neutral-700">
+                State
+              </label>
+              <input
+                id="state"
+                name="state"
+                type="text"
+                required
+                maxLength={2}
+                placeholder="GA"
+                className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-body text-neutral-700 uppercase outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              />
+            </div>
+            <div>
+              <label htmlFor="postalCode" className="text-sm font-medium text-neutral-700">
+                ZIP
+              </label>
+              <input
+                id="postalCode"
+                name="postalCode"
+                type="text"
+                required
+                placeholder="30189"
+                className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-body text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label htmlFor="preferredDate" className="text-sm font-medium text-neutral-700">
+              Preferred visit date
+            </label>
+            <input
+              id="preferredDate"
+              name="preferredDate"
+              type="date"
+              required
+              value={preferredDate}
+              onChange={(event) => setPreferredDate(event.target.value)}
+              className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-body text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            />
+          </div>
+          <div>
+            <label htmlFor="alternateDate" className="text-sm font-medium text-neutral-700">
+              Alternate date (optional)
+            </label>
+            <input
+              id="alternateDate"
+              name="alternateDate"
+              type="date"
+              className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-body text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            />
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <label className="text-sm font-medium text-neutral-700">Preferred time window</label>
+          <div className="grid gap-3 sm:grid-cols-3">
+            {availabilityWindows.map((window) => (
+              <label
+                key={window.id}
+                className={cn(
+                  "flex cursor-pointer flex-col gap-1 rounded-lg border p-4 text-sm transition",
+                  timeWindow === window.id
+                    ? "border-accent-500 bg-accent-50/80 shadow-soft"
+                    : "border-neutral-200 bg-white hover:border-neutral-300"
+                )}
+              >
+                <input
+                  type="radio"
+                  name="timeWindow"
+                  value={window.id}
+                  checked={timeWindow === window.id}
+                  onChange={(event) => setTimeWindow(event.target.value)}
+                  className="sr-only"
+                  required
+                />
+                <span className="text-sm font-semibold text-neutral-700">{window.label}</span>
+                <span className="text-xs text-neutral-500">
+                  Crews arrive within this window; we&apos;ll send an SMS when we&apos;re on the way.
+                </span>
+              </label>
+            ))}
+          </div>
+        </section>
+
+        <section className="space-y-3">
+          <label htmlFor="notes" className="text-sm font-medium text-neutral-700">
+            Notes for the crew (gate codes, surfaces, pets)
+          </label>
+          <textarea
+            id="notes"
+            name="notes"
+            rows={4}
+            placeholder="Deck square footage, stains to tackle, parking notes, etc."
+            className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-body text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+          />
+        </section>
+
+        <div className="flex items-start gap-3 rounded-md bg-neutral-100/60 p-4">
+          <input
+            id="consent"
+            name="consent"
+            type="checkbox"
+            className="mt-1 h-4 w-4 accent-accent-500"
+          />
+          <label htmlFor="consent" className="text-sm text-neutral-600">
+            I agree to receive appointment updates and service tips from Myst. Text messaging rates may
+            apply. Reply STOP to opt out anytime.
+          </label>
+        </div>
+
+        <input type="hidden" name="utm" value={JSON.stringify(utm)} />
+        <input type="hidden" name="gclid" value={utm.gclid ?? ""} />
+        <input type="hidden" name="fbclid" value={utm.fbclid ?? ""} />
+        <input type="text" name="company" className="hidden" tabIndex={-1} autoComplete="off" />
+
+        <Button
+          type="submit"
+          variant="primary"
+          disabled={formState.status === "submitting"}
+          className="w-full justify-center"
+        >
+          {formState.status === "submitting" ? "Scheduling..." : "Book in-person estimate"}
+        </Button>
+      </form>
+    </div>
+  );
+}
+
+

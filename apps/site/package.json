@@ -1,0 +1,39 @@
+{
+    "name": "site",
+    "version": "0.1.0",
+    "private": true,
+    "scripts": {
+        "dev": "next dev --turbopack",
+        "build": "next build --turbopack",
+        "start": "next start",
+        "lint": "eslint"
+    },
+    "dependencies": {
+        "@myst-os/pricing": "workspace:*",
+        "@myst-os/sdk": "workspace:*",
+        "@myst-os/ui": "workspace:*",
+        "contentlayer": "0.3.4",
+        "framer-motion": "^11.15.0",
+        "lucide-react": "^0.452.0",
+        "next": "15.5.5",
+        "next-contentlayer": "0.3.4",
+        "react": "19.1.0",
+        "react-dom": "19.1.0",
+        "tailwindcss-animate": "^1.0.7",
+        "zod": "^3.24.1"
+    },
+    "devDependencies": {
+        "@eslint/eslintrc": "^3",
+        "@myst-os/config": "workspace:*",
+        "@types/mdx": "^2.0.13",
+        "@types/node": "^20",
+        "@types/react": "^19",
+        "@types/react-dom": "^19",
+        "autoprefixer": "^10.4.20",
+        "eslint": "^9",
+        "eslint-config-next": "15.5.5",
+        "postcss": "^8.4.49",
+        "tailwindcss": "^3.4.14",
+        "typescript": "^5"
+    }
+}

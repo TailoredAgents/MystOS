@@ -1,0 +1,12 @@
+{
+  "extends": "@myst-os/config/tsconfig/base",
+  "compilerOptions": {
+    "jsx": "preserve",
+    "module": "ESNext",
+    "allowJs": true,
+    "noEmit": true,
+    "types": ["node", "jest", "react", "react-dom"]
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}
