@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { allAreas, allPages, allServices } from "contentlayer/generated";
 import { notFound } from "next/navigation";
 import { BeforeAfterSlider, Button, Card, Section, Stat, Testimonials } from "@myst-os/ui";
-        <HeroV2 variant=" lean\ />
+import { HeroV2 } from "@/components/HeroV2";
 import { LeadForm } from "@/components/LeadForm";
 import { MdxContent } from "@/components/MdxContent";
 import { StickyCtaBar } from "@/components/StickyCtaBar";
@@ -50,7 +50,7 @@ export default function HomePage() {
   return (
     <div className="relative flex flex-col gap-20 pb-24">
       <Section className="pt-12">
-        <HeroV2 variant=" lean\ />
+        <HeroV2 variant="lean" />
       </Section>
 
       <Section containerClassName="gap-12">
