@@ -249,6 +249,27 @@ function formatCurrency(value: number): string {
   return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 }
 
+function getQuoteAlertRecipients(): string[] {
+  const raw = process.env["QUOTE_ALERT_EMAIL"];
+  if (!raw) {
+    return [];
+  }
+  return raw
+    .split(",")
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+}
+
+function servicesSummary(services: string[]): string {
+  if (!services.length) {
+    return "Exterior cleaning";
+  }
+  if (services.length === 1) {
+    return services[0];
+  }
+  return `${services[0]} +${services.length - 1}`;
+}
+
 function buildRescheduleUrl(appointment: EstimateNotificationPayload["appointment"]): string {
   if (appointment.rescheduleUrl) {
     return appointment.rescheduleUrl;
@@ -471,6 +492,31 @@ export async function sendQuoteSentNotification(payload: QuoteNotificationPayloa
     quoteId: payload.quoteId,
     type: "quote.sent"
   });
+
+  const alertRecipients = getQuoteAlertRecipients();
+  if (alertRecipients.length) {
+    const subject = `Quote sent: ${servicesSummary(payload.services)} for ${payload.contact.name}`;
+    const body = [
+      `Customer: ${payload.contact.name}`,
+      `Services: ${servicesSummary(payload.services)}`,
+      `Total: ${formatCurrency(payload.total)} (Deposit: ${formatCurrency(payload.depositDue)}, Balance: ${formatCurrency(payload.balanceDue)})`,
+      `Share link: ${payload.shareUrl}`,
+      expiresIso ? `Expires: ${expiresIso}` : null,
+      payload.notes ? `Notes: ${payload.notes}` : null
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join("\n");
+
+    await Promise.all(
+      alertRecipients.map((recipient) =>
+        sendPlainEmail(recipient, subject, body, {
+          quoteId: payload.quoteId,
+          type: "quote.sent",
+          internal: true
+        })
+      )
+    );
+  }
 }
 
 export async function sendQuoteDecisionNotification(
@@ -543,4 +589,31 @@ export async function sendQuoteDecisionNotification(
     decision: payload.decision,
     source: payload.source
   });
+
+  const alertRecipients = getQuoteAlertRecipients();
+  if (alertRecipients.length) {
+    const subject = `Quote ${payload.decision}: ${payload.contact.name}`;
+    const body = [
+      `Customer: ${payload.contact.name}`,
+      `Services: ${servicesSummary(payload.services)}`,
+      `Decision: ${payload.decision.toUpperCase()} (source: ${payload.source})`,
+      `Total: ${formatCurrency(payload.total)} (Deposit: ${formatCurrency(payload.depositDue)}, Balance: ${formatCurrency(payload.balanceDue)})`,
+      `Quote link: ${payload.shareUrl}`,
+      payload.notes ? `Notes: ${payload.notes}` : null
+    ]
+      .filter((line): line is string => Boolean(line))
+      .join("\n");
+
+    await Promise.all(
+      alertRecipients.map((recipient) =>
+        sendPlainEmail(recipient, subject, body, {
+          quoteId: payload.quoteId,
+          type: "quote.decision",
+          decision: payload.decision,
+          source: payload.source,
+          internal: true
+        })
+      )
+    );
+  }
 }

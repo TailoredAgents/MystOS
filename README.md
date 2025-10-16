@@ -68,6 +68,7 @@ Render deployment details are tracked in `DEPLOY-ON-RENDER.md` along with the ge
 - Send quotes with shareable tokens (`POST /api/quotes/:id/send`) to generate customer-facing links (e.g., `/quote/{token}`) or manage them in the `/admin/quotes` board.
 - Customers accept or decline through the public endpoint (`/quote/{token}`); decisions update the admin board in real time.
 - Outbox events capture `quote.sent` and `quote.decision` for follow-up automations. Run `pnpm tsx scripts/quote-demo.ts` to create a demo quote, enqueue outbox events, and exercise the worker flow end-to-end.
+- Internal alerts (set `QUOTE_ALERT_EMAIL`) notify your ops/owner inbox whenever a quote is sent or a customer responds.
 
 ### Environment for Chat & Notifications
 - Chat API (in `apps/site`) reads `OPENAI_API_KEY` and optional `OPENAI_MODEL` (defaults to `gpt-4o-mini`).
