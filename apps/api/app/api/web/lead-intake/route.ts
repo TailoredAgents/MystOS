@@ -6,7 +6,6 @@ import { nanoid } from "nanoid";
 import { eq } from "drizzle-orm";
 import { getDb, leads, outboxEvents, appointments } from "@/db";
 import { sendConversion } from "@/lib/ga";
-import { sendEstimateConfirmation, type EstimateNotificationPayload } from "@/lib/notifications";
 import { createCalendarEvent } from "@/lib/calendar";
 import { normalizeName, normalizePhone, resolveClientIp } from "../utils";
 import { upsertContact, upsertProperty } from "../persistence";
@@ -303,38 +302,6 @@ export async function POST(request: NextRequest) {
         }
       })();
 
-      const notificationPayload: EstimateNotificationPayload = {
-        leadId: leadResult.leadId,
-        services: servicesRequested,
-        contact: {
-          name: payload.name,
-          email,
-          phone: normalizedPhone.e164
-        },
-        property: {
-          addressLine1,
-          city: trimmedCity,
-          state: normalizedState,
-          postalCode
-        },
-        scheduling: {
-          preferredDate: scheduling.preferredDate ?? null,
-          alternateDate: scheduling.alternateDate ?? null,
-          timeWindow: scheduling.timeWindow ?? null
-        },
-        appointment: {
-          id: appointment.id,
-          startAt: appointment.startAt,
-          durationMinutes: appointment.durationMinutes,
-          travelBufferMinutes: appointment.travelBufferMinutes ?? travelBufferMinutes,
-          status: "requested",
-          rescheduleToken: appointment.rescheduleToken,
-          rescheduleUrl: rescheduleLink
-        },
-        notes: payload.notes
-      };
-
-      void sendEstimateConfirmation(notificationPayload, "requested");
     }
   }
 

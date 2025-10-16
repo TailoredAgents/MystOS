@@ -11,7 +11,6 @@ import {
   resolveAppointmentTiming,
   APPOINTMENT_TIME_ZONE
 } from "../../../scheduling";
-import { sendEstimateConfirmation, type EstimateNotificationPayload } from "@/lib/notifications";
 import { createCalendarEvent, updateCalendarEvent } from "@/lib/calendar";
 import { isAdminRequest } from "../../../admin";
 
@@ -242,40 +241,6 @@ export async function POST(
     }
   });
 
-  const confirmation: EstimateNotificationPayload = {
-    leadId: existing.leadId ?? "unknown",
-    services,
-    contact: {
-      name: `${existing.contactFirstName ?? "Myst"} ${existing.contactLastName ?? "Customer"}`,
-      email: existing.contactEmail,
-      phone: existing.contactPhoneE164 ?? existing.contactPhone ?? undefined
-    },
-    property: {
-      addressLine1: existing.propertyAddressLine1 ?? "Undisclosed",
-      city: existing.propertyCity ?? "",
-      state: existing.propertyState ?? "",
-      postalCode: existing.propertyPostalCode ?? ""
-    },
-    scheduling: {
-      preferredDate:
-        input.preferredDate ?? defaultPreferredDate,
-      alternateDate: null,
-      timeWindow: input.timeWindow ?? previousTimeWindow
-    },
-    appointment: {
-      id: updated.id,
-      startAt: updated.startAt,
-      durationMinutes: updated.durationMinutes,
-      travelBufferMinutes: updated.travelBufferMinutes ?? travelBufferMinutes,
-      status: "confirmed",
-      rescheduleToken: updated.rescheduleToken,
-      rescheduleUrl
-    },
-    notes: typeof existingNotesValue === "string" ? existingNotesValue : null
-  };
-
-  await sendEstimateConfirmation(confirmation, "rescheduled");
-
   return NextResponse.json({
     ok: true,
     appointmentId: updated.id,
@@ -288,3 +253,4 @@ export async function POST(
     timeWindow: input.timeWindow ?? previousTimeWindow
   });
 }
+

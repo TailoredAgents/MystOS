@@ -90,6 +90,44 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
       }),
     []
   );
+  const appointmentTimeZoneLabel = React.useMemo(
+    () => (APPOINTMENT_TIME_ZONE.includes("_") ? APPOINTMENT_TIME_ZONE.replace("_", " ") : APPOINTMENT_TIME_ZONE),
+    []
+  );
+  const buildConfirmationMessage = React.useCallback(
+    ({
+      startAtIso,
+      preferredDateValue,
+      timeWindowValue
+    }: {
+      startAtIso: string | null;
+      preferredDateValue: string | null;
+      timeWindowValue: string | null;
+    }): string => {
+      const windowLabel = timeWindowValue
+        ? availabilityMap.get(timeWindowValue)?.label ?? timeWindowValue
+        : null;
+
+      if (startAtIso) {
+        const arrivalText = timeFormatter.format(new Date(startAtIso));
+        return `Crew arrival is locked for ${arrivalText} (${appointmentTimeZoneLabel}). You'll get prep tips plus reminders 24h and 2h before we roll up.`;
+      }
+
+      if (preferredDateValue) {
+        const parsed = new Date(`${preferredDateValue}T00:00:00`);
+        const dateText = dateFormatter.format(parsed);
+        const windowText = windowLabel ? ` during the ${windowLabel} window` : "";
+        return `We penciled you in for ${dateText}${windowText}. We'll text shortly with exact arrival details (${appointmentTimeZoneLabel}).`;
+      }
+
+      if (windowLabel) {
+        return `We're locking in the ${windowLabel} window (${appointmentTimeZoneLabel}) and will confirm by text shortly.`;
+      }
+
+      return "Our dispatcher is reviewing your request now. Expect a confirmation text shortly with the best arrival window for your property.";
+    },
+    [availabilityMap, dateFormatter, timeFormatter, appointmentTimeZoneLabel]
+  );
   const serviceTitles = React.useMemo(() => {
     if (formState.status !== "success") {
       return [] as string[];
@@ -272,9 +310,14 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
       const preferredDateValue = result.preferredDate ?? preferredDate ?? "";
       const timeWindowValue = result.timeWindow ?? timeWindow ?? "";
 
+      const successMessage = buildConfirmationMessage({
+        startAtIso: result.startAt ?? null,
+        preferredDateValue: preferredDateValue || null,
+        timeWindowValue: timeWindowValue || null
+      });
       setFormState({
         status: "success",
-        message: "Thanks! We'll confirm shortly and send reminders before we arrive.",
+        message: successMessage,
         appointmentId: result.appointmentId ?? null,
         rescheduleToken: result.rescheduleToken ?? null,
         startAtIso: result.startAt ?? null,
@@ -357,8 +400,17 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
         throw new Error("reschedule_failed");
       }
 
+      const updatedStartAtIso = result.startAt ?? formState.startAtIso ?? null;
+      const updatedPreferred = (result.preferredDate ?? rescheduleDate) || formState.preferredDate || null;
+      const updatedWindow = (result.timeWindow ?? rescheduleWindow) || formState.timeWindow || null;
+      const updatedMessage = buildConfirmationMessage({
+        startAtIso: updatedStartAtIso,
+        preferredDateValue: updatedPreferred,
+        timeWindowValue: updatedWindow
+      });
+
       setRescheduleStatus("success");
-      setRescheduleFeedback("Appointment updated. We'll send refreshed reminders.");
+      setRescheduleFeedback("Appointment updated. We'll send refreshed reminders before arrival.");
       setFormState((previous) => {
         if (previous.status !== "success") {
           return previous;
@@ -366,10 +418,10 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
 
         return {
           ...previous,
-          message: "Appointment updated. We'll send reminders before we arrive.",
-          startAtIso: result.startAt ?? previous.startAtIso,
-          preferredDate: (result.preferredDate ?? rescheduleDate) || null,
-          timeWindow: (result.timeWindow ?? rescheduleWindow) || null,
+          message: updatedMessage,
+          startAtIso: updatedStartAtIso,
+          preferredDate: updatedPreferred,
+          timeWindow: updatedWindow,
           durationMinutes: result.durationMinutes ?? previous.durationMinutes,
           rescheduleToken: result.rescheduleToken ?? previous.rescheduleToken
         } satisfies SuccessState;
@@ -396,12 +448,17 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
         <h3 className="font-display text-headline text-primary-800">
           You&apos;re on our in-person schedule!
         </h3>
-        <p className="mt-3 text-body text-neutral-600">
-          {appointmentDisplay
-            ? `We&apos;ll see you ${appointmentDisplay}.`
-            : "We&apos;ll call to confirm a time that works best for you."}
-        </p>
-        <p className="mt-2 text-sm text-neutral-500">{formState.message}</p>
+        <div className="mt-3 space-y-2 text-neutral-600">
+          <p className="text-body">
+            {appointmentDisplay
+              ? `We'll see you ${appointmentDisplay}.`
+              : "We'll call to confirm a time that works best for you."}
+          </p>
+          <p className="text-sm text-neutral-600">{formState.message}</p>
+          {appointmentDisplay ? (
+            <p className="text-xs text-neutral-500">Times shown in {appointmentTimeZoneLabel}.</p>
+          ) : null}
+        </div>
         {serviceTitles.length ? (
           <div className="mt-6">
             <h4 className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">

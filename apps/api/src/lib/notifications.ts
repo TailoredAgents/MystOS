@@ -1,5 +1,6 @@
 import nodemailer from "nodemailer";
 import { DateTime } from "luxon";
+import { generateEstimateNotificationCopy } from "@/lib/ai";
 
 interface BaseContact {
   name: string;
@@ -229,7 +230,8 @@ export async function sendEstimateConfirmation(
   const rescheduleUrl = buildRescheduleUrl(appointment);
   const headline = reason === "requested" ? "You're booked!" : "Appointment updated";
 
-  const textBodyLines = [
+  const fallbackSubject = `Myst Estimate - ${when}`;
+  const fallbackBody = [
     `${headline} We'll see you ${when}.`,
     `Location: ${property.addressLine1}, ${property.city}, ${property.state} ${property.postalCode}`,
     `Services: ${joinServices(payload.services)}`,
@@ -241,15 +243,41 @@ export async function sendEstimateConfirmation(
     .filter((line): line is string => Boolean(line))
     .join("\n");
 
+  const fallbackSms =
+    reason === "requested"
+      ? `Myst confirm: estimate on ${when}. Need to adjust? ${rescheduleUrl}`
+      : `Myst update: new estimate time ${when}. Need changes? ${rescheduleUrl}`;
+
+  let generated = null;
+  try {
+    generated = await generateEstimateNotificationCopy({
+      when,
+      services: payload.services,
+      notes: payload.notes,
+      rescheduleUrl,
+      reason,
+      address: {
+        line1: property.addressLine1,
+        city: property.city,
+        state: property.state,
+        postalCode: property.postalCode
+      },
+      contactName: contact.name
+    });
+  } catch (error) {
+    console.warn("[notify] ai.copy.error", { error: String(error) });
+  }
+
   if (contact.phone) {
-    const smsBody =
-      reason === "requested"
-        ? `Myst confirm: estimate on ${when}. Need to adjust? ${rescheduleUrl}`
-        : `Myst update: new estimate time ${when}. Need changes? ${rescheduleUrl}`;
+    const smsBody = generated?.smsBody && generated.smsBody.length <= 320 ? generated.smsBody : fallbackSms;
     await sendSms(contact.phone, smsBody, { leadId: payload.leadId, appointmentId: appointment.id });
   }
 
-  await sendEmail(payload, `Myst Estimate - ${when}`, textBodyLines);
+  await sendEmail(
+    payload,
+    generated?.emailSubject && generated.emailSubject.length <= 120 ? generated.emailSubject : fallbackSubject,
+    generated?.emailBody && generated.emailBody.length <= 1000 ? generated.emailBody : fallbackBody
+  );
 }
 
 interface ReminderOptions {
@@ -265,8 +293,38 @@ async function sendEstimateReminderInternal(
   const rescheduleUrl = buildRescheduleUrl(appointment);
   const windowHours = Math.round(options.windowMinutes / 60);
 
+  const fallbackSms = `Myst reminder: estimate in ${windowHours}h (${when}). Need to reschedule? ${rescheduleUrl}`;
+  const fallbackEmailBody = [
+    `Quick reminder: your Myst Pressure Washing estimate is in ${windowHours} hours (${when}).`,
+    `Location: ${payload.property.addressLine1}, ${payload.property.city}, ${payload.property.state} ${payload.property.postalCode}`,
+    "",
+    `Need to adjust? ${rescheduleUrl}`
+  ].join("\n");
+  const fallbackSubject = `Reminder: Myst estimate ${when}`;
+
+  let generated = null;
+  try {
+    generated = await generateEstimateNotificationCopy({
+      when,
+      services: payload.services,
+      notes: payload.notes,
+      rescheduleUrl,
+      reason: "reminder",
+      reminderWindowHours: windowHours,
+      address: {
+        line1: payload.property.addressLine1,
+        city: payload.property.city,
+        state: payload.property.state,
+        postalCode: payload.property.postalCode
+      },
+      contactName: payload.contact.name
+    });
+  } catch (error) {
+    console.warn("[notify] reminder.ai.error", { error: String(error) });
+  }
+
   if (contact.phone) {
-    const smsBody = `Myst reminder: estimate in ${windowHours}h (${when}). Need to reschedule? ${rescheduleUrl}`;
+    const smsBody = generated?.smsBody && generated.smsBody.length <= 320 ? generated.smsBody : fallbackSms;
     await sendSms(contact.phone, smsBody, {
       leadId: payload.leadId,
       appointmentId: appointment.id,
@@ -279,13 +337,9 @@ async function sendEstimateReminderInternal(
   const to = payload.contact.email;
 
   if (transporter && from && to) {
-    const subject = `Reminder: Myst estimate ${when}`;
-    const text = [
-      `Quick reminder: your Myst Pressure Washing estimate is in ${windowHours} hours (${when}).`,
-      `Location: ${payload.property.addressLine1}, ${payload.property.city}, ${payload.property.state} ${payload.property.postalCode}`,
-      "",
-      `Need to adjust? ${rescheduleUrl}`
-    ].join("\n");
+    const subject =
+      generated?.emailSubject && generated.emailSubject.length <= 120 ? generated.emailSubject : fallbackSubject;
+    const text = generated?.emailBody && generated.emailBody.length <= 1000 ? generated.emailBody : fallbackEmailBody;
 
     try {
       await transporter.sendMail({ from, to, subject, text });
