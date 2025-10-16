@@ -8,7 +8,7 @@ const config = {
     "^(\\.{1,2}/.*)\\.js$": "$1",
     "^@/(.*)$": "<rootDir>/src/$1",
     "^@myst-os/pricing$": "<rootDir>/../../packages/pricing/src/index.ts",
-    "^@myst-os/pricing/(.*)$": "<rootDir>/../../packages/pricing/src/$1"
+    "^@myst-os/pricing/(.*)$": "<rootDir>/../../packages/pricing/$1"
   },
   globals: {
     "ts-jest": {

@@ -9,6 +9,18 @@ import {
 
 type OutboxEventRecord = typeof outboxEvents.$inferSelect;
 
+export interface OutboxBatchStats {
+  total: number;
+  processed: number;
+  skipped: number;
+  errors: number;
+}
+
+export interface ProcessOutboxBatchOptions {
+  limit?: number;
+}
+
+
 const APPOINTMENT_STATUS_VALUES = ["requested", "confirmed", "completed", "no_show", "canceled"] as const;
 type AppointmentStatus = (typeof APPOINTMENT_STATUS_VALUES)[number];
 const VALID_APPOINTMENT_STATUSES = new Set<string>(APPOINTMENT_STATUS_VALUES);
@@ -350,12 +362,9 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
   }
 }
 
-export async function processOutboxBatch(options: { limit?: number } = {}): Promise<{
-  total: number;
-  processed: number;
-  skipped: number;
-  errors: number;
-}> {
+export async function processOutboxBatch(
+  options: ProcessOutboxBatchOptions = {}
+): Promise<OutboxBatchStats> {
   const db = getDb();
   const { limit = 10 } = options;
 
@@ -366,7 +375,7 @@ export async function processOutboxBatch(options: { limit?: number } = {}): Prom
     .orderBy(asc(outboxEvents.createdAt))
     .limit(limit);
 
-  const stats = {
+  const stats: OutboxBatchStats = {
     total: events.length,
     processed: 0,
     skipped: 0,
