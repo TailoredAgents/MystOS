@@ -4,15 +4,26 @@ import { getDb, payments } from "@/db";
 import { isAdminRequest } from "../../web/admin";
 import { listRecentCharges, mapChargeToPaymentRow } from "@/lib/stripe";
 import { resolveAppointmentIdForCharge } from "@/lib/payment-matching";
-import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest): Promise<Response> {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as { days?: number };
-  const days = typeof body.days === "number" && body.days > 0 && body.days <= 90 ? body.days : 14;
+  let rawBody: unknown = {};
+  try {
+    rawBody = await request.json();
+  } catch {
+    rawBody = {};
+  }
+
+  const daysInput =
+    rawBody && typeof rawBody === "object" && "days" in rawBody
+      ? (rawBody as Record<string, unknown>).days
+      : undefined;
+  const days =
+    typeof daysInput === "number" && daysInput > 0 && daysInput <= 90 ? daysInput : 14;
 
   try {
     const db = getDb();

@@ -102,10 +102,6 @@ export async function POST(
     }
   }
 
-  const notesCandidate = existingFormPayload?.["notes"];
-  const existingNotesValue =
-    typeof notesCandidate === "string" ? notesCandidate : existing.leadNotes ?? null;
-
   if (!isAdmin) {
     if (!input.rescheduleToken) {
       return NextResponse.json({ error: "token_required" }, { status: 403 });

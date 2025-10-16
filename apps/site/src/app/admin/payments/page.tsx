@@ -41,6 +41,31 @@ type PaymentsSummary = {
   unmatched: number;
 };
 
+function isPaymentsPayload(value: unknown): value is { payments: PaymentResponse[]; summary?: PaymentsSummary } {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  if (!Array.isArray(record.payments)) {
+    return false;
+  }
+
+  const summary = record.summary;
+  if (summary !== undefined) {
+    if (!summary || typeof summary !== "object") {
+      return false;
+    }
+    const summaryRecord = summary as Record<string, unknown>;
+    const validNumber = (key: string) => summaryRecord[key] === undefined || typeof summaryRecord[key] === "number";
+    if (!validNumber("total") || !validNumber("matched") || !validNumber("unmatched")) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
 async function callPaymentsApi(path: string, init?: RequestInit): Promise<Response> {
   if (!ADMIN_API_KEY) {
     throw new Error("ADMIN_API_KEY must be set to access the admin payments board.");
@@ -148,15 +173,20 @@ export default async function PaymentsPage({ searchParams }: { searchParams?: { 
     throw new Error("Unable to load payments");
   }
 
-  const {
-    payments,
-    summary
-  }: {
-    payments: PaymentResponse[];
-    summary?: PaymentsSummary;
-  } = await response.json();
+  const raw = (await response.json()) as unknown;
+  if (!isPaymentsPayload(raw)) {
+    throw new Error("Invalid payments response from API");
+  }
 
-  const summaryData: PaymentsSummary = summary ?? { total: payments.length, matched: 0, unmatched: payments.length };
+  const { payments, summary } = raw;
+
+  const summaryData: PaymentsSummary = summary
+    ? {
+        total: typeof summary.total === "number" ? summary.total : payments.length,
+        matched: typeof summary.matched === "number" ? summary.matched : 0,
+        unmatched: typeof summary.unmatched === "number" ? summary.unmatched : Math.max(payments.length - (summary.matched ?? 0), 0)
+      }
+    : { total: payments.length, matched: 0, unmatched: payments.length };
   const filterCounts: Record<string, number> = {
     all: summaryData.total,
     matched: summaryData.matched,
@@ -300,7 +330,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams?: { 
                               placeholder="Appointment ID"
                               defaultValue={
                                 payment.metadata && typeof payment.metadata["appointment_id"] === "string"
-                                  ? (payment.metadata["appointment_id"] as string)
+                                  ? payment.metadata["appointment_id"]
                                   : undefined
                               }
                               className="rounded border border-neutral-300 px-2 py-1 text-sm"

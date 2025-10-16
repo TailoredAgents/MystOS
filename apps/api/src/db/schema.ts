@@ -205,6 +205,11 @@ export const quotes = pgTable(
     availability: jsonb("availability").$type<Record<string, unknown> | null>(),
     marketing: jsonb("marketing").$type<Record<string, unknown> | null>(),
     notes: text("notes"),
+    shareToken: text("share_token"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    decisionAt: timestamp("decision_at", { withTimezone: true }),
+    decisionNotes: text("decision_notes"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -213,7 +218,8 @@ export const quotes = pgTable(
   },
   (table) => ({
     contactIdx: index("quotes_contact_idx").on(table.contactId),
-    propertyIdx: index("quotes_property_idx").on(table.propertyId)
+    propertyIdx: index("quotes_property_idx").on(table.propertyId),
+    shareTokenIdx: uniqueIndex("quotes_share_token_key").on(table.shareToken)
   })
 );
 

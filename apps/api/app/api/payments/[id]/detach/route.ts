@@ -5,6 +5,7 @@ import { isAdminRequest } from "../../web/admin";
 import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }): Promise<Response> {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

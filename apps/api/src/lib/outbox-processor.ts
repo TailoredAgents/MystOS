@@ -5,16 +5,16 @@ import { sendEstimateConfirmation } from "@/lib/notifications";
 
 type OutboxEventRecord = typeof outboxEvents.$inferSelect;
 
-const VALID_APPOINTMENT_STATUSES = new Set<EstimateNotificationPayload["appointment"]["status"]>([
-  "requested",
-  "confirmed",
-  "completed",
-  "no_show",
-  "canceled"
-]);
+const APPOINTMENT_STATUS_VALUES = ["requested", "confirmed", "completed", "no_show", "canceled"] as const;
+type AppointmentStatus = (typeof APPOINTMENT_STATUS_VALUES)[number];
+const VALID_APPOINTMENT_STATUSES = new Set<string>(APPOINTMENT_STATUS_VALUES);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
+}
+
+function isValidAppointmentStatus(value: unknown): value is AppointmentStatus {
+  return typeof value === "string" && VALID_APPOINTMENT_STATUSES.has(value);
 }
 
 function coerceServices(input: unknown): string[] {
@@ -102,9 +102,7 @@ async function buildNotificationPayload(
     row.contactLastName ||
     "Myst Customer";
 
-  const status = VALID_APPOINTMENT_STATUSES.has(row.status as EstimateNotificationPayload["appointment"]["status"])
-    ? (row.status as EstimateNotificationPayload["appointment"]["status"])
-    : "requested";
+  const status: AppointmentStatus = isValidAppointmentStatus(row.status) ? row.status : "requested";
 
   const rescheduleToken = row.rescheduleToken;
   if (!rescheduleToken) {
@@ -153,8 +151,7 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
       }
 
       const services = coerceServices(payload?.services);
-      const schedulingOverride =
-        payload && isRecord(payload["scheduling"]) ? (payload["scheduling"] as Record<string, unknown>) : null;
+      const schedulingOverride = payload && isRecord(payload["scheduling"]) ? payload["scheduling"] : null;
 
       const notification = await buildNotificationPayload(appointmentId, {
         services,
@@ -266,4 +263,3 @@ export async function processOutboxBatch(options: { limit?: number } = {}): Prom
 
   return stats;
 }
-

@@ -5,6 +5,7 @@ import { isAdminRequest } from "../../web/admin";
 import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }): Promise<Response> {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
@@ -14,8 +15,18 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     return NextResponse.json({ error: "missing_id" }, { status: 400 });
   }
 
-  const body = (await request.json().catch(() => ({}))) as { appointmentId?: string | null };
-  const appointmentId = typeof body.appointmentId === "string" ? body.appointmentId.trim() : null;
+  let rawBody: unknown = {};
+  try {
+    rawBody = await request.json();
+  } catch {
+    rawBody = {};
+  }
+
+  const appointmentInput =
+    rawBody && typeof rawBody === "object" && "appointmentId" in rawBody
+      ? (rawBody as Record<string, unknown>).appointmentId
+      : undefined;
+  const appointmentId = typeof appointmentInput === "string" ? appointmentInput.trim() : null;
 
   if (!appointmentId) {
     return NextResponse.json({ error: "invalid_payload", message: "appointmentId is required" }, { status: 400 });

@@ -3,7 +3,10 @@ import type { StripeCharge } from "./stripe";
 import { and, desc, eq, ne } from "drizzle-orm";
 import { appointments, contacts } from "@/db";
 
-function getMetadataValue<T extends string>(metadata: Record<string, unknown> | null | undefined, keys: T[]): string | null {
+function getMetadataValue<T extends string>(
+  metadata: Record<string, string | null | undefined> | null | undefined,
+  keys: T[]
+): string | null {
   if (!metadata) {
     return null;
   }
@@ -17,7 +20,7 @@ function getMetadataValue<T extends string>(metadata: Record<string, unknown> | 
 }
 
 export async function resolveAppointmentIdForCharge(db: DatabaseClient, charge: StripeCharge): Promise<string | null> {
-  const metadata = (charge.metadata ?? null) as Record<string, unknown> | null;
+  const metadata = charge.metadata ?? null;
   const directId = getMetadataValue(metadata, [
     "appointment_id",
     "appointmentId",

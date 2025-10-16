@@ -122,7 +122,7 @@ export function HeroV2({ className, variant = "lean" }: { className?: string; va
                 <li>- Make-It-Right Guarantee: we fix issues within 48 hours.</li>
               </ul>
               <div className="rounded-lg bg-neutral-50 p-4 text-sm text-neutral-600">
-                <p className="font-semibold text-neutral-700">"Their crew was on time, communicative, and left everything spotless."</p>
+                <p className="font-semibold text-neutral-700">&ldquo;Their crew was on time, communicative, and left everything spotless.&rdquo;</p>
                 <p className="mt-2 text-xs uppercase tracking-[0.18em] text-neutral-500">Brianna S. - Woodstock</p>
               </div>
             </div>

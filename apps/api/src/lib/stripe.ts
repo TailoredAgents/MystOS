@@ -1,3 +1,13 @@
+export interface StripeCardDetails {
+  brand?: string;
+  last4?: string;
+}
+
+export interface StripePaymentMethodDetails {
+  type?: string;
+  card?: StripeCardDetails | null;
+}
+
 export interface StripeCharge {
   id: string;
   amount: number; // cents
@@ -6,12 +16,41 @@ export interface StripeCharge {
   created: number; // epoch seconds
   captured: boolean;
   captured_at?: number | null;
+  paid?: boolean;
+  refunded?: boolean;
   receipt_url?: string | null;
-  metadata?: Record<string, unknown> | null;
-  payment_method_details?: {
-    type?: string;
-    card?: { brand?: string; last4?: string } | null;
-  } | null;
+  metadata?: Record<string, string | null | undefined> | null;
+  payment_method_details?: StripePaymentMethodDetails | null;
+}
+
+export interface StripePaymentRow {
+  stripeChargeId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  method: string | null;
+  cardBrand: string | null;
+  last4: string | null;
+  receiptUrl: string | null;
+  metadata: Record<string, string | null | undefined> | null;
+  appointmentId: string | null;
+  createdAt: Date;
+  capturedAt: Date | null;
+}
+
+function isStripeCharge(value: unknown): value is StripeCharge {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.id === "string" &&
+    typeof record.amount === "number" &&
+    typeof record.currency === "string" &&
+    typeof record.status === "string" &&
+    typeof record.created === "number" &&
+    typeof record.captured === "boolean"
+  );
 }
 
 export async function listRecentCharges(days: number = 14): Promise<StripeCharge[]> {
@@ -38,22 +77,18 @@ export async function listRecentCharges(days: number = 14): Promise<StripeCharge
   }
 
   const data = (await response.json()) as { data?: unknown[] };
-  const list = Array.isArray(data.data) ? (data.data as StripeCharge[]) : [];
+  const rawList = Array.isArray(data.data) ? data.data.filter(isStripeCharge) : [];
 
-  return list.filter((charge) => {
-    const status = (charge as StripeCharge).status;
-    const paid = (charge as any).paid;
-    const refunded = Boolean((charge as any).refunded);
-
-    if (refunded) {
+  return rawList.filter((charge) => {
+    if (charge.refunded) {
       return false;
     }
 
-    if (status && status !== "succeeded") {
+    if (charge.status !== "succeeded") {
       return false;
     }
 
-    if (paid === false) {
+    if (charge.paid === false) {
       return false;
     }
 
@@ -61,33 +96,44 @@ export async function listRecentCharges(days: number = 14): Promise<StripeCharge
   });
 }
 
-export function mapChargeToPaymentRow(charge: StripeCharge) {
-  const pm = charge.payment_method_details ?? {};
-  const card = (pm as any).card ?? {};
+export function mapChargeToPaymentRow(charge: StripeCharge): StripePaymentRow {
+  const paymentMethod = charge.payment_method_details ?? undefined;
+  const card = paymentMethod?.card ?? undefined;
 
   const capturedAtUnix =
-    typeof (charge as any).captured_at === "number"
-      ? (charge as any).captured_at
-      : (charge as any).captured
+    typeof charge.captured_at === "number"
+      ? charge.captured_at
+      : charge.captured
         ? charge.created
         : undefined;
 
-  const metadata = (charge.metadata ?? {}) as Record<string, unknown>;
-  const appointmentIdKey = ["appointment_id", "appointmentId", "appointmentID", "AppointmentId"].find(
-    (key) => typeof metadata[key] === "string" && (metadata[key] as string).trim().length > 0
-  );
-  const appointmentId = appointmentIdKey ? ((metadata[appointmentIdKey] as string).trim() ?? null) : null;
+  const metadata = charge.metadata ?? null;
+  const metadataRecord = metadata ?? null;
+  const appointmentIdKeys = ["appointment_id", "appointmentId", "appointmentID", "AppointmentId"] as const;
+  let appointmentId: string | null = null;
+  if (metadataRecord) {
+    for (const key of appointmentIdKeys) {
+      const value = metadataRecord[key];
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (trimmed.length > 0) {
+          appointmentId = trimmed;
+          break;
+        }
+      }
+    }
+  }
 
   return {
     stripeChargeId: charge.id,
     amount: charge.amount,
     currency: charge.currency,
     status: charge.status,
-    method: (pm as any).type ?? null,
-    cardBrand: card.brand ?? null,
-    last4: card.last4 ?? null,
-    receiptUrl: (charge as any).receipt_url ?? null,
-    metadata: charge.metadata ?? null,
+    method: paymentMethod?.type ?? null,
+    cardBrand: card?.brand ?? null,
+    last4: card?.last4 ?? null,
+    receiptUrl: charge.receipt_url ?? null,
+    metadata: metadataRecord,
     appointmentId,
     createdAt: new Date(charge.created * 1000),
     capturedAt: capturedAtUnix ? new Date(capturedAtUnix * 1000) : null
