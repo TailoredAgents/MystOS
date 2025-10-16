@@ -35,6 +35,12 @@ type PaymentResponse = {
   } | null;
 };
 
+type PaymentsSummary = {
+  total: number;
+  matched: number;
+  unmatched: number;
+};
+
 async function callPaymentsApi(path: string, init?: RequestInit): Promise<Response> {
   if (!ADMIN_API_KEY) {
     throw new Error("ADMIN_API_KEY must be set to access the admin payments board.");
@@ -142,7 +148,20 @@ export default async function PaymentsPage({ searchParams }: { searchParams?: { 
     throw new Error("Unable to load payments");
   }
 
-  const { payments }: { payments: PaymentResponse[] } = await response.json();
+  const {
+    payments,
+    summary
+  }: {
+    payments: PaymentResponse[];
+    summary?: PaymentsSummary;
+  } = await response.json();
+
+  const summaryData: PaymentsSummary = summary ?? { total: payments.length, matched: 0, unmatched: payments.length };
+  const filterCounts: Record<string, number> = {
+    all: summaryData.total,
+    matched: summaryData.matched,
+    unmatched: summaryData.unmatched
+  };
 
   return (
     <div className="space-y-8">
@@ -155,6 +174,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams?: { 
           {FILTERS.map((item) => {
             const isActive = item.key === filter;
             const href = item.key === "all" ? "/admin/payments" : `/admin/payments?filter=${item.key}`;
+            const count = filterCounts[item.key] ?? 0;
             return (
               <Link
                 key={item.key}
@@ -163,12 +183,32 @@ export default async function PaymentsPage({ searchParams }: { searchParams?: { 
                   isActive ? "bg-primary-900 text-white" : "bg-neutral-200 text-neutral-700"
                 }`}
               >
-                {item.label}
+                {item.label} ({count})
               </Link>
             );
           })}
         </nav>
       </header>
+
+      <section className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+        <dl className="grid gap-4 sm:grid-cols-3">
+          <div className="space-y-1">
+            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">Unmatched charges</dt>
+            <dd className="text-2xl font-semibold text-primary-900">{summaryData.unmatched}</dd>
+            <p className="text-xs text-neutral-500">Charges waiting to be linked to an appointment.</p>
+          </div>
+          <div className="space-y-1">
+            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">Matched</dt>
+            <dd className="text-2xl font-semibold text-primary-900">{summaryData.matched}</dd>
+            <p className="text-xs text-neutral-500">Charges attached to an appointment.</p>
+          </div>
+          <div className="space-y-1">
+            <dt className="text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500">Total imported</dt>
+            <dd className="text-2xl font-semibold text-primary-900">{summaryData.total}</dd>
+            <p className="text-xs text-neutral-500">Last synced via Stripe API.</p>
+          </div>
+        </dl>
+      </section>
 
       <div className="overflow-x-auto rounded-lg border border-neutral-200 bg-white shadow-sm">
         <table className="min-w-full divide-y divide-neutral-200">

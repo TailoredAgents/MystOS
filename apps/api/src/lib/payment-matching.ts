@@ -18,7 +18,13 @@ function getMetadataValue<T extends string>(metadata: Record<string, unknown> | 
 
 export async function resolveAppointmentIdForCharge(db: DatabaseClient, charge: StripeCharge): Promise<string | null> {
   const metadata = (charge.metadata ?? null) as Record<string, unknown> | null;
-  const directId = getMetadataValue(metadata, ["appointment_id", "appointmentId"]);
+  const directId = getMetadataValue(metadata, [
+    "appointment_id",
+    "appointmentId",
+    "appointmentID",
+    "AppointmentId",
+    "AppointmentID"
+  ]);
   if (directId) {
     const existing = await db
       .select({ id: appointments.id })

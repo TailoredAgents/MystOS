@@ -58,6 +58,11 @@ Render deployment details are tracked in `DEPLOY-ON-RENDER.md` along with the ge
 - For email, replace the logger with your provider integration (e.g., Gmail/SMTP) when credentials are ready.
 - Outbox events are drained by a lightweight worker. See `docs/outbox-worker.md` for deployment instructions.
 
+## Payments & Stripe
+- Backfill charges with `pnpm tsx scripts/stripe-backfill.ts` (or the admin backfill endpoint).
+- Charges tagged with `appointment_id` metadata in Stripe will auto-attach to the matching appointment.
+- Review and reconcile charges under `/admin/payments`; the dashboard highlights unmatched counts.
+
 ### Environment for Chat & Notifications
 - Chat API (in `apps/site`) reads `OPENAI_API_KEY` and optional `OPENAI_MODEL` (defaults to `gpt-4o-mini`).
 - For SMS/email provider wiring, add:

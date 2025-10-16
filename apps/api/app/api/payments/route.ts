@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { desc, eq, isNull, isNotNull } from "drizzle-orm";
+import { desc, eq, isNull, isNotNull, sql } from "drizzle-orm";
 import { getDb, payments, appointments, contacts } from "@/db";
 import { isAdminRequest } from "../web/admin";
 
@@ -49,7 +49,24 @@ export async function GET(request: NextRequest): Promise<Response> {
         ? baseQuery.where(isNotNull(payments.appointmentId))
         : baseQuery;
 
-  const rows = await filteredQuery.orderBy(desc(payments.createdAt));
+  const [rows, summaryRow] = await Promise.all([
+    filteredQuery.orderBy(desc(payments.createdAt)),
+    db
+      .select({
+        total: sql<number>`count(*)`,
+        matched: sql<number>`count(*) filter (where ${payments.appointmentId} is not null)`
+      })
+      .from(payments)
+      .then((result) => result[0] ?? { total: 0, matched: 0 })
+  ]);
+
+  const total = Number(summaryRow.total ?? 0);
+  const matched = Number(summaryRow.matched ?? 0);
+  const summary = {
+    total,
+    matched,
+    unmatched: Math.max(total - matched, 0)
+  };
 
   const paymentsDto = rows.map((row) => {
     const contactName = row.contactFirstName && row.contactLastName
@@ -86,5 +103,5 @@ export async function GET(request: NextRequest): Promise<Response> {
     };
   });
 
-  return NextResponse.json({ payments: paymentsDto });
+  return NextResponse.json({ payments: paymentsDto, summary });
 }

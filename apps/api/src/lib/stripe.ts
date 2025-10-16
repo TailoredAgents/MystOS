@@ -38,19 +38,45 @@ export async function listRecentCharges(days: number = 14): Promise<StripeCharge
   }
 
   const data = (await response.json()) as { data?: unknown[] };
-  const list = Array.isArray(data.data) ? data.data : [];
-  return list as StripeCharge[];
+  const list = Array.isArray(data.data) ? (data.data as StripeCharge[]) : [];
+
+  return list.filter((charge) => {
+    const status = (charge as StripeCharge).status;
+    const paid = (charge as any).paid;
+    const refunded = Boolean((charge as any).refunded);
+
+    if (refunded) {
+      return false;
+    }
+
+    if (status && status !== "succeeded") {
+      return false;
+    }
+
+    if (paid === false) {
+      return false;
+    }
+
+    return true;
+  });
 }
 
 export function mapChargeToPaymentRow(charge: StripeCharge) {
   const pm = charge.payment_method_details ?? {};
   const card = (pm as any).card ?? {};
 
-  const capturedAt = (charge as any).captured ? (charge as any).created : undefined;
-  const appointmentId =
-    typeof (charge.metadata as any)?.appointment_id === "string"
-      ? ((charge.metadata as any).appointment_id as string)
-      : null;
+  const capturedAtUnix =
+    typeof (charge as any).captured_at === "number"
+      ? (charge as any).captured_at
+      : (charge as any).captured
+        ? charge.created
+        : undefined;
+
+  const metadata = (charge.metadata ?? {}) as Record<string, unknown>;
+  const appointmentIdKey = ["appointment_id", "appointmentId", "appointmentID", "AppointmentId"].find(
+    (key) => typeof metadata[key] === "string" && (metadata[key] as string).trim().length > 0
+  );
+  const appointmentId = appointmentIdKey ? ((metadata[appointmentIdKey] as string).trim() ?? null) : null;
 
   return {
     stripeChargeId: charge.id,
@@ -64,7 +90,6 @@ export function mapChargeToPaymentRow(charge: StripeCharge) {
     metadata: charge.metadata ?? null,
     appointmentId,
     createdAt: new Date(charge.created * 1000),
-    capturedAt: capturedAt ? new Date(capturedAt * 1000) : null
+    capturedAt: capturedAtUnix ? new Date(capturedAtUnix * 1000) : null
   };
 }
-
