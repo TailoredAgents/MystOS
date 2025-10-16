@@ -17,7 +17,9 @@ export async function POST(request: NextRequest) {
     }
 
     const apiKey = process.env["OPENAI_API_KEY"];
-    const model = process.env["OPENAI_MODEL"] || "gpt-4o-mini";
+    // Prefer configured model; default to GPT‑5 mini per project preference
+    const configuredModel = process.env["OPENAI_MODEL"];
+    const model = configuredModel && configuredModel.trim().length > 0 ? configuredModel : "gpt-5-mini";
     if (!apiKey) {
       return NextResponse.json(
         {
@@ -28,26 +30,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: message }
-        ],
-        temperature: 0.4,
-        max_tokens: 500
-      })
-    });
+    async function callOpenAI(targetModel: string) {
+      return fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model: targetModel,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: message }
+          ],
+          temperature: 0.4,
+          max_tokens: 500
+        })
+      });
+    }
+
+    let response = await callOpenAI(model);
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
-      return NextResponse.json({ error: "openai_error", details: text }, { status: 502 });
+      const isDev = process.env["NODE_ENV"] !== "production";
+      const status = response.status;
+
+      // In development, try a known stable fallback if the configured model fails with 400/404
+      if (isDev && (status === 400 || status === 404)) {
+        const fallbackModel = "gpt-4.1";
+        response = await callOpenAI(fallbackModel);
+        if (!response.ok) {
+          const fbText = await response.text().catch(() => "");
+          return NextResponse.json(
+            {
+              error: "openai_error",
+              details: text || fbText,
+              hint: `Model '${model}' may be unsupported. Tried dev fallback '${fallbackModel}'.`
+            },
+            { status: 502 }
+          );
+        }
+      } else {
+        return NextResponse.json(
+          {
+            error: "openai_error",
+            details: text,
+            hint: `Check OPENAI_MODEL ('${model}') and API key permissions.`
+          },
+          { status: 502 }
+        );
+      }
     }
 
     const data = (await response.json()) as unknown as { choices?: Array<{ message?: { content?: string } }> };

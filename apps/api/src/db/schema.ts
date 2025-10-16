@@ -280,3 +280,31 @@ export const appointmentNoteRelations = relations(appointmentNotes, ({ one }) =>
   })
 }));
 
+// Payments (Stripe charge ingestion for reconciliation)
+export const payments = pgTable(
+  "payments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    stripeChargeId: text("stripe_charge_id").notNull(),
+    amount: integer("amount").notNull(), // cents
+    currency: varchar("currency", { length: 10 }).notNull(),
+    status: text("status").notNull(),
+    method: text("method"),
+    cardBrand: text("card_brand"),
+    last4: varchar("last4", { length: 4 }),
+    receiptUrl: text("receipt_url"),
+    metadata: jsonb("metadata").$type<Record<string, unknown> | null>(),
+    appointmentId: uuid("appointment_id").references(() => appointments.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date()),
+    capturedAt: timestamp("captured_at", { withTimezone: true })
+  },
+  (table) => ({
+    stripeIdx: uniqueIndex("payments_charge_idx").on(table.stripeChargeId),
+    appointmentIdx: index("payments_appointment_idx").on(table.appointmentId)
+  })
+);
+
