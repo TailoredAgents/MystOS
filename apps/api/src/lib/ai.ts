@@ -18,6 +18,18 @@ interface AppointmentSummary {
   contactName: string;
 }
 
+interface QuoteSummary {
+  customerName: string;
+  services: string[];
+  total: number;
+  depositDue: number;
+  balanceDue: number;
+  shareUrl: string;
+  expiresAtIso?: string | null;
+  notes?: string | null;
+  reason: "sent" | "accepted" | "declined";
+}
+
 export interface NotificationCopy {
   emailSubject?: string;
   emailBody?: string;
@@ -181,3 +193,50 @@ Constraints:
   return callOpenAI({ apiKey: config.apiKey, model: config.model, systemPrompt, userPrompt });
 }
 
+export async function generateQuoteNotificationCopy(summary: QuoteSummary): Promise<NotificationCopy | null> {
+  const config = getOpenAIConfig();
+  if (!config) {
+    return null;
+  }
+
+  const systemPrompt = `You are Myst Assist, crafting short, on-brand communications for Myst Pressure Washing quotes.
+Constraints:
+- Tone: confident, courteous, transparent. No emojis.
+- Mention "Myst Pressure Washing" once.
+- Include the share link exactly as provided.
+- Highlight the service mix and total value; reference deposit/balance in a single sentence.
+- If the quote is accepted, outline next steps briefly. If declined, invite feedback.
+- Keep email body under 600 characters and SMS under 240 characters.
+- Respond ONLY as JSON with keys: email_subject, email_body, sms_body.`;
+
+  const {
+    customerName,
+    services,
+    total,
+    depositDue,
+    balanceDue,
+    shareUrl,
+    expiresAtIso,
+    notes,
+    reason
+  } = summary;
+
+  const serviceText = services.length ? services.join(", ") : "Exterior cleaning services";
+  const expiresText = expiresAtIso ? `Quote expires ${expiresAtIso}` : "Quote does not expire yet";
+
+  const userPrompt = [
+    `Customer: ${customerName}`,
+    `Services: ${serviceText}`,
+    `Total: $${total.toFixed(2)}`,
+    `Deposit due: $${depositDue.toFixed(2)}`,
+    `Balance due: $${balanceDue.toFixed(2)}`,
+    `Share link: ${shareUrl}`,
+    expiresText,
+    notes ? `Internal notes: ${notes}` : null,
+    `Reason: ${reason}`
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return callOpenAI({ apiKey: config.apiKey, model: config.model, systemPrompt, userPrompt });
+}

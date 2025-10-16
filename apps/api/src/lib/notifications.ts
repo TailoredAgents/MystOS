@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 import { DateTime } from "luxon";
-import { generateEstimateNotificationCopy } from "@/lib/ai";
+import { generateEstimateNotificationCopy, generateQuoteNotificationCopy } from "@/lib/ai";
 
 interface BaseContact {
   name: string;
@@ -38,6 +38,18 @@ export interface EstimateNotificationPayload {
 }
 
 type ConfirmationReason = "requested" | "rescheduled";
+
+export interface QuoteNotificationPayload {
+  quoteId: string;
+  services: string[];
+  contact: BaseContact;
+  total: number;
+  depositDue: number;
+  balanceDue: number;
+  shareUrl: string;
+  expiresAt: Date | null;
+  notes?: string | null;
+}
 
 const DEFAULT_TIME_ZONE =
   process.env["APPOINTMENT_TIMEZONE"] ??
@@ -206,6 +218,37 @@ async function sendEmail(
   }
 }
 
+async function sendPlainEmail(
+  to: string | null | undefined,
+  subject: string,
+  textBody: string,
+  context: Record<string, unknown>
+): Promise<void> {
+  const transporter = getTransport();
+  const from = process.env["SMTP_FROM"];
+
+  if (!transporter || !from || !to) {
+    console.info("[notify] email.unsent", { ...context, subject, to: to ?? "unknown" });
+    return;
+  }
+
+  try {
+    await transporter.sendMail({
+      from,
+      to,
+      subject,
+      text: textBody
+    });
+    console.info("[notify] email.sent", { ...context, to, subject });
+  } catch (error) {
+    console.warn("[notify] email.error", { ...context, to, subject, error: String(error) });
+  }
+}
+
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
+}
+
 function buildRescheduleUrl(appointment: EstimateNotificationPayload["appointment"]): string {
   if (appointment.rescheduleUrl) {
     return appointment.rescheduleUrl;
@@ -370,4 +413,134 @@ export async function sendEstimateReminder24h(payload: EstimateNotificationPaylo
 
 export async function sendEstimateReminder2h(payload: EstimateNotificationPayload): Promise<void> {
   await sendEstimateReminderInternal(payload, { windowMinutes: 2 * 60 });
+}
+
+export async function sendQuoteSentNotification(payload: QuoteNotificationPayload): Promise<void> {
+  const expiresIso = payload.expiresAt ? payload.expiresAt.toISOString() : null;
+
+  const fallbackSubject = "Your Myst Pressure Washing quote is ready";
+  const fallbackBody = [
+    `Hi ${payload.contact.name},`,
+    "",
+    `Your quote for ${payload.services.join(", ") || "exterior cleaning"} is ready.`,
+    `Total: ${formatCurrency(payload.total)} (Deposit: ${formatCurrency(payload.depositDue)}, Balance: ${formatCurrency(payload.balanceDue)}).`,
+    `Review and approve: ${payload.shareUrl}`,
+    expiresIso ? `Expires: ${expiresIso}` : null,
+    "",
+    "We appreciate the opportunity to care for your property."
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join("\n");
+
+  const fallbackSms = `Myst quote ready: ${formatCurrency(payload.total)}. Review ${payload.shareUrl}`;
+
+  let generated = null;
+  try {
+    generated = await generateQuoteNotificationCopy({
+      customerName: payload.contact.name,
+      services: payload.services,
+      total: payload.total,
+      depositDue: payload.depositDue,
+      balanceDue: payload.balanceDue,
+      shareUrl: payload.shareUrl,
+      expiresAtIso: expiresIso,
+      notes: payload.notes,
+      reason: "sent"
+    });
+  } catch (error) {
+    console.warn("[notify] quote.ai.error", { quoteId: payload.quoteId, error: String(error) });
+  }
+
+  if (payload.contact.phone) {
+    const smsBody =
+      generated?.smsBody && generated.smsBody.length <= 240 ? generated.smsBody : fallbackSms;
+    await sendSms(payload.contact.phone, smsBody, {
+      quoteId: payload.quoteId,
+      type: "quote.sent"
+    });
+  }
+
+  const emailSubject =
+    generated?.emailSubject && generated.emailSubject.length <= 120
+      ? generated.emailSubject
+      : fallbackSubject;
+  const emailBody =
+    generated?.emailBody && generated.emailBody.length <= 900 ? generated.emailBody : fallbackBody;
+
+  await sendPlainEmail(payload.contact.email, emailSubject, emailBody, {
+    quoteId: payload.quoteId,
+    type: "quote.sent"
+  });
+}
+
+export async function sendQuoteDecisionNotification(
+  payload: QuoteNotificationPayload & { decision: "accepted" | "declined"; source: "customer" | "admin" }
+): Promise<void> {
+  const fallbackSubject =
+    payload.decision === "accepted"
+      ? "Myst quote approved"
+      : "Myst quote decision received";
+  const fallbackBody = [
+    `Hi ${payload.contact.name},`,
+    "",
+    payload.decision === "accepted"
+      ? "Thanks for approving your quote! We'll reach out to lock in the service window."
+      : "We've recorded your decision. If you'd like revisions or have questions, we're happy to help.",
+    `Services: ${payload.services.join(", ") || "Exterior cleaning"}`,
+    `Total: ${formatCurrency(payload.total)} (Deposit: ${formatCurrency(payload.depositDue)}, Balance: ${formatCurrency(payload.balanceDue)}).`,
+    `Quote link: ${payload.shareUrl}`,
+    payload.notes ? `Notes: ${payload.notes}` : null
+  ]
+    .filter((line): line is string => Boolean(line))
+    .join("\n");
+
+  const fallbackSms =
+    payload.decision === "accepted"
+      ? "Myst: thanks for approving your quote! We'll follow up with scheduling details."
+      : "Myst: we've recorded your quote decision. Let us know if you'd like any adjustments.";
+
+  let generated = null;
+  try {
+    generated = await generateQuoteNotificationCopy({
+      customerName: payload.contact.name,
+      services: payload.services,
+      total: payload.total,
+      depositDue: payload.depositDue,
+      balanceDue: payload.balanceDue,
+      shareUrl: payload.shareUrl,
+      notes: payload.notes,
+      reason: payload.decision
+    });
+  } catch (error) {
+    console.warn("[notify] quote.decision.ai.error", {
+      quoteId: payload.quoteId,
+      decision: payload.decision,
+      error: String(error)
+    });
+  }
+
+  if (payload.contact.phone) {
+    const smsBody =
+      generated?.smsBody && generated.smsBody.length <= 240 ? generated.smsBody : fallbackSms;
+    await sendSms(payload.contact.phone, smsBody, {
+      quoteId: payload.quoteId,
+      type: "quote.decision",
+      decision: payload.decision,
+      source: payload.source
+    });
+  }
+
+  const emailSubject =
+    generated?.emailSubject && generated.emailSubject.length <= 120
+      ? generated.emailSubject
+      : fallbackSubject;
+  const emailBody =
+    generated?.emailBody && generated.emailBody.length <= 900 ? generated.emailBody : fallbackBody;
+
+  await sendPlainEmail(payload.contact.email, emailSubject, emailBody, {
+    quoteId: payload.quoteId,
+    type: "quote.decision",
+    decision: payload.decision,
+    source: payload.source
+  });
 }

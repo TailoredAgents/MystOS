@@ -1,7 +1,11 @@
 import { asc, eq, isNull } from "drizzle-orm";
-import { getDb, outboxEvents, appointments, leads, contacts, properties } from "@/db";
-import type { EstimateNotificationPayload } from "@/lib/notifications";
-import { sendEstimateConfirmation } from "@/lib/notifications";
+import { getDb, outboxEvents, appointments, leads, contacts, properties, quotes } from "@/db";
+import type { EstimateNotificationPayload, QuoteNotificationPayload } from "@/lib/notifications";
+import {
+  sendEstimateConfirmation,
+  sendQuoteSentNotification,
+  sendQuoteDecisionNotification
+} from "@/lib/notifications";
 
 type OutboxEventRecord = typeof outboxEvents.$inferSelect;
 
@@ -22,6 +26,14 @@ function coerceServices(input: unknown): string[] {
     return [];
   }
   return input.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function buildQuoteShareUrl(token: string): string {
+  const base =
+    process.env["NEXT_PUBLIC_SITE_URL"] ??
+    process.env["SITE_URL"] ??
+    "http://localhost:3000";
+  return `${base.replace(/\/$/, "")}/quote/${token}`;
 }
 
 async function buildNotificationPayload(
@@ -140,6 +152,83 @@ async function buildNotificationPayload(
   return payload;
 }
 
+async function buildQuoteNotificationPayload(
+  quoteId: string,
+  overrides?: {
+    shareToken?: string | null;
+    notes?: string | null;
+  }
+): Promise<QuoteNotificationPayload | null> {
+  const db = getDb();
+
+  const rows = await db
+    .select({
+      id: quotes.id,
+      services: quotes.services,
+      total: quotes.total,
+      depositDue: quotes.depositDue,
+      balanceDue: quotes.balanceDue,
+      shareToken: quotes.shareToken,
+      expiresAt: quotes.expiresAt,
+      contactId: quotes.contactId,
+      contactFirstName: contacts.firstName,
+      contactLastName: contacts.lastName,
+      contactEmail: contacts.email,
+      contactPhone: contacts.phone,
+      contactPhoneE164: contacts.phoneE164,
+      propertyCity: properties.city,
+      propertyState: properties.state,
+      propertyPostalCode: properties.postalCode
+    })
+    .from(quotes)
+    .leftJoin(contacts, eq(quotes.contactId, contacts.id))
+    .leftJoin(properties, eq(quotes.propertyId, properties.id))
+    .where(eq(quotes.id, quoteId))
+    .limit(1);
+
+  const row = rows[0];
+  if (!row) {
+    console.warn("[outbox] quote_not_found", { quoteId });
+    return null;
+  }
+
+  const services = Array.isArray(row.services)
+    ? row.services.filter((service): service is string => typeof service === "string" && service.trim().length > 0)
+    : [];
+
+  const shareToken = overrides?.shareToken ?? row.shareToken ?? null;
+  const shareUrl = shareToken ? buildQuoteShareUrl(shareToken) : null;
+  if (!shareUrl) {
+    console.warn("[outbox] quote_missing_share_url", { quoteId });
+    return null;
+  }
+
+  const contactNameParts = [row.contactFirstName, row.contactLastName].filter(
+    (value): value is string => typeof value === "string" && value.trim().length > 0
+  );
+  const customerName = contactNameParts.join(" ").trim() || row.contactFirstName || "Myst Customer";
+
+  const total = Number(row.total ?? 0);
+  const depositDue = Number(row.depositDue ?? 0);
+  const balanceDue = Number(row.balanceDue ?? 0);
+
+  return {
+    quoteId,
+    services,
+    contact: {
+      name: customerName,
+      email: row.contactEmail ?? null,
+      phone: row.contactPhoneE164 ?? row.contactPhone ?? null
+    },
+    total,
+    depositDue,
+    balanceDue,
+    shareUrl,
+    expiresAt: row.expiresAt ?? null,
+    notes: overrides?.notes ?? null
+  };
+}
+
 async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" | "skipped"> {
   switch (event.type) {
     case "estimate.requested": {
@@ -200,6 +289,57 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
       }
 
       await sendEstimateConfirmation(notification, "rescheduled");
+      return "processed";
+    }
+
+    case "quote.sent": {
+      const payload = isRecord(event.payload) ? event.payload : null;
+      const quoteId = typeof payload?.quoteId === "string" ? payload.quoteId : null;
+      if (!quoteId) {
+        console.warn("[outbox] quote.sent.missing_id", { id: event.id });
+        return "skipped";
+      }
+
+      const shareToken =
+        typeof payload?.shareToken === "string" && payload.shareToken.trim().length > 0
+          ? payload.shareToken.trim()
+          : null;
+
+      const notification = await buildQuoteNotificationPayload(quoteId, { shareToken });
+      if (!notification) {
+        return "skipped";
+      }
+
+      await sendQuoteSentNotification(notification);
+      return "processed";
+    }
+
+    case "quote.decision": {
+      const payload = isRecord(event.payload) ? event.payload : null;
+      const quoteId = typeof payload?.quoteId === "string" ? payload.quoteId : null;
+      const rawDecision = typeof payload?.decision === "string" ? payload.decision : null;
+      const decision =
+        rawDecision === "accepted" || rawDecision === "declined" ? rawDecision : null;
+      if (!quoteId || !decision) {
+        console.warn("[outbox] quote.decision.missing_data", { id: event.id });
+        return "skipped";
+      }
+
+      const rawSource = typeof payload?.source === "string" ? payload.source : null;
+      const source: "customer" | "admin" =
+        rawSource === "customer" || rawSource === "admin" ? rawSource : "customer";
+      const notes = typeof payload?.notes === "string" ? payload.notes : null;
+
+      const notification = await buildQuoteNotificationPayload(quoteId, { notes });
+      if (!notification) {
+        return "skipped";
+      }
+
+      await sendQuoteDecisionNotification({
+        ...notification,
+        decision,
+        source
+      });
       return "processed";
     }
 

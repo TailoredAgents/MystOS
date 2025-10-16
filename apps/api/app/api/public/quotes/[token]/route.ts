@@ -153,7 +153,8 @@ export async function POST(
     payload: {
       quoteId: updated.id,
       decision: parsedBody.data.decision,
-      source: "customer"
+      source: "customer",
+      notes: parsedBody.data.notes ?? null
     }
   });
 
@@ -165,4 +166,3 @@ export async function POST(
     decisionNotes: updated.decisionNotes
   });
 }
-
