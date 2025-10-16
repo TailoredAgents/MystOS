@@ -43,6 +43,7 @@
 pnpm -w build    # production build for all apps
 pnpm -w lint     # lint all workspaces
 pnpm -w test     # run workspace tests (if configured)
+pnpm outbox:worker  # run the outbox dispatcher (see docs/outbox-worker.md)
 ```
 
 ## Content
@@ -55,6 +56,7 @@ Render deployment details are tracked in `DEPLOY-ON-RENDER.md` along with the ge
 - Estimate requests currently log email/SMS payloads via `notifyEstimateRequested` (see `apps/api/src/lib/notifications.ts`).
 - Twilio SMS is wired: if `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `TWILIO_FROM` are set, the server will attempt to send a confirmation SMS in addition to logging.
 - For email, replace the logger with your provider integration (e.g., Gmail/SMTP) when credentials are ready.
+- Outbox events are drained by a lightweight worker. See `docs/outbox-worker.md` for deployment instructions.
 
 ### Environment for Chat & Notifications
 - Chat API (in `apps/site`) reads `OPENAI_API_KEY` and optional `OPENAI_MODEL` (defaults to `gpt-4o-mini`).
