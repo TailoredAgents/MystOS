@@ -65,6 +65,9 @@ services:
     name: myst-redis
     plan: starter
     region: virginia
+    ipAllowList:
+      - source: 0.0.0.0/0
+        description: Allow all Render services (adjust as needed)
 databases:
   - name: mystos-db
     plan: standard
