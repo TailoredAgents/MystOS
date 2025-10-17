@@ -19,6 +19,7 @@
   Docs: https://stripe.com/terminal/tap-to-pay
 
 ## Google Calendar 2-Way Sync
+- **Current status**: API already creates primary calendar events when credentials are present (`createCalendarEvent` helper). Next step is to add incremental sync + updates flowing back from Google.
 - **Quickstart flow**: start with OAuth 2.0 "Desktop App" credentials for local development; production should use OAuth "Web application" with secure redirect URIs and store the refresh token in the DB (`GOOGLE_REFRESH_TOKEN`).  
   Docs: https://developers.google.com/calendar/api/quickstart/nodejs
 - **Minimal scopes**: request `https://www.googleapis.com/auth/calendar.events` for read/write access or `https://www.googleapis.com/auth/calendar.events.readonly` when read-only is sufficient. Avoid broader calendar scopes to reduce consent friction.  
