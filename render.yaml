@@ -2,7 +2,7 @@ services:
   - type: web
     name: myst-site
     env: node
-    plan: starter
+    plan: basic-1gb
     region: virginia
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter site build
     startCommand: corepack enable && pnpm --filter site start
