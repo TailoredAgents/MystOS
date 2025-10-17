@@ -5,9 +5,8 @@ services:
     env: node
     plan: starter
     region: virginia
-    rootDir: apps/site
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
-    startCommand: corepack enable && pnpm start
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter site build
+    startCommand: corepack enable && pnpm --filter site start
     healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
@@ -38,9 +37,8 @@ services:
     env: node
     plan: starter
     region: virginia
-    rootDir: apps/api
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build
-    startCommand: corepack enable && pnpm start
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build
+    startCommand: corepack enable && pnpm --filter api start
     preDeployCommand: corepack enable && pnpm -w db:migrate
     healthCheckPath: /healthz
     envVars:
