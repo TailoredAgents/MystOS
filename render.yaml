@@ -70,7 +70,7 @@ services:
         description: Allow all Render services (adjust as needed)
 databases:
   - name: mystos-db
-    plan: starter-plus
+    plan: starter
     region: virginia
     databaseName: mystos
     user: myst
