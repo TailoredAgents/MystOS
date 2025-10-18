@@ -5,7 +5,7 @@ services:
     plan: starter
     region: virginia
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter site build
-    startCommand: corepack enable && pnpm --filter site start
+    startCommand: corepack enable && pnpm --filter site start -- --hostname 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
@@ -37,7 +37,7 @@ services:
     plan: starter
     region: virginia
     buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter api build
-    startCommand: corepack enable && pnpm --filter api start
+    startCommand: corepack enable && pnpm --filter api start -- --hostname 0.0.0.0 --port $PORT
     preDeployCommand: corepack enable && pnpm -w db:migrate
     healthCheckPath: /healthz
     envVars:
