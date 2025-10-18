@@ -4,8 +4,8 @@ services:
     env: node
     plan: starter
     region: virginia
-    buildCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && HUSKY=0 pnpm install --frozen-lockfile && pnpm --filter site build
-    startCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm --filter site start -- --hostname 0.0.0.0 --port $PORT
+    buildCommand: corepack enable && (corepack prepare pnpm@9.15.9 --activate || npm install -g pnpm@9.15.9) && HUSKY=0 pnpm install --frozen-lockfile && pnpm --filter site build
+    startCommand: corepack enable && (corepack prepare pnpm@9.15.9 --activate || npm install -g pnpm@9.15.9) && pnpm --filter site start -- --hostname 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
@@ -36,9 +36,9 @@ services:
     env: node
     plan: starter
     region: virginia
-    buildCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && HUSKY=0 pnpm install --frozen-lockfile && pnpm --filter api build
-    startCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm --filter api start -- --hostname 0.0.0.0 --port $PORT
-    preDeployCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm -w db:migrate
+    buildCommand: corepack enable && (corepack prepare pnpm@9.15.9 --activate || npm install -g pnpm@9.15.9) && HUSKY=0 pnpm install --frozen-lockfile && pnpm --filter api build
+    startCommand: corepack enable && (corepack prepare pnpm@9.15.9 --activate || npm install -g pnpm@9.15.9) && pnpm --filter api start -- --hostname 0.0.0.0 --port $PORT
+    preDeployCommand: corepack enable && (corepack prepare pnpm@9.15.9 --activate || npm install -g pnpm@9.15.9) && pnpm -w db:migrate
     healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
