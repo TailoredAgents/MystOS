@@ -6,8 +6,10 @@ services:
     region: virginia
     buildCommand: |
       set -eux
+      export PNPM_HOME="$HOME/.pnpm"
+      export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
-      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default
+      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default || { test -f pnpm-debug.log && cat pnpm-debug.log; test -f pnpm-debug.log && rm pnpm-debug.log; test -f .pnpm-debug.log && cat .pnpm-debug.log; exit 1; }
       npx -y pnpm@9.15.9 --filter site build --reporter=default
     startCommand: |
       set -eux
@@ -44,8 +46,10 @@ services:
     region: virginia
     buildCommand: |
       set -eux
+      export PNPM_HOME="$HOME/.pnpm"
+      export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
-      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default
+      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default || { test -f pnpm-debug.log && cat pnpm-debug.log; test -f pnpm-debug.log && rm pnpm-debug.log; test -f .pnpm-debug.log && cat .pnpm-debug.log; exit 1; }
       npx -y pnpm@9.15.9 --filter api build --reporter=default
     startCommand: |
       set -eux
