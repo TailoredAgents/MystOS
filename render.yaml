@@ -5,14 +5,21 @@ services:
     plan: starter
     region: virginia
     buildCommand: |
-      set -eux
+      set -euo pipefail
       export PNPM_HOME="$HOME/.local/share/pnpm"
       export PNPM_STORE_PATH="$HOME/.local/share/pnpm-store"
       mkdir -p "$PNPM_HOME" "$PNPM_STORE_PATH"
       export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
-      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default || { find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log'; find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log' -exec cat {} +; exit 1; }
-      npx -y pnpm@9.15.9 --filter site build --reporter=default
+      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=append-only 2>&1 | tee pnpm-install.log
+      install_status=${PIPESTATUS[0]}
+      if [ "$install_status" -ne 0 ]; then
+        find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log';
+        find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log' -exec cat {} +;
+        cat pnpm-install.log;
+        exit $install_status;
+      fi
+      npx -y pnpm@9.15.9 --filter site build --reporter=append-only
     startCommand: |
       set -eux
       export PNPM_HOME="$HOME/.local/share/pnpm"
@@ -50,14 +57,21 @@ services:
     plan: starter
     region: virginia
     buildCommand: |
-      set -eux
+      set -euo pipefail
       export PNPM_HOME="$HOME/.local/share/pnpm"
       export PNPM_STORE_PATH="$HOME/.local/share/pnpm-store"
       mkdir -p "$PNPM_HOME" "$PNPM_STORE_PATH"
       export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
-      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default || { find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log'; find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log' -exec cat {} +; exit 1; }
-      npx -y pnpm@9.15.9 --filter api build --reporter=default
+      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=append-only 2>&1 | tee pnpm-install.log
+      install_status=${PIPESTATUS[0]}
+      if [ "$install_status" -ne 0 ]; then
+        find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log';
+        find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log' -exec cat {} +;
+        cat pnpm-install.log;
+        exit $install_status;
+      fi
+      npx -y pnpm@9.15.9 --filter api build --reporter=append-only
     startCommand: |
       set -eux
       export PNPM_HOME="$HOME/.local/share/pnpm"
