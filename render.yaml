@@ -6,13 +6,18 @@ services:
     region: virginia
     buildCommand: |
       set -eux
-      export PNPM_HOME="$HOME/.pnpm"
+      export PNPM_HOME="$HOME/.local/share/pnpm"
+      export PNPM_STORE_PATH="$HOME/.local/share/pnpm-store"
+      mkdir -p "$PNPM_HOME" "$PNPM_STORE_PATH"
       export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
       npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default || { test -f pnpm-debug.log && cat pnpm-debug.log; test -f pnpm-debug.log && rm pnpm-debug.log; test -f .pnpm-debug.log && cat .pnpm-debug.log; exit 1; }
       npx -y pnpm@9.15.9 --filter site build --reporter=default
     startCommand: |
       set -eux
+      export PNPM_HOME="$HOME/.local/share/pnpm"
+      mkdir -p "$PNPM_HOME"
+      export PATH="$PNPM_HOME:$PATH"
       npx -y pnpm@9.15.9 --filter site start -- --hostname 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
     envVars:
@@ -46,16 +51,24 @@ services:
     region: virginia
     buildCommand: |
       set -eux
-      export PNPM_HOME="$HOME/.pnpm"
+      export PNPM_HOME="$HOME/.local/share/pnpm"
+      export PNPM_STORE_PATH="$HOME/.local/share/pnpm-store"
+      mkdir -p "$PNPM_HOME" "$PNPM_STORE_PATH"
       export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
       npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default || { test -f pnpm-debug.log && cat pnpm-debug.log; test -f pnpm-debug.log && rm pnpm-debug.log; test -f .pnpm-debug.log && cat .pnpm-debug.log; exit 1; }
       npx -y pnpm@9.15.9 --filter api build --reporter=default
     startCommand: |
       set -eux
+      export PNPM_HOME="$HOME/.local/share/pnpm"
+      mkdir -p "$PNPM_HOME"
+      export PATH="$PNPM_HOME:$PATH"
       npx -y pnpm@9.15.9 --filter api start -- --hostname 0.0.0.0 --port $PORT
     preDeployCommand: |
       set -eux
+      export PNPM_HOME="$HOME/.local/share/pnpm"
+      mkdir -p "$PNPM_HOME"
+      export PATH="$PNPM_HOME:$PATH"
       npx -y pnpm@9.15.9 -w db:migrate
     healthCheckPath: /healthz
     envVars:
