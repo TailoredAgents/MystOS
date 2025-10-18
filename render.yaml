@@ -4,8 +4,14 @@ services:
     env: node
     plan: starter
     region: virginia
-    buildCommand: npm install -g pnpm@9.15.9 && HUSKY=0 PNPM_LOG_LEVEL=debug pnpm install --frozen-lockfile --reporter=default && pnpm --filter site build --reporter=default
-    startCommand: npm install -g pnpm@9.15.9 && pnpm --filter site start -- --hostname 0.0.0.0 --port $PORT
+    buildCommand: |
+      set -eux
+      export HUSKY=0
+      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default
+      npx -y pnpm@9.15.9 --filter site build --reporter=default
+    startCommand: |
+      set -eux
+      npx -y pnpm@9.15.9 --filter site start -- --hostname 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
@@ -36,9 +42,17 @@ services:
     env: node
     plan: starter
     region: virginia
-    buildCommand: npm install -g pnpm@9.15.9 && HUSKY=0 PNPM_LOG_LEVEL=debug pnpm install --frozen-lockfile --reporter=default && pnpm --filter api build --reporter=default
-    startCommand: npm install -g pnpm@9.15.9 && pnpm --filter api start -- --hostname 0.0.0.0 --port $PORT
-    preDeployCommand: npm install -g pnpm@9.15.9 && pnpm -w db:migrate
+    buildCommand: |
+      set -eux
+      export HUSKY=0
+      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default
+      npx -y pnpm@9.15.9 --filter api build --reporter=default
+    startCommand: |
+      set -eux
+      npx -y pnpm@9.15.9 --filter api start -- --hostname 0.0.0.0 --port $PORT
+    preDeployCommand: |
+      set -eux
+      npx -y pnpm@9.15.9 -w db:migrate
     healthCheckPath: /healthz
     envVars:
       - key: NODE_ENV
