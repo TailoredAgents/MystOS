@@ -6,8 +6,11 @@ services:
     region: virginia
     buildCommand: |
       set -euo pipefail
-      apt-get update
-      apt-get install -y --no-install-recommends build-essential python3 pkg-config libvips-dev
+      export DEBIAN_FRONTEND=noninteractive
+      APT_ROOT="$HOME/.apt"
+      mkdir -p "$APT_ROOT/lists/partial" "$APT_ROOT/cache/archives"
+      apt-get -o Dir::State::Lists="$APT_ROOT/lists" -o Dir::State::status=/var/lib/dpkg/status -o Dir::Cache::Archives="$APT_ROOT/cache/archives" update
+      apt-get -o Dir::State::Lists="$APT_ROOT/lists" -o Dir::State::status=/var/lib/dpkg/status -o Dir::Cache::Archives="$APT_ROOT/cache/archives" install -y --no-install-recommends build-essential python3 pkg-config libvips-dev
       export PNPM_HOME="$HOME/.local/share/pnpm"
       export PNPM_STORE_PATH="$HOME/.local/share/pnpm-store"
       mkdir -p "$PNPM_HOME" "$PNPM_STORE_PATH"
@@ -60,8 +63,11 @@ services:
     region: virginia
     buildCommand: |
       set -euo pipefail
-      apt-get update
-      apt-get install -y --no-install-recommends build-essential python3 pkg-config libvips-dev
+      export DEBIAN_FRONTEND=noninteractive
+      APT_ROOT="$HOME/.apt"
+      mkdir -p "$APT_ROOT/lists/partial" "$APT_ROOT/cache/archives"
+      apt-get -o Dir::State::Lists="$APT_ROOT/lists" -o Dir::State::status=/var/lib/dpkg/status -o Dir::Cache::Archives="$APT_ROOT/cache/archives" update
+      apt-get -o Dir::State::Lists="$APT_ROOT/lists" -o Dir::State::status=/var/lib/dpkg/status -o Dir::Cache::Archives="$APT_ROOT/cache/archives" install -y --no-install-recommends build-essential python3 pkg-config libvips-dev
       export PNPM_HOME="$HOME/.local/share/pnpm"
       export PNPM_STORE_PATH="$HOME/.local/share/pnpm-store"
       mkdir -p "$PNPM_HOME" "$PNPM_STORE_PATH"
