@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getDb, payments } from "@/db";
-import { isAdminRequest } from "../../web/admin";
+import { isAdminRequest } from "../../../web/admin";
 import { eq } from "drizzle-orm";
 
 export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }): Promise<Response> {

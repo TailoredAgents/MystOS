@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getDb, payments } from "@/db";
-import { isAdminRequest } from "../../web/admin";
+import { isAdminRequest } from "../../../web/admin";
 import { listRecentCharges, mapChargeToPaymentRow } from "@/lib/stripe";
 import { resolveAppointmentIdForCharge } from "@/lib/payment-matching";
 

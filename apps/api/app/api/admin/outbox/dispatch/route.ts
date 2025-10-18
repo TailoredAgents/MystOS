@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { isAdminRequest } from "../../web/admin";
+import { isAdminRequest } from "../../../web/admin";
 import { processOutboxBatch } from "@/lib/outbox-processor";
 
 export async function POST(request: NextRequest): Promise<Response> {
