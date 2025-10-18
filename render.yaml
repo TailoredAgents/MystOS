@@ -4,7 +4,7 @@ services:
     env: node
     plan: starter
     region: virginia
-    buildCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && pnpm --filter site build
+    buildCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && HUSKY=0 pnpm install --frozen-lockfile && pnpm --filter site build
     startCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm --filter site start -- --hostname 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
     envVars:
@@ -36,7 +36,7 @@ services:
     env: node
     plan: starter
     region: virginia
-    buildCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && pnpm --filter api build
+    buildCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && HUSKY=0 pnpm install --frozen-lockfile && pnpm --filter api build
     startCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm --filter api start -- --hostname 0.0.0.0 --port $PORT
     preDeployCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm -w db:migrate
     healthCheckPath: /healthz
