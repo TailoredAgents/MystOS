@@ -8,7 +8,7 @@ services:
       export PNPM_HOME="$HOME/.local/share/pnpm"
       export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
-      npx -y pnpm@9.15.9 install --frozen-lockfile --include=dev
+      npx -y pnpm@9.15.9 install --frozen-lockfile --prod=false
       npx -y pnpm@9.15.9 --filter site build
     startCommand: |
       set -eux
@@ -50,7 +50,7 @@ services:
       export PNPM_HOME="$HOME/.local/share/pnpm"
       export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
-      npx -y pnpm@9.15.9 install --frozen-lockfile --include=dev
+      npx -y pnpm@9.15.9 install --frozen-lockfile --prod=false
       npx -y pnpm@9.15.9 --filter api build
     startCommand: |
       set -eux
