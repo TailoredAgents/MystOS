@@ -11,7 +11,7 @@ services:
       mkdir -p "$PNPM_HOME" "$PNPM_STORE_PATH"
       export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
-      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default || { test -f pnpm-debug.log && cat pnpm-debug.log; test -f pnpm-debug.log && rm pnpm-debug.log; test -f .pnpm-debug.log && cat .pnpm-debug.log; exit 1; }
+      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default || { find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log'; find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log' -exec cat {} +; exit 1; }
       npx -y pnpm@9.15.9 --filter site build --reporter=default
     startCommand: |
       set -eux
@@ -56,7 +56,7 @@ services:
       mkdir -p "$PNPM_HOME" "$PNPM_STORE_PATH"
       export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
-      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default || { test -f pnpm-debug.log && cat pnpm-debug.log; test -f pnpm-debug.log && rm pnpm-debug.log; test -f .pnpm-debug.log && cat .pnpm-debug.log; exit 1; }
+      npx -y pnpm@9.15.9 install --frozen-lockfile --reporter=default || { find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log'; find . -maxdepth 5 -name 'pnpm-debug.log' -o -name '.pnpm-debug.log' -exec cat {} +; exit 1; }
       npx -y pnpm@9.15.9 --filter api build --reporter=default
     startCommand: |
       set -eux
