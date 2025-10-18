@@ -4,13 +4,6 @@ services:
     env: node
     plan: starter
     region: virginia
-    nativeEnvironments:
-      - name: node
-        aptPackages:
-          - build-essential
-          - python3
-          - pkg-config
-          - libvips-dev
     buildCommand: |
       set -euo pipefail
       export PNPM_HOME="$HOME/.local/share/pnpm"
@@ -63,13 +56,6 @@ services:
     env: node
     plan: starter
     region: virginia
-    nativeEnvironments:
-      - name: node
-        aptPackages:
-          - build-essential
-          - python3
-          - pkg-config
-          - libvips-dev
     buildCommand: |
       set -euo pipefail
       export PNPM_HOME="$HOME/.local/share/pnpm"
