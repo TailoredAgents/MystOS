@@ -10,7 +10,7 @@ import { StickyCtaBar } from "@/components/StickyCtaBar";
 import { createPageMetadata } from "@/lib/metadata";
 
 const beforeImage = "/images/gallery/before.jpg";
-const afterImage = "/images/gallery/after.jpg";
+const afterImage = "/images/gallery/after.png";
 
 const testimonials = [
   {
