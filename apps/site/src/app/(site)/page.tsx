@@ -92,9 +92,6 @@ export default function HomePage() {
               A quick look at recent Myst projects across driveways, facades, and landscaping-friendly rinses.
             </p>
           </div>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
-            Finished in the last 30 days
-          </p>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {resultTiles.map((tile) => (
