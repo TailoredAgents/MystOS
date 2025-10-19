@@ -23,7 +23,6 @@ const resultTiles = [
   {
     title: "Whole-Home Glow-up",
     description: "Stone facade, trim, and copper accents brightened in one visit.",
-    beforeImage: "/images/gallery/home-before.jpg",
     afterImage: "/images/gallery/home-after.png"
   },
   {
