@@ -87,6 +87,9 @@ export async function POST(
       sentAt: quotes.sentAt,
       expiresAt: quotes.expiresAt
     });
+  if (!updated) {
+    return NextResponse.json({ error: "update_failed" }, { status: 500 });
+  }
 
   await db.insert(outboxEvents).values({
     type: "quote.sent",

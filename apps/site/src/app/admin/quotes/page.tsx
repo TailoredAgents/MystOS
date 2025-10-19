@@ -37,6 +37,28 @@ interface QuotesSummaryPayload {
   quotes: QuoteResponse[];
 }
 
+function isQuoteResponse(value: unknown): value is QuoteResponse {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  const id = record["id"];
+  const status = record["status"];
+  const services = record["services"];
+  const total = record["total"];
+  const createdAt = record["createdAt"];
+
+  return (
+    typeof id === "string" &&
+    typeof status === "string" &&
+    Array.isArray(services) &&
+    services.every((service) => typeof service === "string") &&
+    typeof total === "number" &&
+    typeof createdAt === "string"
+  );
+}
+
 const STATUS_LABELS: Record<QuoteStatus, string> = {
   pending: "Draft",
   sent: "Sent",
@@ -185,26 +207,8 @@ export default async function QuotesPage() {
   }
 
   const raw = (await response.json()) as unknown;
-  const quotes = Array.isArray((raw as { quotes?: unknown[] }).quotes)
-      ? ((raw as QuotesSummaryPayload).quotes ?? []).filter((quote): quote is QuoteResponse => {
-          if (!quote || typeof quote !== "object") {
-            return false;
-          }
-          const record = quote as Record<string, unknown>;
-          const id = record["id"];
-          const status = record["status"];
-          const services = record["services"];
-          const total = record["total"];
-          const createdAt = record["createdAt"];
-          return (
-            typeof id === "string" &&
-            typeof status === "string" &&
-            Array.isArray(services) &&
-            typeof total === "number" &&
-            typeof createdAt === "string"
-          );
-        })
-    : [];
+  const maybeQuotes = (raw as { quotes?: unknown[] }).quotes;
+  const quotes = Array.isArray(maybeQuotes) ? maybeQuotes.filter(isQuoteResponse) : [];
 
   const grouped = groupQuotes(quotes);
 
