@@ -36,6 +36,11 @@ export const metadata: Metadata = {
     siteName: defaultTitle,
     images: [{ url: absoluteUrl("/images/hero/home.jpg") }],
     type: "website"
+  },
+  icons: {
+    icon: "/favicon.png",
+    shortcut: "/favicon.png",
+    apple: "/favicon.png"
   }
 };
 

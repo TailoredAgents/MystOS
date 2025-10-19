@@ -1,5 +1,6 @@
 ﻿"use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useState } from "react";
@@ -45,7 +46,8 @@ export function Header() {
     <header className="sticky top-0 z-50 border-b border-neutral-300/50 bg-white/95">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4 md:px-10">
         <Link href="/" className="flex items-center gap-2 text-primary-800">
-          <span className="text-xl font-semibold tracking-tight">Myst Pressure Washing</span>
+          <Image src="/images/brand/Myst_logo.png" alt="Myst Pressure Washing" width={160} height={81} priority />
+          <span className="sr-only">Myst Pressure Washing</span>
         </Link>
         <nav className="hidden items-center gap-6 md:flex">
           {navItems.map((item) => (
