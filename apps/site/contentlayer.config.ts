@@ -9,7 +9,7 @@ export const Page = defineDocumentType(() => ({
     description: { type: "string" },
     heroImage: { type: "string" },
     draft: { type: "boolean", default: false },
-    order: { type: "string", default: "0" }
+    order: { type: "number", default: 0 }
   },
   computedFields: {
     slug: {
@@ -19,6 +19,9 @@ export const Page = defineDocumentType(() => ({
     sortOrder: {
       type: "number",
       resolve: (doc) => {
+        if (typeof doc.order === "number" && Number.isFinite(doc.order)) {
+          return doc.order;
+        }
         const raw = typeof doc.order === "string" ? doc.order.trim() : String(doc.order ?? "").trim();
         const parsed = Number.parseFloat(raw);
         return Number.isFinite(parsed) ? parsed : 0;
