@@ -9,13 +9,14 @@ services:
       export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
       npx -y pnpm@9.15.9 install --frozen-lockfile --prod=false
+      npx -y pnpm@9.15.9 --filter site exec contentlayer build
       npx -y pnpm@9.15.9 --filter site build
     startCommand: |
       set -eux
       export PNPM_HOME="$HOME/.local/share/pnpm"
       mkdir -p "$PNPM_HOME"
       export PATH="$PNPM_HOME:$PATH"
-      npx -y pnpm@9.15.9 --filter site start -- --hostname 0.0.0.0 --port $PORT
+      npx -y pnpm@9.15.9 --filter site start --hostname 0.0.0.0 --port $PORT
     healthCheckPath: /api/healthz
     envVars:
       - key: NODE_ENV
@@ -63,7 +64,7 @@ services:
       export PNPM_HOME="$HOME/.local/share/pnpm"
       mkdir -p "$PNPM_HOME"
       export PATH="$PNPM_HOME:$PATH"
-      npx -y pnpm@9.15.9 --filter api start -- --hostname 0.0.0.0 --port $PORT
+      npx -y pnpm@9.15.9 --filter api start --hostname 0.0.0.0 --port $PORT
     preDeployCommand: |
       set -eux
       export PNPM_HOME="$HOME/.local/share/pnpm"
