@@ -77,7 +77,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     : null;
 
   const db = getDb();
-  let query = db
+  const baseQuery = db
     .select({
       id: quotes.id,
       status: quotes.status,
@@ -100,11 +100,11 @@ export async function GET(request: NextRequest): Promise<Response> {
     .leftJoin(contacts, eq(quotes.contactId, contacts.id))
     .leftJoin(properties, eq(quotes.propertyId, properties.id));
 
-  if (statusFilter) {
-    query = query.where(eq(quotes.status, statusFilter));
-  }
+  const filteredQuery = statusFilter
+    ? baseQuery.where(eq(quotes.status, statusFilter))
+    : baseQuery;
 
-  const rows = await query.orderBy(desc(quotes.updatedAt));
+  const rows = await filteredQuery.orderBy(desc(quotes.updatedAt));
 
   return NextResponse.json({
     quotes: rows.map(formatQuoteResponse)

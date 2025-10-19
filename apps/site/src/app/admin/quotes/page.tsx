@@ -290,20 +290,20 @@ export default async function QuotesPage() {
                         </div>
                         <div>
                           <dt className="uppercase tracking-[0.12em]">Share link</dt>
-                          <dd>
-                            {shareUrl ? (
-                              <Link href={shareUrl} className="text-accent-600 hover:underline">
-                                View quote
-                              </Link>
-                            ) : (
-                              "—"
-                            )}
-                          </dd>
-                        </div>
-                      </dl>
-
-                      <div className="flex flex-wrap gap-2">
-                        {quote.status === "pending" || quote.status === "declined" ? (
+                        <dd>
+                          {shareUrl ? (
+                            <a
+                              href={shareUrl}
+                              className="text-accent-600 hover:underline"
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              View quote
+                            </a>
+                          ) : (
+                            "-"
+                          )}
+                        </dd>
                           <form action={sendQuoteAction}>
                             <input type="hidden" name="quoteId" value={quote.id} />
                             <button className="rounded-md border border-neutral-300 px-3 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100">
@@ -330,18 +330,18 @@ export default async function QuotesPage() {
                             </form>
                           </>
                         ) : null}
-
                         {shareUrl ? (
-                          <Link
+                          <a
                             href={shareUrl}
                             className="rounded-md border border-accent-300 bg-accent-50 px-3 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100"
+                            target="_blank"
+                            rel="noreferrer"
                           >
                             Copy link
-                          </Link>
+                          </a>
                         ) : null}
-                      </div>
-                    </article>
-                  );
+                          </a>
+                        ) : null}
                 })
               ) : (
                 <p className="text-sm text-neutral-500">No quotes in this lane yet.</p>
