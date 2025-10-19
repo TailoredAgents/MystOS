@@ -12,9 +12,7 @@ interface Message {
 const SUGGESTIONS = [
   "What services do you offer?",
   "How long does a visit take?",
-  "What solutions do you use?",
-  "Can you give me a price range for a driveway?",
-  "Do you carry insurance?"
+  "What solutions do you use?"
 ];
 
 function fallbackResponse(message: string): string {
