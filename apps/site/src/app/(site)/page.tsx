@@ -69,11 +69,11 @@ export default function HomePage() {
   const areas = allAreas.filter((area) => area.slug !== "index").sort((a, b) => a.title.localeCompare(b.title));
 
   return (
-    <div className="relative flex flex-col gap-20 pb-24">
-      <Section className="pt-12">
+    <div className="relative flex flex-col gap-16 pb-24">
+      <Section className="pt-10 md:pt-12">
         <HeroV2 variant="lean" />
       </Section>
-      <Section className="relative" containerClassName="space-y-6">
+      <Section className="relative" containerClassName="space-y-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
             <h2 className="font-display text-headline text-primary-800">Results that speak for themselves</h2>
@@ -134,7 +134,7 @@ export default function HomePage() {
         </div>
       </Section>
 
-      <Section containerClassName="gap-12">
+      <Section containerClassName="gap-10">
         <div className="grid gap-6 sm:grid-cols-3">
           {stats.map((stat) => (
             <Stat key={stat.label} {...stat} />
@@ -164,7 +164,7 @@ export default function HomePage() {
         </div>
       </Section>
 
-      <Section>
+      <Section className="mt-4">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="font-display text-headline text-primary-800">Services tailored to every surface</h2>
