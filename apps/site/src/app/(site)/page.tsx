@@ -22,8 +22,9 @@ const resultTiles = [
   },
   {
     title: "Whole-Home Glow-up",
-    description: "Roof, siding, and trim brightened without high-pressure streaking.",
-    afterImage: "/images/gallery/after.png"
+    description: "Stone facade, trim, and copper accents brightened in one visit.",
+    beforeImage: "/images/gallery/home-before.jpg",
+    afterImage: "/images/gallery/home-after.png"
   },
   {
     title: "Commercial Exterior Refresh",
