@@ -204,7 +204,10 @@ export default async function PaymentsPage({ searchParams }: { searchParams?: { 
         <nav className="flex items-center gap-2">
           {FILTERS.map((item) => {
             const isActive = item.key === filter;
-            const href = item.key === "all" ? "/admin/payments" : `/admin/payments?filter=${item.key}`;
+            const href =
+              item.key === "all"
+                ? "/admin/payments" as const
+                : ({ pathname: "/admin/payments", query: { filter: item.key } } as const);
             const count = filterCounts[item.key] ?? 0;
             return (
               <Link

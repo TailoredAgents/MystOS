@@ -159,6 +159,9 @@ export async function POST(
       decisionAt: quotes.decisionAt,
       decisionNotes: quotes.decisionNotes
     });
+  if (!updated) {
+    return NextResponse.json({ error: "update_failed" }, { status: 500 });
+  }
 
   await db.insert(outboxEvents).values({
     type: "quote.decision",
