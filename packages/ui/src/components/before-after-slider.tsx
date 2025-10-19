@@ -21,8 +21,12 @@ export function BeforeAfterSlider({
 }: BeforeAfterSliderProps) {
   const [position, setPosition] = React.useState(initialPosition);
 
-  const handlePointer = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setPosition(Number(event.target.value));
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const next = Number.parseInt(event.target.value, 10);
+    if (Number.isNaN(next)) {
+      return;
+    }
+    setPosition(Math.min(100, Math.max(0, next)));
   };
 
   return (
@@ -38,7 +42,7 @@ export function BeforeAfterSlider({
         />
         <div
           className="absolute inset-0 overflow-hidden"
-          style={{ width: `${position}%` }}
+          style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}
           aria-hidden="true"
         >
           <Image
@@ -67,8 +71,11 @@ export function BeforeAfterSlider({
             max="100"
             step="1"
             value={position}
-            onChange={handlePointer}
+            onChange={handleChange}
             className="w-11/12 accent-accent-500"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={position}
           />
         </div>
       </div>
