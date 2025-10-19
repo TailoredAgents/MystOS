@@ -9,8 +9,9 @@ services:
       export PATH="$PNPM_HOME:$PATH"
       export HUSKY=0
       npx -y pnpm@9.15.9 install --frozen-lockfile --prod=false
-      # Contentlayer is already invoked by next-contentlayer during build
-      # Avoid separate CLI invocation which throws on Node 20 despite success
+      # Pre-generate Contentlayer types for Turbopack (plugin hooks may not run)
+      # The CLI exits with a non-numeric code on Node 20 after success; ignore it.
+      npx -y pnpm@9.15.9 --filter site exec contentlayer build || true
       npx -y pnpm@9.15.9 --filter site build
     startCommand: |
       set -eux
