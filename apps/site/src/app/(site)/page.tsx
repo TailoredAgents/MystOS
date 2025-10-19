@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { Suspense } from "react";
 import { allAreas, allPages, allServices } from "contentlayer/generated";
@@ -11,6 +12,26 @@ import { createPageMetadata } from "@/lib/metadata";
 
 const beforeImage = "/images/gallery/before.jpg";
 const afterImage = "/images/gallery/after.png";
+
+const resultTiles = [
+  {
+    title: "Driveway Restoration",
+    description: "Layered rust, clay, and tire marks lifted in a single soft-wash pass.",
+    beforeImage: "/images/gallery/before.jpg",
+    afterImage: "/images/gallery/after.png"
+  },
+  {
+    title: "Whole-Home Glow-up",
+    description: "Roof, siding, and trim brightened without high-pressure streaking.",
+    afterImage: "/images/gallery/after.png"
+  },
+  {
+    title: "Landscape-Friendly Finish",
+    description: "Precision rinses protect beds and bring curb appeal back to life.",
+    beforeImage: "/images/gallery/before.jpg",
+    afterImage: "/images/gallery/after.png"
+  }
+];
 
 const testimonials = [
   {
@@ -51,6 +72,66 @@ export default function HomePage() {
     <div className="relative flex flex-col gap-20 pb-24">
       <Section className="pt-12">
         <HeroV2 variant="lean" />
+      </Section>
+      <Section className="relative" containerClassName="space-y-6">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h2 className="font-display text-headline text-primary-800">Results that speak for themselves</h2>
+            <p className="mt-2 max-w-2xl text-sm text-neutral-600">
+              A quick look at recent Myst projects across driveways, facades, and landscaping-friendly rinses.
+            </p>
+          </div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-neutral-500">
+            Finished in the last 30 days
+          </p>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+          {resultTiles.map((tile) => (
+            <article
+              key={tile.title}
+              className="group relative overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-soft transition hover:-translate-y-1 hover:shadow-float"
+            >
+              <div className="relative aspect-[16/10] overflow-hidden">
+                <Image
+                  src={tile.afterImage}
+                  alt={`${tile.title} after Myst exterior cleaning`}
+                  fill
+                  className="object-cover transition duration-700 group-hover:scale-105"
+                  sizes="(min-width: 1280px) 400px, (min-width: 768px) 50vw, 100vw"
+                  priority={false}
+                />
+                {tile.beforeImage ? (
+                  <>
+                    <div
+                      className="pointer-events-none absolute inset-0 overflow-hidden transition duration-700 group-hover:translate-x-1"
+                      style={{ clipPath: "inset(0 52% 0 0)" }}
+                    >
+                      <Image
+                        src={tile.beforeImage}
+                        alt={`${tile.title} before Myst exterior cleaning`}
+                        fill
+                        className="object-cover"
+                        sizes="(min-width: 1280px) 400px, (min-width: 768px) 50vw, 100vw"
+                        priority={false}
+                      />
+                    </div>
+                    <div className="pointer-events-none absolute inset-y-0 left-[48%] w-px bg-white/80 shadow-[0_0_12px_rgba(15,23,42,0.35)]" />
+                    <div className="absolute left-4 top-4 inline-flex items-center gap-1 rounded-full bg-black/60 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
+                      <span>Before</span>
+                    </div>
+                    <div className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-primary-700/80 px-3 py-1 text-[0.65rem] font-semibold uppercase tracking-[0.18em] text-white">
+                      <span>After</span>
+                    </div>
+                  </>
+                ) : null}
+              </div>
+              <div className="space-y-2 px-6 py-5">
+                <h3 className="text-lg font-semibold text-primary-900">{tile.title}</h3>
+                <p className="text-sm text-neutral-600">{tile.description}</p>
+              </div>
+            </article>
+          ))}
+        </div>
       </Section>
 
       <Section containerClassName="gap-12">
