@@ -27,7 +27,7 @@ const resultTiles = [
   },
   {
     title: "Commercial Exterior Refresh",
-    description: "Audi Atlanta&apos;s service entry refreshed overnight without disrupting business hours.",
+    description: "Audi Atlanta service entry refreshed overnight without disrupting business hours.",
     afterImage: "/images/gallery/commercial-after.png"
   }
 ];
@@ -171,7 +171,7 @@ export default function HomePage() {
           <div>
             <h2 className="font-display text-headline text-primary-800">Services tailored to every surface</h2>
             <p className="mt-3 max-w-2xl text-body text-neutral-600">
-              From whole-home soft washing to detailed gutter and deck care, Myst builds each visit around the way your property lives and weathers Georgia seasons.
+              From whole-home soft washing to storefront refreshes, Myst builds each visit around the way your home or business weathers Georgia seasons.
             </p>
           </div>
           <Button variant="secondary" asChild>
@@ -179,19 +179,24 @@ export default function HomePage() {
           </Button>
         </div>
         <div className="grid gap-6 md:grid-cols-3">
-          {services.map((service) => (
-            <Card key={service.slug} className="flex h-full flex-col gap-4">
+          {leadFormServices.map((service) => {
+            const isCommercial = service.slug === "commercial-services";
+            return (
+              <Card key={service.slug} className="flex h-full flex-col gap-4">
               <div>
                 <h3 className="text-xl font-semibold text-primary-800">{service.title}</h3>
-                {service.short ? (
-                  <p className="mt-2 text-body text-neutral-600">{service.short}</p>
-                ) : null}
+                  {service.description ? (
+                    <p className="mt-2 text-body text-neutral-600">{service.description}</p>
+                  ) : null}
               </div>
               <Button variant="ghost" asChild className="mt-auto w-fit px-0 text-accent-600">
-                <Link href={`/services/${service.slug}`}>Learn more{" ->"}</Link>
+                  <Link href={isCommercial ? "/contact?type=commercial" : `/services/${service.slug}`}>
+                    {isCommercial ? "Request commercial quote ->" : "Learn more ->"}
+                  </Link>
               </Button>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       </Section>
 
@@ -215,9 +220,9 @@ export default function HomePage() {
       <Section>
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-display text-headline text-primary-800">Homeowners rave about Myst</h2>
+            <h2 className="font-display text-headline text-primary-800">Homeowners and businesses rave about Myst</h2>
             <p className="mt-2 max-w-2xl text-body text-neutral-600">
-              Thousands of spotless finishes, verified five-star reviews, and a make-it-right guarantee on every project.
+              Thousands of spotless finishes—residential and commercial—backed by verified five-star reviews and a make-it-right guarantee on every project.
             </p>
           </div>
           <Button variant="secondary" asChild>
