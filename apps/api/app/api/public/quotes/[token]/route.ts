@@ -22,13 +22,25 @@ function mapPublicQuote(row: {
   sentAt: Date | null;
   expiresAt: Date | null;
   decisionNotes: string | null;
-  contactName: string;
-  propertyCity: string;
-  propertyState: string;
-  propertyPostalCode: string;
+  contactName: string | null;
+  propertyCity: string | null;
+  propertyState: string | null;
+  propertyPostalCode: string | null;
 }) {
   const expiresAtIso = row.expiresAt ? row.expiresAt.toISOString() : null;
   const expired = row.expiresAt ? row.expiresAt.getTime() < Date.now() : false;
+  const customerName = row.contactName?.trim();
+  const city = row.propertyCity?.trim();
+  const state = row.propertyState?.trim();
+  const postalCode = row.propertyPostalCode?.trim();
+  const cityState = [city, state]
+    .filter((part): part is string => Boolean(part && part.length))
+    .join(", ")
+    .trim();
+  const serviceArea = [cityState, postalCode]
+    .filter((part): part is string => Boolean(part && part.length))
+    .join(" ")
+    .trim();
 
   return {
     id: row.id,
@@ -44,8 +56,8 @@ function mapPublicQuote(row: {
     expiresAt: expiresAtIso,
     expired,
     decisionNotes: row.decisionNotes,
-    customerName: row.contactName,
-    serviceArea: `${row.propertyCity}, ${row.propertyState} ${row.propertyPostalCode}`.trim()
+    customerName: customerName && customerName.length ? customerName : "Customer",
+    serviceArea: serviceArea.length ? serviceArea : ""
   };
 }
 
