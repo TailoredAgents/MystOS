@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import type { Route } from "next";
@@ -128,7 +128,7 @@ export function Header() {
               size="lg"
               className="w-full border border-neutral-300/70 text-primary-800 hover:border-primary-300"
             >
-              <a href="tel:17705550110">Call (770) 555-0110</a>
+              <a href="tel:14044453408">Call (404) 445-3408</a>
             </Button>
           </div>
         </div>
@@ -136,4 +136,5 @@ export function Header() {
     </header>
   );
 }
+
 

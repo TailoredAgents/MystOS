@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Image from "next/image";
 import Link from "next/link";
@@ -82,11 +82,11 @@ export function HeroV2({ className, variant = "lean" }: { className?: string; va
               <Link href="#schedule-estimate">Get My Estimate</Link>
             </Button>
             <Button asChild variant="ghost" size="lg" className="border border-neutral-300/70" onClick={handleCall}>
-              <a href="tel:17705550110">Call (770) 555-0110</a>
+              <a href="tel:14044453408">Call (404) 445-3408</a>
             </Button>
             {isLean ? null : (
               <Button asChild variant="ghost" size="lg" className="border border-neutral-300/70" onClick={handleText}>
-                <a href="sms:17705550110">Text Us</a>
+                <a href="sms:14044453408">Text Us</a>
               </Button>
             )}
           </div>
@@ -129,3 +129,4 @@ export function HeroV2({ className, variant = "lean" }: { className?: string; va
     </section>
   );
 }
+

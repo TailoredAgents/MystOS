@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from "next/link";
 import { Button, cn } from "@myst-os/ui";
@@ -21,14 +21,14 @@ export function StickyCtaBar({ className }: StickyCtaBarProps) {
           variant="ghost"
           className="flex-1 min-h-[48px] rounded-md border border-neutral-300/70 text-base font-semibold text-primary-800 hover:border-primary-300"
         >
-          <a href="tel:17705550110">Call</a>
+          <a href="tel:14044453408">Call</a>
         </Button>
         <Button
           asChild
           variant="ghost"
           className="flex-1 min-h-[48px] rounded-md border border-neutral-300/70 text-base font-semibold text-primary-800 hover:border-primary-300"
         >
-          <a href="sms:17705550110">Text</a>
+          <a href="sms:14044453408">Text</a>
         </Button>
         <Button asChild className="flex-1 min-h-[48px] rounded-md text-base font-semibold">
           <Link href="#schedule-estimate">Schedule Estimate</Link>
@@ -37,4 +37,5 @@ export function StickyCtaBar({ className }: StickyCtaBarProps) {
     </div>
   );
 }
+
 

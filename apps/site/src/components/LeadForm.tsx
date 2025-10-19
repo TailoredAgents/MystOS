@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
@@ -572,8 +572,8 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
         )}
         <p className="mt-6 text-xs text-neutral-500">
           Need faster help? Call{" "}
-          <a href="tel:17705550110" className="text-accent-600 underline">
-            (770) 555-0110
+          <a href="tel:14044453408" className="text-accent-600 underline">
+            (404) 445-3408
           </a>{" "}
           and mention your estimate request.
         </p>
@@ -693,7 +693,7 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
               name="phone"
               type="tel"
               required
-              placeholder="(770) 555-0110"
+              placeholder="(404) 445-3408"
               className="mt-2 w-full rounded-md border border-neutral-300/60 bg-white px-3 py-2 text-body text-neutral-700 outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             />
           </div>
@@ -859,5 +859,6 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
     </div>
   );
 }
+
 
 
