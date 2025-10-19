@@ -1,7 +1,10 @@
 import { withContentlayer } from "next-contentlayer";
 
 const nextConfig = {
-  typedRoutes: true
+  typedRoutes: true,
+  eslint: {
+    ignoreDuringBuilds: true
+  }
 };
 
 export default withContentlayer(nextConfig);

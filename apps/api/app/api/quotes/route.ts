@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { calculateQuoteBreakdown } from "@myst-os/pricing/src/engine/calculate";
+import { serviceRates } from "@myst-os/pricing/src/config/defaults";
 import type { ServiceCategory } from "@myst-os/pricing/src/types";
 import { getDb, quotes, contacts, properties } from "@/db";
 import { isAdminRequest } from "../web/admin";
@@ -10,11 +11,21 @@ import { eq, desc } from "drizzle-orm";
 const STATUS_FILTERS = ["pending", "sent", "accepted", "declined"] as const;
 type QuoteStatusFilter = (typeof STATUS_FILTERS)[number];
 
+const SERVICE_ID_SET = new Set<ServiceCategory>(serviceRates.map((rate) => rate.service));
+
+const serviceIdSchema = z
+  .string()
+  .min(1)
+  .refine(
+    (value): value is ServiceCategory => SERVICE_ID_SET.has(value as ServiceCategory),
+    "invalid_service"
+  );
+
 const CreateQuoteSchema = z.object({
   contactId: z.string().uuid(),
   propertyId: z.string().uuid(),
   zoneId: z.string().min(1),
-  selectedServices: z.array(z.string().min(1)).min(1),
+  selectedServices: z.array(serviceIdSchema).min(1),
   selectedAddOns: z.array(z.string().min(1)).optional(),
   surfaceArea: z.number().positive().optional(),
   applyBundles: z.boolean().optional(),
