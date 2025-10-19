@@ -285,25 +285,30 @@ export default async function QuotesPage() {
                         <div>
                           <dt className="uppercase tracking-[0.12em]">Expires</dt>
                           <dd className={isExpired(quote.expiresAt) ? "text-rose-600" : undefined}>
-                            {quote.expiresAt ? formatDate(quote.expiresAt) : "—"}
+                            {quote.expiresAt ? formatDate(quote.expiresAt) : "-"}
                           </dd>
                         </div>
                         <div>
                           <dt className="uppercase tracking-[0.12em]">Share link</dt>
-                        <dd>
-                          {shareUrl ? (
-                            <a
-                              href={shareUrl}
-                              className="text-accent-600 hover:underline"
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              View quote
-                            </a>
-                          ) : (
-                            "-"
-                          )}
-                        </dd>
+                          <dd>
+                            {shareUrl ? (
+                              <a
+                                href={shareUrl}
+                                className="text-accent-600 hover:underline"
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                View quote
+                              </a>
+                            ) : (
+                              "-"
+                            )}
+                          </dd>
+                        </div>
+                      </dl>
+
+                      <div className="flex flex-wrap gap-2">
+                        {quote.status === "pending" || quote.status === "declined" ? (
                           <form action={sendQuoteAction}>
                             <input type="hidden" name="quoteId" value={quote.id} />
                             <button className="rounded-md border border-neutral-300 px-3 py-1 text-xs font-medium text-neutral-700 hover:bg-neutral-100">
@@ -330,6 +335,7 @@ export default async function QuotesPage() {
                             </form>
                           </>
                         ) : null}
+
                         {shareUrl ? (
                           <a
                             href={shareUrl}
@@ -340,8 +346,9 @@ export default async function QuotesPage() {
                             Copy link
                           </a>
                         ) : null}
-                          </a>
-                        ) : null}
+                      </div>
+                    </article>
+                  );
                 })
               ) : (
                 <p className="text-sm text-neutral-500">No quotes in this lane yet.</p>

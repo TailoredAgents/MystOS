@@ -33,13 +33,19 @@ function formatQuoteResponse(row: {
   sentAt: Date | null;
   expiresAt: Date | null;
   shareToken: string | null;
-  contactName: string;
+  contactName: string | null;
   contactEmail: string | null;
-  propertyAddressLine1: string;
-  propertyCity: string;
-  propertyState: string;
-  propertyPostalCode: string;
+  propertyAddressLine1: string | null;
+  propertyCity: string | null;
+  propertyState: string | null;
+  propertyPostalCode: string | null;
 }) {
+  const contactName = row.contactName?.trim();
+  const addressLine1 = row.propertyAddressLine1?.trim();
+  const city = row.propertyCity?.trim();
+  const state = row.propertyState?.trim();
+  const postalCode = row.propertyPostalCode?.trim();
+
   return {
     id: row.id,
     status: row.status,
@@ -49,20 +55,20 @@ function formatQuoteResponse(row: {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     sentAt: row.sentAt ? row.sentAt.toISOString() : null,
-    expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
-    shareToken: row.shareToken,
-    contact: {
-      name: row.contactName,
-      email: row.contactEmail
-    },
-    property: {
-      addressLine1: row.propertyAddressLine1,
-      city: row.propertyCity,
-      state: row.propertyState,
-      postalCode: row.propertyPostalCode
-    }
-  };
-}
+      expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
+      shareToken: row.shareToken,
+      contact: {
+        name: contactName && contactName.length ? contactName : "Customer",
+        email: row.contactEmail
+      },
+      property: {
+        addressLine1: addressLine1 ?? "",
+        city: city ?? "",
+        state: state ?? "",
+        postalCode: postalCode ?? ""
+      }
+    };
+  }
 
 export async function GET(request: NextRequest): Promise<Response> {
   if (!isAdminRequest(request)) {
