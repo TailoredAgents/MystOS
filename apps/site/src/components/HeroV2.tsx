@@ -6,6 +6,7 @@ import { useCallback } from "react";
 import { Badge, Button, cn } from "@myst-os/ui";
 
 const HERO_IMAGE = "/images/hero/crew-softwash.svg";
+const HERO_IMAGE_SIZES = "(min-width: 1024px) 50vw, 100vw";
 
 declare global {
   interface Window {
@@ -51,6 +52,7 @@ export function HeroV2({ className, variant = "lean" }: { className?: string; va
           alt="Myst exterior cleaning crew soft-washing siding"
           fill
           priority
+          sizes={HERO_IMAGE_SIZES}
           className="object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-br from-white/95 via-white/85 to-[#e8f1ff]/80 backdrop-blur-[2px]" />

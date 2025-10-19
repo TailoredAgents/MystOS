@@ -8,7 +8,9 @@ export default function SiteLayout({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-gradient-to-b from-white via-neutral-100 to-white">
       <Header />
-      <main className="flex-1">{children}</main>
+      <main className="flex-1 pb-[calc(env(safe-area-inset-bottom,0px)+6rem)] md:pb-0">
+        {children}
+      </main>
       <Footer />
       <ChatBot />
       <StickyCtaBar />
