@@ -27,8 +27,7 @@ const resultTiles = [
   },
   {
     title: "Commercial Exterior Refresh",
-    description: "Retail entries, office facades, and HOA amenities detailed after-hours.",
-    beforeImage: "/images/gallery/commercial-before.jpg",
+    description: "Audi Atlanta&apos;s service entry refreshed overnight without disrupting business hours.",
     afterImage: "/images/gallery/commercial-after.png"
   }
 ];
