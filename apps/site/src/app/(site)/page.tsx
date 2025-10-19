@@ -9,8 +9,8 @@ import { MdxContent } from "@/components/MdxContent";
 import { StickyCtaBar } from "@/components/StickyCtaBar";
 import { createPageMetadata } from "@/lib/metadata";
 
-const beforeImage = "/images/gallery/before.svg";
-const afterImage = "/images/gallery/after.svg";
+const beforeImage = "/images/gallery/before.jpg";
+const afterImage = "/images/gallery/after.jpg";
 
 const testimonials = [
   {
