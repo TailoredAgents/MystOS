@@ -55,6 +55,7 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
   const [preferredDate, setPreferredDate] = React.useState<string>("");
   const [timeWindow, setTimeWindow] = React.useState<string>("");
   const [localError, setLocalError] = React.useState<string | null>(null);
+  const [step, setStep] = React.useState<1 | 2>(1);
   const [isRescheduleOpen, setIsRescheduleOpen] = React.useState(false);
   const [rescheduleDate, setRescheduleDate] = React.useState<string>("");
   const [rescheduleWindow, setRescheduleWindow] = React.useState<string>("");
@@ -189,12 +190,34 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
     );
   };
 
+  const focusField = (name: string) => {
+    const field = formRef.current?.elements.namedItem(name);
+    if (!field) {
+      return;
+    }
+
+    if ("item" in field && typeof field.item === "function") {
+      const node = field.item(0);
+      if (node instanceof HTMLElement) {
+        node.scrollIntoView({ behavior: "smooth", block: "center" });
+        node.focus();
+      }
+      return;
+    }
+
+    if (field instanceof HTMLElement) {
+      field.scrollIntoView({ behavior: "smooth", block: "center" });
+      field.focus();
+    }
+  };
+
   const resetForm = () => {
     setFormState({ status: "idle" });
     setSelectedServices([]);
     setPreferredDate("");
     setTimeWindow("");
     setLocalError(null);
+    setStep(1);
     setIsRescheduleOpen(false);
     setRescheduleDate("");
     setRescheduleWindow("");
@@ -202,6 +225,46 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
     setRescheduleFeedback(null);
     setInitialTokenHandled(true);
     formRef.current?.reset();
+  };
+
+  const goToStepTwo = () => {
+    if (!formRef.current) {
+      setStep(2);
+      return;
+    }
+
+    if (!selectedServices.length) {
+      setLocalError("Select at least one service to continue.");
+      focusField("selectedServices");
+      return;
+    }
+
+    const formData = new FormData(formRef.current);
+    const requiredFields: Array<{ key: string; label: string }> = [
+      { key: "addressLine1", label: "service address" },
+      { key: "city", label: "city" },
+      { key: "state", label: "state" },
+      { key: "postalCode", label: "ZIP" }
+    ];
+
+    for (const field of requiredFields) {
+      const value = formData.get(field.key);
+      if (typeof value !== "string" || value.trim().length === 0) {
+        setLocalError(`Enter your ${field.label}.`);
+        focusField(field.key);
+        return;
+      }
+    }
+
+    setLocalError(null);
+    setStep(2);
+    requestAnimationFrame(() => focusField("name"));
+  };
+
+  const handleBackToStepOne = () => {
+    setStep(1);
+    setLocalError(null);
+    requestAnimationFrame(() => focusField("selectedServices"));
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -217,18 +280,26 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
     const consentChecked = formData.get("consent") === "on";
     if (!selectedServices.length) {
       setLocalError("Select at least one service for your in-person estimate.");
+      setStep(1);
+      focusField("selectedServices");
       return;
     }
     if (!preferredDate) {
       setLocalError("Choose a preferred visit date.");
+      setStep(2);
+      focusField("preferredDate");
       return;
     }
     if (!timeWindow) {
       setLocalError("Pick a time window that works for you.");
+      setStep(2);
+      focusField("timeWindow");
       return;
     }
     if (!consentChecked) {
       setLocalError("Please approve appointment updates and tips so we can reach you.");
+      setStep(2);
+      focusField("consent");
       return;
     }
 
@@ -581,6 +652,11 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
     );
   }
 
+  const stepDescription =
+    step === 1
+      ? "Tell us about the property so we can prep the right crew."
+      : "How can we reach you and what arrival window works best?";
+
   return (
     <div
       className={cn(
@@ -589,14 +665,19 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
       )}
       {...props}
     >
-      <div className="mb-6 space-y-2">
+      <div className="mb-6 space-y-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 text-xs font-semibold uppercase tracking-[0.14em] text-neutral-500">
+          <span className="inline-flex items-center gap-2 rounded-full border border-neutral-200 px-3 py-1 text-neutral-600">
+            Step {step} of 2
+          </span>
+          <span className="text-[0.7rem] font-medium normal-case tracking-normal text-neutral-500">
+            Takes &lt; 1 minute. No spam.
+          </span>
+        </div>
         <h3 className="font-display text-2xl text-primary-800">
           Book your in-person estimate
         </h3>
-        <p className="text-sm text-neutral-600">
-          Choose the services you&apos;d like to review on-site, tell us about the property, and pick a
-          time window. we&apos;ll confirm details and send reminders by text and email.
-        </p>
+        <p className="text-sm text-neutral-600">{stepDescription}</p>
       </div>
 
       {localError ? (
@@ -620,7 +701,7 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
       ) : null}
 
       <form ref={formRef} onSubmit={(event) => void handleSubmit(event)} className="space-y-6">
-        <section className="space-y-3">
+        <section className={cn("space-y-3", step === 1 ? "" : "hidden")}>
           <h4 className="text-sm font-semibold uppercase tracking-[0.14em] text-neutral-500">
             Services to review
           </h4>
@@ -657,7 +738,7 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
+        <section className={cn("grid gap-4 md:grid-cols-2", step === 2 ? "" : "hidden")}>
           <div>
             <label htmlFor="name" className="text-sm font-medium text-neutral-700">
               Full name
@@ -699,7 +780,7 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
           </div>
         </section>
 
-        <section className="space-y-4">
+        <section className={cn("space-y-4", step === 1 ? "" : "hidden")}>
           <div>
             <label htmlFor="addressLine1" className="text-sm font-medium text-neutral-700">
               Service address
@@ -757,7 +838,7 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
           </div>
         </section>
 
-        <section className="grid gap-4 md:grid-cols-2">
+        <section className={cn("grid gap-4 md:grid-cols-2", step === 2 ? "" : "hidden")}>
           <div>
             <label htmlFor="preferredDate" className="text-sm font-medium text-neutral-700">
               Preferred visit date
@@ -785,7 +866,7 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className={cn("space-y-3", step === 2 ? "" : "hidden")}>
           <label className="text-sm font-medium text-neutral-700">Preferred time window</label>
           <div className="grid gap-3 sm:grid-cols-3">
             {availabilityWindows.map((window) => (
@@ -816,7 +897,7 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
           </div>
         </section>
 
-        <section className="space-y-3">
+        <section className={cn("space-y-3", step === 2 ? "" : "hidden")}>
           <label htmlFor="notes" className="text-sm font-medium text-neutral-700">
             Notes for the crew (gate codes, surfaces, pets)
           </label>
@@ -829,7 +910,7 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
           />
         </section>
 
-        <div className="flex items-start gap-3 rounded-md bg-neutral-100/60 p-4">
+        <div className={cn("flex items-start gap-3 rounded-md bg-neutral-100/60 p-4", step === 2 ? "" : "hidden")}>
           <input
             id="consent"
             name="consent"
@@ -847,14 +928,45 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
         <input type="hidden" name="fbclid" value={utm.fbclid ?? ""} />
         <input type="text" name="company" className="hidden" tabIndex={-1} autoComplete="off" />
 
-        <Button
-          type="submit"
-          variant="primary"
-          disabled={formState.status === "submitting"}
-          className="w-full justify-center"
-        >
-          {formState.status === "submitting" ? "Scheduling..." : "Book in-person estimate"}
-        </Button>
+        {step === 1 ? (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button
+              type="button"
+              variant="primary"
+              onClick={goToStepTwo}
+              className="w-full justify-center sm:w-auto"
+            >
+              Next: Contact &amp; time
+            </Button>
+            <p className="text-center text-xs text-neutral-500 sm:text-left">
+              We&apos;ll ask for scheduling details on the next step.
+            </p>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={formState.status === "submitting"}
+                className="w-full justify-center sm:w-auto"
+              >
+                {formState.status === "submitting" ? "Scheduling..." : "Book in-person estimate"}
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={handleBackToStepOne}
+                className="w-full justify-center sm:w-auto"
+              >
+                Back
+              </Button>
+            </div>
+            <p className="text-center text-xs text-neutral-500 sm:text-right">
+              We confirm instantly and send text updates.
+            </p>
+          </div>
+        )}
       </form>
     </div>
   );
