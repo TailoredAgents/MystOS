@@ -4,7 +4,6 @@ import { isAdminRequest } from "../../../web/admin";
 import { processOutboxBatch } from "@/lib/outbox-processor";
 
 export async function POST(request: NextRequest): Promise<Response> {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

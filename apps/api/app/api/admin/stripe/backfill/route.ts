@@ -6,7 +6,6 @@ import { listRecentCharges, mapChargeToPaymentRow } from "@/lib/stripe";
 import { resolveAppointmentIdForCharge } from "@/lib/payment-matching";
 
 export async function POST(request: NextRequest): Promise<Response> {
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }

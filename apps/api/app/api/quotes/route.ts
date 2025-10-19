@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { calculateQuoteBreakdown } from "@myst-os/pricing/src/engine/calculate";
+import type { ServiceCategory } from "@myst-os/pricing/src/types";
 import { getDb, quotes, contacts, properties } from "@/db";
 import { isAdminRequest } from "../web/admin";
 import { eq, desc } from "drizzle-orm";
@@ -21,6 +22,10 @@ const CreateQuoteSchema = z.object({
   expiresInDays: z.number().int().min(1).max(90).optional(),
   notes: z.string().max(2000).optional()
 });
+
+const toPgNumeric = (value: number | string): string => value.toString();
+const toOptionalPgNumeric = (value?: number | string | null): string | null =>
+  value === null || value === undefined ? null : value.toString();
 
 function formatQuoteResponse(row: {
   id: string;
@@ -55,20 +60,20 @@ function formatQuoteResponse(row: {
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
     sentAt: row.sentAt ? row.sentAt.toISOString() : null,
-      expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
-      shareToken: row.shareToken,
-      contact: {
-        name: contactName && contactName.length ? contactName : "Customer",
-        email: row.contactEmail
-      },
-      property: {
-        addressLine1: addressLine1 ?? "",
-        city: city ?? "",
-        state: state ?? "",
-        postalCode: postalCode ?? ""
-      }
-    };
-  }
+    expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
+    shareToken: row.shareToken,
+    contact: {
+      name: contactName && contactName.length ? contactName : "Customer",
+      email: row.contactEmail
+    },
+    property: {
+      addressLine1: addressLine1 ?? "",
+      city: city ?? "",
+      state: state ?? "",
+      postalCode: postalCode ?? ""
+    }
+  };
+}
 
 export async function GET(request: NextRequest): Promise<Response> {
   if (!isAdminRequest(request)) {
@@ -163,9 +168,11 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: "property_contact_mismatch" }, { status: 400 });
   }
 
+  const selectedServices = body.selectedServices as ServiceCategory[];
+
   const breakdown = calculateQuoteBreakdown({
     zoneId: body.zoneId,
-    selectedServices: body.selectedServices,
+    selectedServices,
     selectedAddOns: body.selectedAddOns,
     surfaceArea: body.surfaceArea,
     applyBundles: body.applyBundles,
@@ -176,29 +183,32 @@ export async function POST(request: NextRequest): Promise<Response> {
     ? new Date(Date.now() + body.expiresInDays * 24 * 60 * 60 * 1000)
     : null;
 
-  const [inserted] = await db
-    .insert(quotes)
-    .values({
-      contactId: body.contactId,
-      propertyId: body.propertyId,
-      status: "pending",
-      services: body.selectedServices,
-      addOns: body.selectedAddOns ?? null,
-      surfaceArea: body.surfaceArea ?? null,
-      zoneId: body.zoneId,
-      travelFee: breakdown.travelFee,
-      discounts: breakdown.discounts,
-      addOnsTotal: breakdown.addOnsTotal,
-      subtotal: breakdown.subtotal,
-      total: breakdown.total,
-      depositDue: breakdown.depositDue,
-      depositRate: breakdown.depositRate,
-      balanceDue: breakdown.balanceDue,
-      lineItems: breakdown.lineItems,
-      notes: body.notes ?? null,
-      expiresAt
-    })
-    .returning();
+  const quoteValues: typeof quotes.$inferInsert = {
+    contactId: body.contactId,
+    propertyId: body.propertyId,
+    status: "pending",
+    services: selectedServices,
+    addOns: body.selectedAddOns ?? null,
+    surfaceArea: toOptionalPgNumeric(body.surfaceArea),
+    zoneId: body.zoneId,
+    travelFee: toPgNumeric(breakdown.travelFee),
+    discounts: toPgNumeric(breakdown.discounts),
+    addOnsTotal: toPgNumeric(breakdown.addOnsTotal),
+    subtotal: toPgNumeric(breakdown.subtotal),
+    total: toPgNumeric(breakdown.total),
+    depositDue: toPgNumeric(breakdown.depositDue),
+    depositRate: toPgNumeric(breakdown.depositRate),
+    balanceDue: toPgNumeric(breakdown.balanceDue),
+    lineItems: breakdown.lineItems,
+    notes: body.notes ?? null,
+    expiresAt
+  };
+
+  const [inserted] = await db.insert(quotes).values(quoteValues).returning();
+
+  if (!inserted) {
+    return NextResponse.json({ error: "insert_failed" }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok: true,

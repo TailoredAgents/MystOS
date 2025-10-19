@@ -33,10 +33,6 @@ interface QuoteResponse {
   };
 }
 
-interface QuotesSummaryPayload {
-  quotes: QuoteResponse[];
-}
-
 function isQuoteResponse(value: unknown): value is QuoteResponse {
   if (!value || typeof value !== "object") {
     return false;
@@ -145,7 +141,7 @@ function formatCurrency(total: number) {
 
 function formatDate(iso: string | null) {
   if (!iso) {
-    return "—";
+    return "-";
   }
   const date = new Date(iso);
   return new Intl.DateTimeFormat("en-US", {
@@ -153,6 +149,7 @@ function formatDate(iso: string | null) {
     timeStyle: "short"
   }).format(date);
 }
+
 
 function servicesLabel(services: string[]) {
   if (!services.length) {
@@ -263,7 +260,7 @@ export default async function QuotesPage() {
                           {STATUS_LABELS[quote.status]}
                         </span>
                         <span className="text-xs text-neutral-500">{servicesLabel(quote.services)}</span>
-                        <span className="text-xs text-neutral-400">•</span>
+                        <span className="text-xs text-neutral-400">â€¢</span>
                         <span className="text-xs text-neutral-500">{formatCurrency(quote.total)}</span>
                       </div>
                       <div>
@@ -360,3 +357,9 @@ export default async function QuotesPage() {
     </div>
   );
 }
+
+
+
+
+
+

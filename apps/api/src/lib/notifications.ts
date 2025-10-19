@@ -264,10 +264,18 @@ function servicesSummary(services: string[]): string {
   if (!services.length) {
     return "Exterior cleaning";
   }
-  if (services.length === 1) {
-    return services[0];
+
+  const [first, ...rest] = services.filter((service): service is string => Boolean(service && service.length));
+
+  if (!first) {
+    return "Exterior cleaning";
   }
-  return `${services[0]} +${services.length - 1}`;
+
+  if (rest.length === 0) {
+    return first;
+  }
+
+  return `${first} +${rest.length}`;
 }
 
 function buildRescheduleUrl(appointment: EstimateNotificationPayload["appointment"]): string {
@@ -617,3 +625,4 @@ export async function sendQuoteDecisionNotification(
     );
   }
 }
+

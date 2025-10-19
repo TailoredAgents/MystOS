@@ -245,13 +245,14 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
   switch (event.type) {
     case "estimate.requested": {
       const payload = isRecord(event.payload) ? event.payload : null;
-      const appointmentId = typeof payload?.appointmentId === "string" ? payload.appointmentId : null;
+      const appointmentIdValue = payload?.["appointmentId"];
+      const appointmentId = typeof appointmentIdValue === "string" ? appointmentIdValue : null;
       if (!appointmentId) {
         console.warn("[outbox] estimate.requested.missing_appointment", { id: event.id });
         return "skipped";
       }
 
-      const services = coerceServices(payload?.services);
+      const services = coerceServices(payload?.["services"]);
       const schedulingOverride = payload && isRecord(payload["scheduling"]) ? payload["scheduling"] : null;
 
       const notification = await buildNotificationPayload(appointmentId, {
@@ -272,7 +273,7 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
                   : undefined
             }
           : undefined,
-        notes: typeof payload?.notes === "string" ? payload.notes : undefined
+        notes: typeof payload?.["notes"] === "string" ? payload["notes"] : undefined
       });
 
       if (!notification) {
@@ -285,15 +286,16 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
 
     case "estimate.rescheduled": {
       const payload = isRecord(event.payload) ? event.payload : null;
-      const appointmentId = typeof payload?.appointmentId === "string" ? payload.appointmentId : null;
+      const appointmentIdValue = payload?.["appointmentId"];
+      const appointmentId = typeof appointmentIdValue === "string" ? appointmentIdValue : null;
       if (!appointmentId) {
         console.warn("[outbox] estimate.rescheduled.missing_appointment", { id: event.id });
         return "skipped";
       }
 
       const notification = await buildNotificationPayload(appointmentId, {
-        services: coerceServices(payload?.services),
-        rescheduleUrl: typeof payload?.rescheduleUrl === "string" ? payload.rescheduleUrl : undefined
+        services: coerceServices(payload?.["services"]),
+        rescheduleUrl: typeof payload?.["rescheduleUrl"] === "string" ? payload["rescheduleUrl"] : undefined
       });
 
       if (!notification) {
@@ -306,15 +308,15 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
 
     case "quote.sent": {
       const payload = isRecord(event.payload) ? event.payload : null;
-      const quoteId = typeof payload?.quoteId === "string" ? payload.quoteId : null;
+      const quoteId = typeof payload?.["quoteId"] === "string" ? payload["quoteId"] : null;
       if (!quoteId) {
         console.warn("[outbox] quote.sent.missing_id", { id: event.id });
         return "skipped";
       }
 
       const shareToken =
-        typeof payload?.shareToken === "string" && payload.shareToken.trim().length > 0
-          ? payload.shareToken.trim()
+        typeof payload?.["shareToken"] === "string" && payload["shareToken"].trim().length > 0
+          ? payload["shareToken"].trim()
           : null;
 
       const notification = await buildQuoteNotificationPayload(quoteId, { shareToken });
@@ -328,8 +330,8 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
 
     case "quote.decision": {
       const payload = isRecord(event.payload) ? event.payload : null;
-      const quoteId = typeof payload?.quoteId === "string" ? payload.quoteId : null;
-      const rawDecision = typeof payload?.decision === "string" ? payload.decision : null;
+      const quoteId = typeof payload?.["quoteId"] === "string" ? payload["quoteId"] : null;
+      const rawDecision = typeof payload?.["decision"] === "string" ? payload["decision"] : null;
       const decision =
         rawDecision === "accepted" || rawDecision === "declined" ? rawDecision : null;
       if (!quoteId || !decision) {
@@ -337,10 +339,10 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
         return "skipped";
       }
 
-      const rawSource = typeof payload?.source === "string" ? payload.source : null;
+      const rawSource = typeof payload?.["source"] === "string" ? payload["source"] : null;
       const source: "customer" | "admin" =
         rawSource === "customer" || rawSource === "admin" ? rawSource : "customer";
-      const notes = typeof payload?.notes === "string" ? payload.notes : null;
+      const notes = typeof payload?.["notes"] === "string" ? payload["notes"] : null;
 
       const notification = await buildQuoteNotificationPayload(quoteId, { notes });
       if (!notification) {
@@ -412,3 +414,7 @@ export async function processOutboxBatch(
 
   return stats;
 }
+
+
+
+
