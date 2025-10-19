@@ -90,13 +90,7 @@ export function HeroV2({ className, variant = "lean" }: { className?: string; va
               </Button>
             )}
           </div>
-          <p className="text-sm text-neutral-500">Takes ~60 seconds. We confirm your window by text.</p>
-
-          {isLean ? (
-            <p className="text-sm text-neutral-600">
-              4.9 avg (1,247 reviews) • Licensed & Insured • Make-It-Right Guarantee
-            </p>
-          ) : (
+          {isLean ? null : (
             <div className="flex flex-wrap gap-3">
               <Badge tone="highlight">4.9 avg (1,247 reviews)</Badge>
               <Badge tone="default">Licensed & Insured</Badge>
