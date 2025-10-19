@@ -26,10 +26,10 @@ const resultTiles = [
     afterImage: "/images/gallery/after.png"
   },
   {
-    title: "Landscape-Friendly Finish",
-    description: "Precision rinses protect beds and bring curb appeal back to life.",
-    beforeImage: "/images/gallery/before.jpg",
-    afterImage: "/images/gallery/after.png"
+    title: "Commercial Exterior Refresh",
+    description: "Retail entries, office facades, and HOA amenities detailed after-hours.",
+    beforeImage: "/images/gallery/commercial-before.jpg",
+    afterImage: "/images/gallery/commercial-after.png"
   }
 ];
 
@@ -67,6 +67,18 @@ export default function HomePage() {
 
   const services = allServices.sort((a, b) => a.title.localeCompare(b.title));
   const areas = allAreas.filter((area) => area.slug !== "index").sort((a, b) => a.title.localeCompare(b.title));
+  const leadFormServices = [
+    ...services.map((service) => ({
+      slug: service.slug,
+      title: service.title,
+      description: service.short ?? undefined
+    })),
+    {
+      slug: "commercial-services",
+      title: "Commercial Services",
+      description: "Storefronts, office parks, HOA amenities, and shared spaces"
+    }
+  ];
 
   return (
     <div className="relative flex flex-col gap-16 pb-24">
@@ -152,13 +164,7 @@ export default function HomePage() {
                 </div>
               }
             >
-              <LeadForm
-                services={services.map((service) => ({
-                  slug: service.slug,
-                  title: service.title,
-                  description: service.short ?? undefined
-                }))}
-              />
+              <LeadForm services={leadFormServices} />
             </Suspense>
           </div>
         </div>
