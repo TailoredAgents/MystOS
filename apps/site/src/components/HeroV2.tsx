@@ -58,7 +58,7 @@ export function HeroV2({ className, variant = "lean" }: { className?: string; va
             <span className="inline-flex items-center rounded-full bg-neutral-100 px-3 py-1 text-sm font-semibold uppercase tracking-[0.14em] text-neutral-700">
               Premium exterior cleaning
             </span>
-            <h1 className="font-display text-4xl tracking-tight text-primary-900 sm:text-5xl md:text-6xl">
+            <h1 className="font-display text-3xl tracking-tight text-primary-900 sm:text-5xl md:text-6xl">
               Pressure washing that protects your property and your weekend
             </h1>
             <p className="max-w-xl text-base text-neutral-600 sm:text-lg">

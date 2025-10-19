@@ -84,15 +84,7 @@ export default function HomePage() {
       <Section className="pt-10 md:pt-12">
         <HeroV2 variant="lean" />
       </Section>
-      <Section className="relative" containerClassName="space-y-5">
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h2 className="font-display text-headline text-primary-800">Results that speak for themselves</h2>
-            <p className="mt-2 max-w-2xl text-sm text-neutral-600">
-              A quick look at recent Myst projects across driveways, facades, and landscaping-friendly rinses.
-            </p>
-          </div>
-        </div>
+      <Section className="relative" containerClassName="">
         <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
           {resultTiles.map((tile) => (
             <article
