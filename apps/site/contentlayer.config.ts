@@ -19,10 +19,11 @@ export const Page = defineDocumentType(() => ({
     sortOrder: {
       type: "number",
       resolve: (doc) => {
-        if (typeof doc.order === "number" && Number.isFinite(doc.order)) {
-          return doc.order;
+        const rawOrder: unknown = (doc as any).order;
+        if (typeof rawOrder === "number" && Number.isFinite(rawOrder)) {
+          return rawOrder;
         }
-        const raw = typeof doc.order === "string" ? doc.order.trim() : String(doc.order ?? "").trim();
+        const raw = String(rawOrder ?? "").trim();
         const parsed = Number.parseFloat(raw);
         return Number.isFinite(parsed) ? parsed : 0;
       }
