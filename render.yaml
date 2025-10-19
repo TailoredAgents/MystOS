@@ -16,7 +16,7 @@ services:
       mkdir -p "$PNPM_HOME"
       export PATH="$PNPM_HOME:$PATH"
       npx -y pnpm@9.15.9 --filter site start -- --hostname 0.0.0.0 --port $PORT
-    healthCheckPath: /healthz
+    healthCheckPath: /api/healthz
     envVars:
       - key: NODE_ENV
         value: production
@@ -33,6 +33,12 @@ services:
       - key: NEXT_PUBLIC_META_PIXEL_ID
         sync: false
       - key: NEXT_PUBLIC_API_BASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_APPOINTMENT_TIMEZONE
+        sync: false
+      - key: API_BASE_URL
+        sync: false
+      - key: ADMIN_API_KEY
         sync: false
     buildFilter:
       paths:
@@ -64,7 +70,7 @@ services:
       mkdir -p "$PNPM_HOME"
       export PATH="$PNPM_HOME:$PATH"
       npx -y pnpm@9.15.9 -w db:migrate
-    healthCheckPath: /healthz
+    healthCheckPath: /api/healthz
     envVars:
       - key: NODE_ENV
         value: production
@@ -74,9 +80,53 @@ services:
         fromDatabase:
           name: mystos-db
           property: connectionString
+      - key: API_BASE_URL
+        sync: false
+      - key: ADMIN_API_KEY
+        sync: false
+      - key: APPOINTMENT_TIMEZONE
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_MODEL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        sync: false
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: GOOGLE_REFRESH_TOKEN
+        sync: false
+      - key: GOOGLE_CALENDAR_ID
+        sync: false
       - key: GA4_MEASUREMENT_ID
         sync: false
       - key: GA4_API_SECRET
+        sync: false
+      - key: QUOTE_ALERT_EMAIL
+        sync: false
+      - key: STRIPE_SECRET_KEY
+        sync: false
+      - key: STRIPE_WEBHOOK_SECRET
+        sync: false
+      - key: OUTBOX_BATCH_SIZE
+        sync: false
+      - key: OUTBOX_POLL_INTERVAL_MS
         sync: false
     buildFilter:
       paths:

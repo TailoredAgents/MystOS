@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getDb, quotes, contacts, properties } from "@/db";
-import { isAdminRequest } from "../../../web/admin";
+import { isAdminRequest } from "../../web/admin";
 import { eq } from "drizzle-orm";
 
 export async function GET(
