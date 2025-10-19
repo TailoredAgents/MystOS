@@ -20,11 +20,15 @@ function isOutboxBatchStats(value: unknown): value is OutboxBatchStats {
   }
 
   const candidate = value as Record<string, unknown>;
+  const total = candidate["total"];
+  const processed = candidate["processed"];
+  const skipped = candidate["skipped"];
+  const errors = candidate["errors"];
   return (
-    typeof candidate.total === "number" &&
-    typeof candidate.processed === "number" &&
-    typeof candidate.skipped === "number" &&
-    typeof candidate.errors === "number"
+    typeof total === "number" &&
+    typeof processed === "number" &&
+    typeof skipped === "number" &&
+    typeof errors === "number"
   );
 }
 
@@ -44,10 +48,11 @@ function isQuoteSentNotificationPayload(
   }
 
   const candidate = value as Record<string, unknown>;
-  const services = candidate.services;
+  const quoteId = candidate["quoteId"];
+  const services = candidate["services"];
 
   return (
-    typeof candidate.quoteId === "string" &&
+    typeof quoteId === "string" &&
     Array.isArray(services) &&
     services.every((service) => typeof service === "string")
   );

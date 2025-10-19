@@ -24,7 +24,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
   const appointmentInput =
     rawBody && typeof rawBody === "object" && "appointmentId" in rawBody
-      ? (rawBody as Record<string, unknown>).appointmentId
+      ? (rawBody as Record<string, unknown>)["appointmentId"]
       : undefined;
   const appointmentId = typeof appointmentInput === "string" ? appointmentInput.trim() : null;
 

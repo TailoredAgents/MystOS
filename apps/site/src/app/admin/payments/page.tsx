@@ -47,11 +47,12 @@ function isPaymentsPayload(value: unknown): value is { payments: PaymentResponse
   }
 
   const record = value as Record<string, unknown>;
-  if (!Array.isArray(record.payments)) {
+  const paymentsValue = record["payments"];
+  if (!Array.isArray(paymentsValue)) {
     return false;
   }
 
-  const summary = record.summary;
+  const summary = record["summary"];
   if (summary !== undefined) {
     if (!summary || typeof summary !== "object") {
       return false;

@@ -9,7 +9,7 @@ export const Page = defineDocumentType(() => ({
     description: { type: "string" },
     heroImage: { type: "string" },
     draft: { type: "boolean", default: false },
-    order: { type: "string", default: "0" }
+    order: { type: "number", default: 0 }
   },
   computedFields: {
     slug: {
@@ -19,8 +19,14 @@ export const Page = defineDocumentType(() => ({
     sortOrder: {
       type: "number",
       resolve: (doc) => {
-        const value = typeof doc.order === "string" ? doc.order.trim() : "";
-        const parsed = Number.parseFloat(value);
+        if (typeof doc.order === "number" && Number.isFinite(doc.order)) {
+          return doc.order;
+        }
+        if (typeof doc.order === "string") {
+          const parsedFromString = Number.parseFloat(doc.order.trim());
+          return Number.isFinite(parsedFromString) ? parsedFromString : 0;
+        }
+        const parsed = Number.parseFloat(String(doc.order ?? "").trim());
         return Number.isFinite(parsed) ? parsed : 0;
       }
     }

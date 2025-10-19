@@ -43,13 +43,19 @@ function isStripeCharge(value: unknown): value is StripeCharge {
     return false;
   }
   const record = value as Record<string, unknown>;
+  const id = record["id"];
+  const amount = record["amount"];
+  const currency = record["currency"];
+  const status = record["status"];
+  const created = record["created"];
+  const captured = record["captured"];
   return (
-    typeof record.id === "string" &&
-    typeof record.amount === "number" &&
-    typeof record.currency === "string" &&
-    typeof record.status === "string" &&
-    typeof record.created === "number" &&
-    typeof record.captured === "boolean"
+    typeof id === "string" &&
+    typeof amount === "number" &&
+    typeof currency === "string" &&
+    typeof status === "string" &&
+    typeof created === "number" &&
+    typeof captured === "boolean"
   );
 }
 

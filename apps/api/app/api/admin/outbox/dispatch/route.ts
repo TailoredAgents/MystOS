@@ -17,7 +17,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
   const limitInput =
     rawBody && typeof rawBody === "object" && "limit" in rawBody
-      ? (rawBody as Record<string, unknown>).limit
+      ? (rawBody as Record<string, unknown>)["limit"]
       : undefined;
   const limit =
     typeof limitInput === "number" && limitInput > 0 ? Math.min(limitInput, 50) : 10;

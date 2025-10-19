@@ -1,5 +1,5 @@
 {
-  "extends": "@myst-os/config/tsconfig/base",
+  "extends": "./base.json",
   "compilerOptions": {
     "jsx": "preserve",
     "module": "ESNext",

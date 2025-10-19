@@ -20,7 +20,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const daysInput =
     rawBody && typeof rawBody === "object" && "days" in rawBody
-      ? (rawBody as Record<string, unknown>).days
+      ? (rawBody as Record<string, unknown>)["days"]
       : undefined;
   const days =
     typeof daysInput === "number" && daysInput > 0 && daysInput <= 90 ? daysInput : 14;
