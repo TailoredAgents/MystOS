@@ -20,6 +20,27 @@ const rateLimiter = new LRUCache<string, { count: number }>({
   ttl: 60_000
 });
 
+const ALLOWED_ORIGIN =
+  process.env["NEXT_PUBLIC_SITE_URL"] ??
+  process.env["SITE_URL"] ??
+  "*";
+
+function applyCors(response: NextResponse, origin = ALLOWED_ORIGIN): NextResponse {
+  response.headers.set("Access-Control-Allow-Origin", origin);
+  response.headers.set("Access-Control-Allow-Methods", "POST,OPTIONS");
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  response.headers.set("Access-Control-Max-Age", "86400");
+  return response;
+}
+
+function corsJson(body: unknown, init?: ResponseInit): NextResponse {
+  return applyCors(NextResponse.json(body, init));
+}
+
+export async function OPTIONS(): Promise<NextResponse> {
+  return applyCors(new NextResponse(null, { status: 204 }));
+}
+
 const LeadSchema = z.object({
   services: z.array(z.string().min(2)).nonempty().optional(),
   service: z.string().min(2).optional(),
@@ -80,7 +101,7 @@ export async function POST(request: NextRequest) {
   const ip = resolveClientIp(request);
 
   if (checkRateLimit(ip)) {
-    return NextResponse.json({ error: "rate_limited" }, { status: 429 });
+    return corsJson({ error: "rate_limited" }, { status: 429 });
   }
 
   const db = getDb();
@@ -89,7 +110,7 @@ export async function POST(request: NextRequest) {
   const parsedPayload = LeadSchema.safeParse(body);
 
   if (!parsedPayload.success) {
-    return NextResponse.json(
+    return corsJson(
       { error: "invalid_payload", message: parsedPayload.error.message },
       { status: 400 }
     );
@@ -98,12 +119,12 @@ export async function POST(request: NextRequest) {
   const payload = parsedPayload.data;
 
   if (payload.hp_company && payload.hp_company.trim().length > 0) {
-    return NextResponse.json({ ok: true });
+    return corsJson({ ok: true });
   }
 
   const servicesRequested = payload.services ?? (payload.service ? [payload.service] : []);
   if (!servicesRequested.length) {
-    return NextResponse.json(
+    return corsJson(
       { error: "invalid_payload", message: "At least one service must be selected." },
       { status: 400 }
     );
@@ -119,7 +140,7 @@ export async function POST(request: NextRequest) {
   try {
     normalizedPhone = normalizePhone(payload.phone);
   } catch {
-    return NextResponse.json({ error: "invalid_phone" }, { status: 400 });
+    return corsJson({ error: "invalid_phone" }, { status: 400 });
   }
 
   const email = payload.email?.trim().toLowerCase();
@@ -305,7 +326,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  return NextResponse.json({
+  return corsJson({
     ok: true,
     leadId: leadResult.leadId,
     appointmentId: leadResult.appointment?.id ?? null,
