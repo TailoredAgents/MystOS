@@ -52,6 +52,17 @@ export default function ServicesIndex() {
               </Button>
             </Card>
           ))}
+          <Card key="commercial-services" className="flex h-full flex-col gap-4">
+            <div>
+              <h2 className="text-2xl font-semibold text-primary-800">Commercial Services</h2>
+              <p className="mt-2 text-body text-neutral-600">
+                Storefronts, office parks, HOA amenities, and shared spaces refreshed with minimal disruption.
+              </p>
+            </div>
+            <Button variant="ghost" asChild className="mt-auto w-fit px-0 text-accent-600">
+              <Link href="/contact?type=commercial">Request commercial quote{" ->"}</Link>
+            </Button>
+          </Card>
         </div>
       </div>
     </Section>
