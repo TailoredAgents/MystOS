@@ -11,7 +11,7 @@ export default function AreasIndex() {
   const intro = getAreaIntro();
   const areas = getOrderedAreas();
 
-  if (!intro || !areas.length) {
+  if (!areas.length) {
     notFound();
   }
 
@@ -21,13 +21,15 @@ export default function AreasIndex() {
         <header className="space-y-3">
           <Badge tone="highlight">Core Coverage</Badge>
           <h1 className="font-display text-display text-primary-800">North Metro Atlanta service areas</h1>
-          {intro.description ? (
+          {intro?.description ? (
             <p className="text-body text-neutral-600">{intro.description}</p>
           ) : null}
         </header>
-        <Card tone="outline" className="space-y-4">
-          <MdxContent code={intro.body.code} />
-        </Card>
+        {intro ? (
+          <Card tone="outline" className="space-y-4">
+            <MdxContent code={intro.body.code} />
+          </Card>
+        ) : null}
         <div className="grid gap-4 md:grid-cols-2">
           {areas.map((area) => (
             <Card key={area.slug} className="flex h-full flex-col gap-3">
