@@ -1,4 +1,4 @@
-import { drizzle } from "drizzle-orm/postgres-js";
+﻿import { drizzle } from "drizzle-orm/postgres-js";
 import postgres from "postgres";
 
 declare global {
@@ -26,7 +26,7 @@ export function getDb() {
       prepare: false,
       max: 5,
       idle_timeout: 20,
-      ...(shouldUseSsl ? { ssl: "require" as const } : {})
+      ...(shouldUseSsl ? { ssl: { rejectUnauthorized: false } } : {})
     });
 
   if (process.env["NODE_ENV"] !== "production") {
@@ -47,3 +47,4 @@ export function getDb() {
 export type DatabaseClient = ReturnType<typeof getDb>;
 
 export * from "./schema";
+
