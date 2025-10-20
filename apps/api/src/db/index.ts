@@ -15,12 +15,18 @@ export function getDb() {
     throw new Error("DATABASE_URL is not set");
   }
 
+  const shouldUseSsl =
+    process.env["DATABASE_SSL"] === "true" ||
+    /render\.com/.test(connectionString) ||
+    /sslmode=require/.test(connectionString);
+
   const client =
     globalThis.__mystDbClient ??
     postgres(connectionString, {
       prepare: false,
       max: 5,
-      idle_timeout: 20
+      idle_timeout: 20,
+      ...(shouldUseSsl ? { ssl: "require" as const } : {})
     });
 
   if (process.env["NODE_ENV"] !== "production") {
