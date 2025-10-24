@@ -71,6 +71,9 @@ async function getAccessToken(config: CalendarConfig): Promise<string | null> {
   }
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const response = await fetch(TOKEN_ENDPOINT, {
       method: "POST",
       headers: {
@@ -81,8 +84,11 @@ async function getAccessToken(config: CalendarConfig): Promise<string | null> {
         client_secret: config.clientSecret,
         refresh_token: config.refreshToken,
         grant_type: "refresh_token"
-      })
+      }),
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (!response.ok) {
       const text = await response.text().catch(() => "");
@@ -161,14 +167,20 @@ async function googleRequest(
     (eventId ? `/${encodeURIComponent(eventId)}` : "");
 
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const response = await fetch(url, {
       ...init,
       headers: {
         Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
         ...(init.headers ?? {})
-      }
+      },
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
     return response;
   } catch (error) {
     console.warn("[calendar] request_error", { error: String(error) });

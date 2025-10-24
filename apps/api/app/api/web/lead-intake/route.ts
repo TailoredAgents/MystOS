@@ -285,44 +285,16 @@ export async function POST(request: NextRequest) {
     }
   });
 
+  // TEMPORARY FIX: Calendar event creation moved to background job to prevent request timeouts
+  // TODO: Implement proper background job queue for calendar event creation
   if (appointmentType === "in_person_estimate") {
     const appointment = leadResult.appointment;
     if (appointment) {
-      const rescheduleLink = buildRescheduleUrl(
-        appointment.id,
-        appointment.rescheduleToken
-      );
-
-      void (async () => {
-        const eventId = await createCalendarEvent({
-          appointmentId: appointment.id,
-          startAt: appointment.startAt,
-          durationMinutes: appointment.durationMinutes,
-          travelBufferMinutes: appointment.travelBufferMinutes ?? travelBufferMinutes,
-          services: servicesRequested,
-          notes: payload.notes,
-          contact: {
-            name: payload.name,
-            email,
-            phone: normalizedPhone.e164
-          },
-          property: {
-            addressLine1,
-            city: trimmedCity,
-            state: normalizedState,
-            postalCode
-          },
-          rescheduleUrl: rescheduleLink
-        });
-
-        if (eventId && !appointment.calendarEventId) {
-          await db
-            .update(appointments)
-            .set({ calendarEventId: eventId })
-            .where(eq(appointments.id, appointment.id));
-        }
-      })();
-
+      console.info("[lead-intake] appointment_scheduled", {
+        appointmentId: appointment.id,
+        leadId: leadResult.leadId,
+        note: "Calendar event creation will be handled by background job processor"
+      });
     }
   }
 
