@@ -13,12 +13,16 @@ out/
 .env
 .env.*
 !.env.example
+!.env.e2e
+!apps/api/.env.e2e.local
+!apps/site/.env.e2e.local
 
 # Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+artifacts/
 
 # Editor
 .DS_Store

@@ -38,6 +38,36 @@
   ```
   The API listens on `http://localhost:3001` (via `apps/api`). The site runs on `http://localhost:3000`.
 
+## E2E Environment
+- Sync deterministic env files:
+  ```bash
+  pnpm e2e:env
+  ```
+- Seed the database baseline used by Playwright/globalSetup:
+  ```bash
+  pnpm seed:e2e
+  ```
+- Start the full hermetic stack (Docker: Postgres, MailHog, LocalStack, Twilio mock + site/api/worker):
+  ```bash
+  pnpm -w dev:e2e
+  ```
+- Reset artifacts between runs:
+  ```bash
+  pnpm cleanup:e2e
+  ```
+- Run the Playwright suite:
+  ```bash
+  pnpm test:e2e
+  ```
+- Debug a single headed Chromium run:
+  ```bash
+  pnpm test:e2e:headed
+  ```
+- Current coverage (Phase 5): lead intake funnel and quote lifecycle acceptance flows (`tests/e2e/specs/lead-intake.spec.ts`, `tests/e2e/specs/quote-lifecycle.spec.ts`).
+- `pnpm dev:e2e` writes service logs to `artifacts/e2e/logs/{site,api,worker}.log`. Playwright attaches the tail of each file on failure, so keep the dev stack running to capture diagnostics.
+- Tests probe Site/API/MailHog/Twilio health before execution. If any dependency is missing you’ll see an explicit skip message (`Missing dependencies: …`) instead of a timeout.
+- Use `pnpm report:e2e` after a run to summarize pass/fail/flake counts from `artifacts/e2e/json-report.json`; this feeds into monthly flake/latency reviews.
+
 ## Useful Commands
 ```bash
 pnpm -w build    # production build for all apps
@@ -81,5 +111,4 @@ You can place these in the monorepo root `.env` or per-app `.env.local` files. B
 ### Dev commands
 - API: `pnpm --filter api dev`
 - Site: `pnpm --filter site dev`
-
-
+- Admin dashboards: visit `/admin/login` and enter the `ADMIN_API_KEY` (stored in 1Password). Successful login drops a session cookie so you can navigate `/admin/*` routes; run `pnpm cleanup:e2e` to purge related test data.

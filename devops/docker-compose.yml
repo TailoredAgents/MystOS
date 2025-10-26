@@ -11,5 +11,30 @@ services:
       POSTGRES_PASSWORD: myst
     volumes:
       - pgdata:/var/lib/postgresql/data
+  mailhog:
+    image: mailhog/mailhog:v1.0.1
+    restart: unless-stopped
+    ports:
+      - "${MAILHOG_SMTP_PORT:-1025}:1025"
+      - "${MAILHOG_HTTP_PORT:-8025}:8025"
+  localstack:
+    image: localstack/localstack:3.8
+    restart: unless-stopped
+    environment:
+      - SERVICES=s3,sqs,events
+      - DEFAULT_REGION=${AWS_DEFAULT_REGION:-us-east-1}
+    ports:
+      - "${LOCALSTACK_PORT:-4566}:4566"
+    volumes:
+      - localstack-data:/var/lib/localstack
+  twilio-mock:
+    build:
+      context: ./twilio-mock
+    restart: unless-stopped
+    environment:
+      - PORT=${TWILIO_HTTP_PORT:-4010}
+    ports:
+      - "${TWILIO_HTTP_PORT:-4010}:4010"
 volumes:
   pgdata:
+  localstack-data:

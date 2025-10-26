@@ -165,11 +165,13 @@ async function sendSms(to: string, body: string, context: Record<string, unknown
     return;
   }
 
+  const twilioBaseUrl = (process.env["TWILIO_API_BASE_URL"] ?? "https://api.twilio.com").replace(/\/$/, "");
+
   try {
     const auth = Buffer.from(`${sid}:${token}`).toString("base64");
     const form = new URLSearchParams({ From: from, To: to, Body: body }).toString();
 
-    const response = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${sid}/Messages.json`, {
+    const response = await fetch(`${twilioBaseUrl}/2010-04-01/Accounts/${sid}/Messages.json`, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -625,4 +627,3 @@ export async function sendQuoteDecisionNotification(
     );
   }
 }
-
