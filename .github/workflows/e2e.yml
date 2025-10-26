@@ -1,0 +1,80 @@
+name: E2E
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  playwright-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: "pnpm"
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
+
+      - name: Start docker dependencies
+        run: docker compose -f devops/docker-compose.yml up -d
+
+      - name: Prepare environment
+        run: |
+          pnpm e2e:env
+          mkdir -p artifacts/e2e/logs
+
+      - name: Start dev stack
+        run: |
+          pnpm dev:e2e &
+          echo $! > dev-server.pid
+
+      - name: Wait for health checks
+        run: |
+          for attempt in {1..60}; do
+            if curl -fsS http://localhost:3000/api/healthz >/dev/null && curl -fsS http://localhost:3001/api/healthz >/dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Services failed to pass health checks" >&2
+          exit 1
+
+      - name: Run Playwright suite
+        env:
+          CI: "true"
+        run: pnpm test:e2e
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: artifacts/e2e
+
+      - name: Kill dev stack
+        if: always()
+        run: |
+          if [ -f dev-server.pid ]; then
+            kill $(cat dev-server.pid) || true
+          fi
+          docker compose -f devops/docker-compose.yml logs --no-color > artifacts/e2e/logs/docker.log || true
+          docker compose -f devops/docker-compose.yml down || true
+
+      - name: Cleanup e2e data
+        if: always()
+        run: pnpm cleanup:e2e || true
