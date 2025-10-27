@@ -23,7 +23,8 @@
         "prepare": "husky install",
         "db:generate": "drizzle-kit generate:pg",
         "db:migrate": "drizzle-kit migrate",
-        "outbox:worker": "tsx scripts/outbox-worker.ts"
+        "outbox:worker": "tsx scripts/outbox-worker.ts",
+        "outbox:worker:prod": "NODE_ENV=production tsx scripts/outbox-worker.ts"
     },
     "devDependencies": {
         "@commitlint/cli": "^19.5.0",
@@ -57,6 +58,7 @@
         "typescript": "^5.6.3"
     },
     "dependencies": {
-        "@types/nanoid": "^3.0.0"
+        "@types/nanoid": "^3.0.0",
+        "tsx": "^4.19.2"
     }
 }
