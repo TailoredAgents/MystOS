@@ -11,7 +11,8 @@ import {
   resolveAppointmentTiming,
   APPOINTMENT_TIME_ZONE
 } from "../../../scheduling";
-import { createCalendarEvent, updateCalendarEvent } from "@/lib/calendar";
+import type { AppointmentCalendarPayload } from "@/lib/calendar";
+import { createCalendarEventWithRetry, updateCalendarEventWithRetry } from "@/lib/calendar-events";
 import { isAdminRequest } from "../../../admin";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -176,47 +177,40 @@ export async function POST(
                   .toISODate()
           : null;
 
-  if (updated.calendarEventId) {
-    await updateCalendarEvent(updated.calendarEventId, {
-      appointmentId: updated.id,
-      startAt: updated.startAt,
-      durationMinutes: updated.durationMinutes,
-      travelBufferMinutes: updated.travelBufferMinutes ?? travelBufferMinutes,
-      services,
-      contact: {
-        name: `${existing.contactFirstName ?? "Myst"} ${existing.contactLastName ?? "Customer"}`,
-        email: existing.contactEmail,
-        phone: existing.contactPhoneE164 ?? existing.contactPhone ?? undefined
-      },
-      property: {
-        addressLine1: existing.propertyAddressLine1 ?? "Undisclosed",
-        city: existing.propertyCity ?? "",
-        state: existing.propertyState ?? "",
-        postalCode: existing.propertyPostalCode ?? ""
-      },
-      rescheduleUrl
-    });
-  } else {
-    const eventId = await createCalendarEvent({
-      appointmentId: updated.id,
-      startAt: updated.startAt,
-      durationMinutes: updated.durationMinutes,
-      travelBufferMinutes: updated.travelBufferMinutes ?? travelBufferMinutes,
-      services,
-      contact: {
-        name: `${existing.contactFirstName ?? "Myst"} ${existing.contactLastName ?? "Customer"}`,
-        email: existing.contactEmail,
-        phone: existing.contactPhoneE164 ?? existing.contactPhone ?? undefined
-      },
-      property: {
-        addressLine1: existing.propertyAddressLine1 ?? "Undisclosed",
-        city: existing.propertyCity ?? "",
-        state: existing.propertyState ?? "",
-        postalCode: existing.propertyPostalCode ?? ""
-      },
-      rescheduleUrl
-    });
+  const calendarPayload: AppointmentCalendarPayload = {
+    appointmentId: updated.id,
+    startAt: updated.startAt,
+    durationMinutes: updated.durationMinutes,
+    travelBufferMinutes: updated.travelBufferMinutes ?? travelBufferMinutes,
+    services,
+    notes: typeof existing.leadNotes === "string" ? existing.leadNotes : null,
+    contact: {
+      name: `${existing.contactFirstName ?? "Myst"} ${existing.contactLastName ?? "Customer"}`,
+      email: existing.contactEmail,
+      phone: existing.contactPhoneE164 ?? existing.contactPhone ?? undefined
+    },
+    property: {
+      addressLine1: existing.propertyAddressLine1 ?? "Undisclosed",
+      city: existing.propertyCity ?? "",
+      state: existing.propertyState ?? "",
+      postalCode: existing.propertyPostalCode ?? ""
+    },
+    rescheduleUrl
+  };
 
+  if (updated.calendarEventId) {
+    const updatedEvent = await updateCalendarEventWithRetry(updated.calendarEventId, calendarPayload);
+    if (!updatedEvent) {
+      const replacementEventId = await createCalendarEventWithRetry(calendarPayload);
+      if (replacementEventId) {
+        await db
+          .update(appointments)
+          .set({ calendarEventId: replacementEventId })
+          .where(eq(appointments.id, updated.id));
+      }
+    }
+  } else {
+    const eventId = await createCalendarEventWithRetry(calendarPayload);
     if (eventId) {
       await db
         .update(appointments)
@@ -249,4 +243,3 @@ export async function POST(
     timeWindow: input.timeWindow ?? previousTimeWindow
   });
 }
-

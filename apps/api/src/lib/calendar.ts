@@ -253,20 +253,20 @@ export async function createCalendarEvent(
 export async function updateCalendarEvent(
   eventId: string,
   payload: AppointmentCalendarPayload
-): Promise<void> {
+): Promise<boolean> {
   const config = getCalendarConfig();
   if (!config) {
-    return;
+    return false;
   }
 
   const accessToken = await getAccessToken(config);
   if (!accessToken) {
-    return;
+    return false;
   }
 
   const eventBody = buildEventBody(payload, config);
   if (!eventBody) {
-    return;
+    return false;
   }
 
   const response = await googleRequest(config, accessToken, eventId, {
@@ -287,13 +287,16 @@ export async function updateCalendarEvent(
   });
 
   if (!response) {
-    return;
+    return false;
   }
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     console.warn("[calendar] update_failed", { status: response.status, text });
+    return false;
   }
+
+  return true;
 }
 
 export async function deleteCalendarEvent(eventId: string): Promise<void> {

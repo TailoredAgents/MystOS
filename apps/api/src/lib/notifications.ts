@@ -33,6 +33,7 @@ export interface EstimateNotificationPayload {
     status: "requested" | "confirmed" | "completed" | "no_show" | "canceled";
     rescheduleToken: string;
     rescheduleUrl?: string;
+    calendarEventId?: string | null;
   };
   notes?: string | null;
 }

@@ -3,17 +3,11 @@ import { NextResponse } from "next/server";
 import { LRUCache } from "lru-cache";
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { eq } from "drizzle-orm";
 import { getDb, leads, outboxEvents, appointments } from "@/db";
 import { sendConversion } from "@/lib/ga";
-import { createCalendarEvent } from "@/lib/calendar";
 import { normalizeName, normalizePhone, resolveClientIp } from "../utils";
 import { upsertContact, upsertProperty } from "../persistence";
-import {
-  buildRescheduleUrl,
-  DEFAULT_TRAVEL_BUFFER_MIN,
-  resolveAppointmentTiming
-} from "../scheduling";
+import { DEFAULT_TRAVEL_BUFFER_MIN, resolveAppointmentTiming } from "../scheduling";
 
 const rateLimiter = new LRUCache<string, { count: number }>({
   max: 500,
@@ -37,7 +31,7 @@ function corsJson(body: unknown, init?: ResponseInit): NextResponse {
   return applyCors(NextResponse.json(body, init));
 }
 
-export async function OPTIONS(): Promise<NextResponse> {
+export function OPTIONS(): NextResponse {
   return applyCors(new NextResponse(null, { status: 204 }));
 }
 

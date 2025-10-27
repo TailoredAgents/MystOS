@@ -6,6 +6,8 @@ import {
   sendQuoteSentNotification,
   sendQuoteDecisionNotification
 } from "@/lib/notifications";
+import type { AppointmentCalendarPayload } from "@/lib/calendar";
+import { createCalendarEventWithRetry, updateCalendarEventWithRetry } from "@/lib/calendar-events";
 
 type OutboxEventRecord = typeof outboxEvents.$inferSelect;
 
@@ -48,6 +50,129 @@ function buildQuoteShareUrl(token: string): string {
   return `${base.replace(/\/$/, "")}/quote/${token}`;
 }
 
+function buildRescheduleUrlForAppointment(appointmentId: string, token: string): string {
+  const base =
+    process.env["NEXT_PUBLIC_SITE_URL"] ??
+    process.env["SITE_URL"] ??
+    "http://localhost:3000";
+  const url = new URL("/schedule", base);
+  url.searchParams.set("appointmentId", appointmentId);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+function buildCalendarPayloadFromNotification(
+  notification: EstimateNotificationPayload
+): AppointmentCalendarPayload | null {
+  const appointment = notification.appointment;
+  if (!appointment.startAt) {
+    return null;
+  }
+
+  const rescheduleUrl =
+    appointment.rescheduleUrl ?? buildRescheduleUrlForAppointment(appointment.id, appointment.rescheduleToken);
+
+  return {
+    appointmentId: appointment.id,
+    startAt: appointment.startAt,
+    durationMinutes: appointment.durationMinutes,
+    travelBufferMinutes: appointment.travelBufferMinutes,
+    services: notification.services,
+    notes: notification.notes ?? null,
+    contact: {
+      name: notification.contact.name,
+      email: notification.contact.email ?? null,
+      phone: notification.contact.phone ?? null
+    },
+    property: {
+      addressLine1: notification.property.addressLine1,
+      city: notification.property.city,
+      state: notification.property.state,
+      postalCode: notification.property.postalCode
+    },
+    rescheduleUrl
+  };
+}
+
+async function ensureCalendarEventCreated(
+  notification: EstimateNotificationPayload
+): Promise<string | null> {
+  if (notification.appointment.calendarEventId) {
+    return notification.appointment.calendarEventId;
+  }
+
+  const payload = buildCalendarPayloadFromNotification(notification);
+  if (!payload) {
+    return null;
+  }
+
+  const eventId = await createCalendarEventWithRetry(payload);
+  if (!eventId) {
+    console.warn("[calendar] create_skipped", { appointmentId: notification.appointment.id });
+    return null;
+  }
+
+  try {
+    const db = getDb();
+    await db
+      .update(appointments)
+      .set({ calendarEventId: eventId, updatedAt: new Date() })
+      .where(eq(appointments.id, notification.appointment.id));
+  } catch (error) {
+    console.warn("[calendar] appointment_update_failed", {
+      appointmentId: notification.appointment.id,
+      error: String(error)
+    });
+  }
+
+  return eventId;
+}
+
+async function syncCalendarEventForReschedule(
+  notification: EstimateNotificationPayload
+): Promise<string | null> {
+  const payload = buildCalendarPayloadFromNotification(notification);
+  if (!payload) {
+    return notification.appointment.calendarEventId ?? null;
+  }
+
+  const db = getDb();
+  let calendarEventId = notification.appointment.calendarEventId ?? null;
+
+  if (calendarEventId) {
+    const updated = await updateCalendarEventWithRetry(calendarEventId, payload);
+    if (updated) {
+      return calendarEventId;
+    }
+    console.warn("[calendar] update_retry_failed", {
+      appointmentId: notification.appointment.id,
+      eventId: calendarEventId
+    });
+  }
+
+  calendarEventId = await createCalendarEventWithRetry(payload);
+  if (!calendarEventId) {
+    console.warn("[calendar] create_after_update_failed", {
+      appointmentId: notification.appointment.id
+    });
+    return null;
+  }
+
+  try {
+    await db
+      .update(appointments)
+      .set({ calendarEventId, updatedAt: new Date() })
+      .where(eq(appointments.id, notification.appointment.id));
+  } catch (error) {
+    console.warn("[calendar] appointment_update_failed", {
+      appointmentId: notification.appointment.id,
+      error: String(error)
+    });
+  }
+
+  return calendarEventId;
+}
+
 async function buildNotificationPayload(
   appointmentId: string,
   overrides?: {
@@ -67,6 +192,7 @@ async function buildNotificationPayload(
       travelBufferMinutes: appointments.travelBufferMinutes,
       status: appointments.status,
       rescheduleToken: appointments.rescheduleToken,
+      calendarEventId: appointments.calendarEventId,
       leadId: appointments.leadId,
       contactId: contacts.id,
       contactFirstName: contacts.firstName,
@@ -134,6 +260,9 @@ async function buildNotificationPayload(
     return null;
   }
 
+  const rescheduleUrl =
+    overrides?.rescheduleUrl ?? buildRescheduleUrlForAppointment(row.appointmentId, rescheduleToken);
+
   const payload: EstimateNotificationPayload = {
     leadId: row.leadId ?? "unknown",
     services,
@@ -156,7 +285,8 @@ async function buildNotificationPayload(
       travelBufferMinutes: row.travelBufferMinutes ?? 30,
       status,
       rescheduleToken,
-      rescheduleUrl: overrides?.rescheduleUrl ?? undefined
+      rescheduleUrl,
+      calendarEventId: row.calendarEventId ?? null
     },
     notes: overrides?.notes ?? (typeof row.leadNotes === "string" ? row.leadNotes : null)
   };
@@ -280,6 +410,7 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
         return "skipped";
       }
 
+      await ensureCalendarEventCreated(notification);
       await sendEstimateConfirmation(notification, "requested");
       return "processed";
     }
@@ -302,6 +433,7 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
         return "skipped";
       }
 
+      await syncCalendarEventForReschedule(notification);
       await sendEstimateConfirmation(notification, "rescheduled");
       return "processed";
     }
@@ -468,6 +600,3 @@ export async function processOutboxBatch(
 
   return stats;
 }
-
-
-

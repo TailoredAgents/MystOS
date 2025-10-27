@@ -5,7 +5,7 @@
     "packageManager": "pnpm@9.15.9",
     "scripts": {
         "dev": "turbo run dev --parallel --filter=site --filter=api",
-        "dev:e2e": "pnpm e2e:env && docker compose -f devops/docker-compose.yml up -d && pnpm seed:e2e && mkdir -p artifacts/e2e/logs && concurrently --kill-others --names \"site,api,worker\" --prefix-colors \"cyan,magenta,green\" \"bash -lc 'set -o pipefail; pnpm --filter site dev 2>&1 | tee artifacts/e2e/logs/site.log'\" \"bash -lc 'set -o pipefail; pnpm --filter api dev 2>&1 | tee artifacts/e2e/logs/api.log'\" \"bash -lc 'set -o pipefail; pnpm outbox:worker 2>&1 | tee artifacts/e2e/logs/worker.log'\"",
+        "dev:e2e": "pnpm e2e:env && docker compose -f devops/docker-compose.yml up -d && pnpm seed:e2e && mkdir -p artifacts/e2e/logs && concurrently --kill-others --names \"site,api,worker\" --prefix-colors \"cyan,magenta,green\" \"bash -lc 'set -o pipefail; pnpm --filter site dev 2>&1 | tee artifacts/e2e/logs/site.log'\" \"bash -lc 'set -o pipefail; pnpm --filter api dev 2>&1 | tee artifacts/e2e/logs/api.log'\" \"bash -lc 'set -o pipefail; OUTBOX_POLL_INTERVAL_MS=500 pnpm outbox:worker 2>&1 | tee artifacts/e2e/logs/worker.log'\"",
         "dev:site": "pnpm --filter site dev",
         "dev:api": "pnpm --filter api dev",
         "e2e:env": "tsx scripts/sync-e2e-env.ts",
