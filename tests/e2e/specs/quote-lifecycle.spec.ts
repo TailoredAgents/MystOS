@@ -3,9 +3,7 @@ import {
   ApiClient,
   uniqueEmail,
   uniquePhone,
-  clearMailhog,
   waitForMailhogMessage,
-  clearTwilioMessages,
   waitForTwilioMessage,
   waitFor,
   findLeadByEmail,
@@ -17,11 +15,6 @@ import { getEnvVar } from "../support/env";
 
 test.describe("Quote lifecycle journey", () => {
   test("admin issues a quote and customer accepts via public link", async ({ page }) => {
-    await test.step("Reset notification inboxes", async () => {
-      await clearMailhog();
-      await clearTwilioMessages();
-    });
-
     const api = new ApiClient();
     const contactEmail = uniqueEmail("quote");
     const phoneDigits = uniquePhone();
@@ -100,8 +93,7 @@ test.describe("Quote lifecycle journey", () => {
       );
       expect(sendSms.body.toLowerCase()).toContain("quote");
 
-      await clearMailhog();
-      await clearTwilioMessages();
+      // Skip clearing shared inboxes; rely on unique email/phone tags per test run.
     });
 
     await test.step("Customer accepts quote", async () => {
@@ -137,8 +129,7 @@ test.describe("Quote lifecycle journey", () => {
       );
       expect(decisionSms.body).toContain("Myst");
 
-      await clearMailhog();
-      await clearTwilioMessages();
+      // Skip clearing shared inboxes; rely on unique email/phone tags per test run.
     });
   });
 });

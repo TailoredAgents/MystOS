@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { contacts, properties } from "@/db";
 import type { DatabaseClient } from "@/db";
 import type { InferModel } from "drizzle-orm";
@@ -99,33 +99,30 @@ export async function upsertProperty(
   db: DbExecutor,
   input: UpsertPropertyInput
 ): Promise<PropertyRecord> {
-  const propertyRows = (await db
-    .select()
-    .from(properties)
-    .where(
-      and(
-        eq(properties.contactId, input.contactId),
-        eq(properties.addressLine1, input.addressLine1.trim()),
-        eq(properties.postalCode, input.postalCode.trim()),
-        eq(properties.state, input.state.trim().toUpperCase())
-      )
-    )
-    .limit(1)) as PropertyRecord[];
-
-  const existing = propertyRows[0];
-  if (existing) {
-    return existing;
-  }
+  const trimmedAddress = input.addressLine1.trim();
+  const trimmedCity = input.city.trim();
+  const normalizedState = input.state.trim().toUpperCase();
+  const trimmedPostalCode = input.postalCode.trim();
+  const gated = input.gated ?? false;
 
   const [inserted] = await db
     .insert(properties)
     .values({
       contactId: input.contactId,
-      addressLine1: input.addressLine1.trim(),
-      city: input.city.trim(),
-      state: input.state.trim().toUpperCase(),
-      postalCode: input.postalCode.trim(),
-      gated: input.gated ?? false
+      addressLine1: trimmedAddress,
+      city: trimmedCity,
+      state: normalizedState,
+      postalCode: trimmedPostalCode,
+      gated
+    })
+    .onConflictDoUpdate({
+      target: [properties.addressLine1, properties.postalCode, properties.state],
+      set: {
+        contactId: input.contactId,
+        city: trimmedCity,
+        gated,
+        updatedAt: new Date()
+      }
     })
     .returning();
 

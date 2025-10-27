@@ -3,9 +3,11 @@ import { ensureE2EEnv, getEnvVar } from "./support/env";
 import { bootstrapAdminStorage, bootstrapVisitorStorage } from "./support/auth";
 import { runE2ESeed } from "./support/seed";
 import { waitForHealthcheck } from "./support/health";
+import { ensureContentlayerGenerated } from "./support/contentlayer";
 
 export default async function globalSetup(_config: FullConfig): Promise<void> {
   ensureE2EEnv();
+  await ensureContentlayerGenerated();
 
   await runE2ESeed();
 

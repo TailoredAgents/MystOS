@@ -39,9 +39,15 @@ export async function waitForMailhogMessage(
 ): Promise<MailHogItem> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    const message = await fetchLatestMail();
-    if (message && matcher(message)) {
-      return message;
+    const response = await fetch(`${mailhogBase}/api/v2/messages`);
+    if (response.ok) {
+      const body = (await response.json()) as MailHogResponse;
+      // Check ALL messages, not just the latest
+      for (const item of body.items) {
+        if (matcher(item)) {
+          return item;
+        }
+      }
     }
     await new Promise((resolve) => setTimeout(resolve, intervalMs));
   }

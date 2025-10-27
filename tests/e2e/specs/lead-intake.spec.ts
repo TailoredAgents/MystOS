@@ -2,9 +2,7 @@ import { test, expect } from "../test";
 import {
   uniqueEmail,
   uniquePhone,
-  clearMailhog,
   waitForMailhogMessage,
-  clearTwilioMessages,
   waitForTwilioMessage,
   drainOutbox,
   findLeadByEmail,
@@ -14,11 +12,6 @@ import {
 
 test.describe("Lead Intake Journey", () => {
   test("visitor schedules an in-person estimate and receives notifications", async ({ page }) => {
-    await test.step("Reset notification inboxes", async () => {
-      await clearMailhog();
-      await clearTwilioMessages();
-    });
-
     const email = uniqueEmail("lead");
     const phoneDigits = uniquePhone();
     const phoneDisplay = `(${phoneDigits.slice(0, 3)}) ${phoneDigits.slice(3, 6)}-${phoneDigits.slice(6)}`;
@@ -78,8 +71,7 @@ test.describe("Lead Intake Journey", () => {
       );
       expect(confirmationSms.body).toContain("Myst");
 
-      await clearMailhog();
-      await clearTwilioMessages();
+      // No-op: rely on unique email/phone per test instead of clearing shared inboxes.
     });
   });
 });

@@ -1,23 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
-
-type DbModule = typeof import("../../../apps/api/src/db");
-
-let dbModulePromise: Promise<DbModule> | null = null;
-
-async function loadDbModule(): Promise<DbModule> {
-  if (!dbModulePromise) {
-    dbModulePromise = import("../../../apps/api/src/db");
-  }
-  return dbModulePromise;
-}
-
-async function getDb() {
-  const mod = await loadDbModule();
-  return {
-    db: mod.getDb(),
-    tables: mod
-  };
-}
+import postgres from "postgres";
 
 export type LeadDetails = {
   leadId: string;
@@ -46,27 +27,62 @@ export type OutboxEventDetails = {
   createdAt: Date;
 };
 
-export async function findLeadByEmail(email: string): Promise<LeadDetails | null> {
-  const { db, tables } = await getDb();
-  const { leads, contacts, properties, appointments } = tables;
+type SqlClient = ReturnType<typeof postgres>;
 
-  const rows = await db
-    .select({
-      leadId: leads.id,
-      contactId: leads.contactId,
-      propertyId: leads.propertyId,
-      services: leads.servicesRequested,
-      contactEmail: contacts.email,
-      contactPhoneE164: contacts.phoneE164,
-      appointmentId: appointments.id
-    })
-    .from(leads)
-    .innerJoin(contacts, eq(leads.contactId, contacts.id))
-    .innerJoin(properties, eq(leads.propertyId, properties.id))
-    .leftJoin(appointments, eq(appointments.leadId, leads.id))
-    .where(eq(contacts.email, email))
-    .orderBy(desc(leads.createdAt))
-    .limit(1);
+let cachedClient: SqlClient | null = null;
+
+function getSql(): SqlClient {
+  if (cachedClient) {
+    return cachedClient;
+  }
+
+  const connectionString = process.env["DATABASE_URL"];
+  if (!connectionString) {
+    throw new Error("DATABASE_URL must be set for E2E DB helpers.");
+  }
+
+  const shouldUseSsl =
+    process.env["DATABASE_SSL"] === "true" ||
+    /render\.com/.test(connectionString) ||
+    /sslmode=require/.test(connectionString);
+
+  cachedClient = postgres(connectionString, {
+    prepare: false,
+    max: 5,
+    idle_timeout: 20,
+    ...(shouldUseSsl ? { ssl: { rejectUnauthorized: false } } : {})
+  });
+
+  return cachedClient;
+}
+
+export async function findLeadByEmail(email: string): Promise<LeadDetails | null> {
+  const sql = getSql();
+  const rows = await sql<{
+    leadId: string;
+    contactId: string;
+    propertyId: string;
+    servicesRequested: string[] | null;
+    contactEmail: string | null;
+    contactPhoneE164: string | null;
+    appointmentId: string | null;
+  }[]>`
+    SELECT
+      leads.id AS "leadId",
+      leads.contact_id AS "contactId",
+      leads.property_id AS "propertyId",
+      leads.services_requested AS "servicesRequested",
+      contacts.email AS "contactEmail",
+      contacts.phone_e164 AS "contactPhoneE164",
+      appointments.id AS "appointmentId"
+    FROM leads
+    INNER JOIN contacts ON leads.contact_id = contacts.id
+    INNER JOIN properties ON leads.property_id = properties.id
+    LEFT JOIN appointments ON appointments.lead_id = leads.id
+    WHERE contacts.email = ${email}
+    ORDER BY leads.created_at DESC
+    LIMIT 1
+  `;
 
   const row = rows[0];
   if (!row) {
@@ -77,7 +93,7 @@ export async function findLeadByEmail(email: string): Promise<LeadDetails | null
     leadId: row.leadId,
     contactId: row.contactId,
     propertyId: row.propertyId,
-    services: row.services ?? [],
+    services: row.servicesRequested ?? [],
     contactEmail: row.contactEmail,
     contactPhoneE164: row.contactPhoneE164,
     appointmentId: row.appointmentId ?? null
@@ -85,23 +101,29 @@ export async function findLeadByEmail(email: string): Promise<LeadDetails | null
 }
 
 export async function getQuoteById(id: string): Promise<QuoteDetails | null> {
-  const { db, tables } = await getDb();
-  const { quotes, contacts } = tables;
-
-  const rows = await db
-    .select({
-      id: quotes.id,
-      status: quotes.status,
-      shareToken: quotes.shareToken,
-      total: quotes.total,
-      depositDue: quotes.depositDue,
-      balanceDue: quotes.balanceDue,
-      contactEmail: contacts.email
-    })
-    .from(quotes)
-    .leftJoin(contacts, eq(quotes.contactId, contacts.id))
-    .where(eq(quotes.id, id))
-    .limit(1);
+  const sql = getSql();
+  const rows = await sql<{
+    id: string;
+    status: string;
+    shareToken: string | null;
+    total: string | number | null;
+    depositDue: string | number | null;
+    balanceDue: string | number | null;
+    contactEmail: string | null;
+  }[]>`
+    SELECT
+      quotes.id,
+      quotes.status,
+      quotes.share_token AS "shareToken",
+      quotes.total,
+      quotes.deposit_due AS "depositDue",
+      quotes.balance_due AS "balanceDue",
+      contacts.email AS "contactEmail"
+    FROM quotes
+    LEFT JOIN contacts ON quotes.contact_id = contacts.id
+    WHERE quotes.id = ${id}
+    LIMIT 1
+  `;
 
   const row = rows[0];
   if (!row) {
@@ -120,33 +142,43 @@ export async function getQuoteById(id: string): Promise<QuoteDetails | null> {
 }
 
 export async function getOutboxEventsByLeadId(leadId: string): Promise<OutboxEventDetails[]> {
-  const { db, tables } = await getDb();
-  const { outboxEvents } = tables;
+  const sql = getSql();
+  const rows = await sql<OutboxEventDetails[]>`
+    SELECT
+      id,
+      type,
+      payload,
+      created_at AS "createdAt"
+    FROM outbox_events
+    WHERE payload->>'leadId' = ${leadId}
+    ORDER BY created_at DESC
+  `;
 
-  return db
-    .select({
-      id: outboxEvents.id,
-      type: outboxEvents.type,
-      payload: outboxEvents.payload,
-      createdAt: outboxEvents.createdAt
-    })
-    .from(outboxEvents)
-    .where(sql`payload->>'leadId' = ${leadId}`)
-    .orderBy(desc(outboxEvents.createdAt));
+  return rows.map((row) => ({
+    id: row.id,
+    type: row.type,
+    payload: row.payload,
+    createdAt: new Date(row.createdAt)
+  }));
 }
 
 export async function getOutboxEventsByQuoteId(quoteId: string): Promise<OutboxEventDetails[]> {
-  const { db, tables } = await getDb();
-  const { outboxEvents } = tables;
+  const sql = getSql();
+  const rows = await sql<OutboxEventDetails[]>`
+    SELECT
+      id,
+      type,
+      payload,
+      created_at AS "createdAt"
+    FROM outbox_events
+    WHERE payload->>'quoteId' = ${quoteId}
+    ORDER BY created_at DESC
+  `;
 
-  return db
-    .select({
-      id: outboxEvents.id,
-      type: outboxEvents.type,
-      payload: outboxEvents.payload,
-      createdAt: outboxEvents.createdAt
-    })
-    .from(outboxEvents)
-    .where(sql`payload->>'quoteId' = ${quoteId}`)
-    .orderBy(desc(outboxEvents.createdAt));
+  return rows.map((row) => ({
+    id: row.id,
+    type: row.type,
+    payload: row.payload,
+    createdAt: new Date(row.createdAt)
+  }));
 }

@@ -9,6 +9,7 @@ import { LeadForm } from "@/components/LeadForm";
 import { MdxContent } from "@/components/MdxContent";
 import { StickyCtaBar } from "@/components/StickyCtaBar";
 import { createPageMetadata } from "@/lib/metadata";
+import { DEFAULT_LEAD_SERVICE_OPTIONS } from "@/lib/lead-services";
 
 const beforeImage = "/images/gallery/before.jpg";
 const afterImage = "/images/gallery/after.png";
@@ -64,14 +65,18 @@ export default function HomePage() {
     notFound();
   }
 
-  const services = allServices.sort((a, b) => a.title.localeCompare(b.title));
+  const services = [...allServices].sort((a, b) => a.title.localeCompare(b.title));
   const areas = allAreas.filter((area) => area.slug !== "index").sort((a, b) => a.title.localeCompare(b.title));
+  const serviceContentMap = new Map(services.map((service) => [service.slug, service]));
+  const leadServiceOptions = DEFAULT_LEAD_SERVICE_OPTIONS.map((option) => {
+    const content = serviceContentMap.get(option.slug);
+    return {
+      ...option,
+      description: content?.short ?? option.description
+    };
+  });
   const leadFormServices = [
-    ...services.map((service) => ({
-      slug: service.slug,
-      title: service.title,
-      description: service.short ?? undefined
-    })),
+    ...leadServiceOptions,
     {
       slug: "commercial-services",
       title: "Commercial Services",
@@ -252,5 +257,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-

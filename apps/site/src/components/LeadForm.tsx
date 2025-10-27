@@ -4,16 +4,11 @@ import * as React from "react";
 import { useSearchParams } from "next/navigation";
 import { availabilityWindows } from "@myst-os/pricing";
 import { Button, cn } from "@myst-os/ui";
+import { DEFAULT_LEAD_SERVICE_OPTIONS, type LeadServiceOption } from "@/lib/lead-services";
 import { useUTM } from "../lib/use-utm";
 
-interface ServiceOption {
-  slug: string;
-  title: string;
-  description?: string;
-}
-
 interface LeadFormProps extends React.HTMLAttributes<HTMLDivElement> {
-  services?: ServiceOption[];
+  services?: LeadServiceOption[];
 }
 
 type IdleState = { status: "idle" | "submitting" };
@@ -37,17 +32,8 @@ const INITIAL_STATE: FormState = { status: "idle" };
 const APPOINTMENT_TIME_ZONE =
   process.env["NEXT_PUBLIC_APPOINTMENT_TIMEZONE"] ?? "America/New_York";
 
-const DEFAULT_SERVICES: ServiceOption[] = [
-  { slug: "house-wash", title: "Whole Home Soft Wash", description: "Siding, brick, and trim" },
-  { slug: "driveway", title: "Driveway & Walkway", description: "Concrete, pavers, and pads" },
-  { slug: "roof", title: "Roof Treatment", description: "Soft wash for shingles and tile" },
-  { slug: "deck", title: "Deck & Patio", description: "Wood, composite, or stone surfaces" },
-  { slug: "windows", title: "Exterior Windows", description: "Spot-free rinse and detailing" },
-  { slug: "gutter", title: "Gutters & Downspouts", description: "Clear, flush, and brighten" }
-];
-
 export function LeadForm({ services, className, ...props }: LeadFormProps) {
-  const serviceOptions = services?.length ? services : DEFAULT_SERVICES;
+  const serviceOptions = services?.length ? services : DEFAULT_LEAD_SERVICE_OPTIONS;
   const utm = useUTM();
   const searchParams = useSearchParams();
   const [formState, setFormState] = React.useState<FormState>(INITIAL_STATE);
@@ -581,8 +567,9 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
                   {availabilityWindows.map((window) => (
                     <label
                       key={window.id}
+                      htmlFor={`rescheduleWindow-${window.id}`}
                       className={cn(
-                        "flex cursor-pointer flex-col gap-1 rounded-lg border p-3 text-xs transition",
+                        "relative flex cursor-pointer flex-col gap-1 rounded-lg border p-3 text-xs transition",
                         rescheduleWindow === window.id
                           ? "border-accent-500 bg-accent-50/80 shadow-soft"
                           : "border-neutral-200 bg-white hover:border-neutral-300"
@@ -590,14 +577,16 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
                     >
                       <input
                         type="radio"
+                        id={`rescheduleWindow-${window.id}`}
                         name="rescheduleWindow"
                         value={window.id}
                         checked={rescheduleWindow === window.id}
                         onChange={(event) => setRescheduleWindow(event.target.value)}
-                        className="sr-only"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                         required
+                        aria-label={window.label}
                       />
-                      <span className="font-semibold text-neutral-700">{window.label}</span>
+                      <span className="font-semibold text-neutral-700 pointer-events-none">{window.label}</span>
                     </label>
                   ))}
                 </div>
@@ -867,13 +856,14 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
         </section>
 
         <section className={cn("space-y-3", step === 2 ? "" : "hidden")}>
-          <label className="text-sm font-medium text-neutral-700">Preferred time window</label>
+          <span className="text-sm font-medium text-neutral-700">Preferred time window</span>
           <div className="grid gap-3 sm:grid-cols-3">
             {availabilityWindows.map((window) => (
               <label
                 key={window.id}
+                htmlFor={`timeWindow-${window.id}`}
                 className={cn(
-                  "flex cursor-pointer flex-col gap-1 rounded-lg border p-4 text-sm transition",
+                  "relative flex cursor-pointer flex-col gap-1 rounded-lg border p-4 text-sm transition",
                   timeWindow === window.id
                     ? "border-accent-500 bg-accent-50/80 shadow-soft"
                     : "border-neutral-200 bg-white hover:border-neutral-300"
@@ -881,15 +871,17 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
               >
                 <input
                   type="radio"
+                  id={`timeWindow-${window.id}`}
                   name="timeWindow"
                   value={window.id}
                   checked={timeWindow === window.id}
                   onChange={(event) => setTimeWindow(event.target.value)}
-                  className="sr-only"
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                   required
+                  aria-label={window.label}
                 />
-                <span className="text-sm font-semibold text-neutral-700">{window.label}</span>
-                <span className="text-xs text-neutral-500">
+                <span className="text-sm font-semibold text-neutral-700 pointer-events-none">{window.label}</span>
+                <span className="text-xs text-neutral-500 pointer-events-none">
                   Crews arrive within this window; we&apos;ll send an SMS when we&apos;re on the way.
                 </span>
               </label>
@@ -971,6 +963,4 @@ export function LeadForm({ services, className, ...props }: LeadFormProps) {
     </div>
   );
 }
-
-
 

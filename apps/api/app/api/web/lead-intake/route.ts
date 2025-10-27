@@ -78,6 +78,11 @@ const LeadSchema = z.object({
 });
 
 function checkRateLimit(key: string): boolean {
+  // Disable rate limiting in E2E test environment to allow parallel test execution
+  if (process.env["NODE_ENV"] === "test" || process.env["E2E_RUN_ID"]) {
+    return false;
+  }
+
   if (key === "unknown") {
     return false;
   }

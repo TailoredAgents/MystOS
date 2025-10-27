@@ -358,7 +358,61 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
     }
 
     case "estimate.status_changed":
-    case "lead.created":
+    case "lead.created": {
+      const payload = isRecord(event.payload) ? event.payload : null;
+      const leadId = typeof payload?.["leadId"] === "string" ? payload["leadId"] : null;
+      const services = coerceServices(payload?.["services"]);
+      const schedulingOverride = payload && isRecord(payload["scheduling"]) ? payload["scheduling"] : null;
+
+      if (!leadId) {
+        console.warn("[outbox] lead.created.missing_lead", { id: event.id });
+        return "skipped";
+      }
+
+      const db = getDb();
+      const rows = await db
+        .select({
+          id: appointments.id
+        })
+        .from(appointments)
+        .where(eq(appointments.leadId, leadId))
+        .limit(1);
+
+      const appointment = rows[0];
+      if (!appointment?.id) {
+        console.info("[outbox] lead.created.no_appointment", { id: event.id, leadId });
+        return "skipped";
+      }
+
+      const notification = await buildNotificationPayload(appointment.id, {
+        services,
+        scheduling: schedulingOverride
+          ? {
+              preferredDate:
+                typeof schedulingOverride["preferredDate"] === "string"
+                  ? schedulingOverride["preferredDate"]
+                  : undefined,
+              alternateDate:
+                typeof schedulingOverride["alternateDate"] === "string"
+                  ? schedulingOverride["alternateDate"]
+                  : undefined,
+              timeWindow:
+                typeof schedulingOverride["timeWindow"] === "string"
+                  ? schedulingOverride["timeWindow"]
+                  : undefined
+            }
+          : undefined,
+        notes: typeof payload?.["notes"] === "string" ? payload["notes"] : undefined
+      });
+
+      if (!notification) {
+        return "skipped";
+      }
+
+      await sendEstimateConfirmation(notification, "requested");
+      return "processed";
+    }
+
     default:
       return "skipped";
   }
@@ -414,7 +468,6 @@ export async function processOutboxBatch(
 
   return stats;
 }
-
 
 
 

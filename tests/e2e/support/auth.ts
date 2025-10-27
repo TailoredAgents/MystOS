@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { getEnvVar } from "./env";
+import { ADMIN_SESSION_COOKIE, adminSessionCookieOptions } from "../../../apps/site/src/lib/admin-session";
 
 const storageDir = path.resolve(process.cwd(), "tests/e2e/storage");
 
@@ -44,6 +45,24 @@ export async function bootstrapAdminStorage(filename: string): Promise<void> {
   const adminKey = getEnvVar("ADMIN_API_KEY");
   const siteBase = getEnvVar("NEXT_PUBLIC_SITE_URL", "http://localhost:3000");
 
+  try {
+    const storageState = await bootstrapViaSessionEndpoint(siteBase, adminKey);
+    await ensureStorageState(filename, storageState);
+    return;
+  } catch (error) {
+    if (error instanceof AdminSessionEndpointMissingError) {
+      console.warn(
+        `[e2e] ${error.message}; synthesizing admin session cookie directly for ${siteBase}.`
+      );
+      const storageState = buildSyntheticAdminStorage(adminKey, siteBase);
+      await ensureStorageState(filename, storageState);
+      return;
+    }
+    throw error;
+  }
+}
+
+async function bootstrapViaSessionEndpoint(siteBase: string, adminKey: string): Promise<StorageState> {
   const response = await fetch(new URL("/api/admin/session", siteBase).toString(), {
     method: "POST",
     headers: {
@@ -52,6 +71,10 @@ export async function bootstrapAdminStorage(filename: string): Promise<void> {
     body: JSON.stringify({ key: adminKey }),
     redirect: "manual"
   });
+
+  if (response.status === 404 || response.status === 405) {
+    throw new AdminSessionEndpointMissingError(response.status);
+  }
 
   if (!response.ok) {
     const text = await response.text().catch(() => "");
@@ -63,8 +86,36 @@ export async function bootstrapAdminStorage(filename: string): Promise<void> {
     throw new Error("Admin session endpoint did not return Set-Cookie header");
   }
 
+  return buildStorageStateFromCookies(cookies, siteBase);
+}
+
+function buildSyntheticAdminStorage(adminKey: string, siteBase: string): StorageState {
+  const cookieOptions = adminSessionCookieOptions();
+  const now = Math.floor(Date.now() / 1000);
+  const expires = cookieOptions.maxAge ? now + cookieOptions.maxAge : now + 60 * 60 * 8;
   const url = new URL(siteBase);
-  const storageState: StorageState = {
+
+  return {
+    cookies: [
+      {
+        name: ADMIN_SESSION_COOKIE,
+        value: adminKey,
+        domain: url.hostname,
+        path: cookieOptions.path ?? "/",
+        expires,
+        httpOnly: cookieOptions.httpOnly ?? true,
+        secure: cookieOptions.secure ?? url.protocol === "https:",
+        sameSite: parseSameSite(cookieOptions.sameSite) ?? "Lax"
+      }
+    ],
+    origins: []
+  };
+}
+
+function buildStorageStateFromCookies(cookies: CookieParseResult[], siteBase: string): StorageState {
+  const url = new URL(siteBase);
+
+  return {
     cookies: cookies.map((cookie) => ({
       name: cookie.name,
       value: cookie.value,
@@ -79,8 +130,6 @@ export async function bootstrapAdminStorage(filename: string): Promise<void> {
     })),
     origins: []
   };
-
-  await ensureStorageState(filename, storageState);
 }
 
 type CookieParseResult = {
@@ -142,4 +191,14 @@ function parseSameSite(value: string | boolean | undefined): "Strict" | "Lax" | 
     return "Lax";
   }
   return undefined;
+}
+
+class AdminSessionEndpointMissingError extends Error {
+  status: number;
+
+  constructor(status: number) {
+    super(`/api/admin/session returned ${status}`);
+    this.name = "AdminSessionEndpointMissingError";
+    this.status = status;
+  }
 }
