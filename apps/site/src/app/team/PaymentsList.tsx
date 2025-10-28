@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { SubmitButton } from "@/components/SubmitButton";
 
 type Payment = {
   id: string;
@@ -24,9 +25,42 @@ function fmtMoney(cents: number, currency: string) {
   }
 }
 
-export function PaymentsList({ initial, summary }: { initial: Payment[]; summary: { total: number; matched: number; unmatched: number } }) {
+type AttachAction = (formData: FormData) => void;
+
+type ApptItem = {
+  id: string;
+  startAt: string | null;
+  contact: { name: string };
+  property: { addressLine1: string; city: string };
+};
+
+export function PaymentsList({
+  initial,
+  summary,
+  attachAction,
+  detachAction
+}: {
+  initial: Payment[];
+  summary: { total: number; matched: number; unmatched: number };
+  attachAction: AttachAction;
+  detachAction: AttachAction;
+}) {
   const [q, setQ] = useState("");
   const [scope, setScope] = useState<string>("all");
+  const [appts, setAppts] = useState<ApptItem[]>([]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const res = await fetch("/api/admin/appointments?status=all", { cache: "no-store" });
+        if (!res.ok) return;
+        const data = (await res.json()) as { ok: boolean; data: ApptItem[] };
+        setAppts(data.data ?? []);
+      } catch {
+        // ignore
+      }
+    })();
+  }, []);
 
   const filtered = useMemo(() => {
     const hay = q.trim().toLowerCase();
@@ -78,10 +112,28 @@ export function PaymentsList({ initial, summary }: { initial: Payment[]; summary
                 <a href={p.receiptUrl} target="_blank" rel="noreferrer" className="text-xs text-neutral-600 underline">Receipt</a>
               ) : null}
             </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {p.appointment ? (
+                <form action={detachAction}>
+                  <input type="hidden" name="paymentId" value={p.id} />
+                  <SubmitButton className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700" pendingLabel="Detaching...">Detach</SubmitButton>
+                </form>
+              ) : (
+                <form action={attachAction} className="flex flex-wrap items-center gap-2">
+                  <input type="hidden" name="paymentId" value={p.id} />
+                  <input list={`appts-${p.id}`} name="appointmentId" placeholder="Search or enter ID" className="min-w-[220px] rounded-md border border-neutral-300 px-2 py-1 text-xs" />
+                  <datalist id={`appts-${p.id}`}>
+                    {appts.map((a) => (
+                      <option key={a.id} value={a.id}>{`${a.contact.name} • ${a.property.addressLine1}, ${a.property.city}`}</option>
+                    ))}
+                  </datalist>
+                  <SubmitButton className="rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Attaching...">Attach</SubmitButton>
+                </form>
+              )}
+            </div>
           </li>
         ))}
       </ul>
     </section>
   );
 }
-

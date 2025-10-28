@@ -4,6 +4,7 @@ import { AdminLoginForm } from "../admin/login/LoginForm";
 import { CrewLoginForm } from "../crew/login/LoginForm";
 import { revalidatePath } from "next/cache";
 import { CopyButton } from "@/components/CopyButton";
+import { SubmitButton } from "@/components/SubmitButton";
 import { QuotesList } from "./QuotesList";
 import { PaymentsList } from "./PaymentsList";
 import React from "react";
@@ -95,6 +96,8 @@ export async function updateApptStatus(formData: FormData) {
   const status = formData.get("status");
   if (typeof id !== "string" || typeof status !== "string") return;
   await callAdminApi(`/api/appointments/${id}/status`, { method: "POST", body: JSON.stringify({ status }) });
+  const jar = await cookies();
+  jar.set({ name: "myst-flash", value: "Appointment updated", path: "/" });
   revalidatePath("/team");
 }
 
@@ -104,6 +107,8 @@ export async function addApptNote(formData: FormData) {
   const body = formData.get("body");
   if (typeof id !== "string" || typeof body !== "string" || body.trim().length === 0) return;
   await callAdminApi(`/api/appointments/${id}/notes`, { method: "POST", body: JSON.stringify({ body }) });
+  const jar = await cookies();
+  jar.set({ name: "myst-flash", value: "Note added", path: "/" });
   revalidatePath("/team");
 }
 
@@ -112,6 +117,8 @@ export async function sendQuoteAction(formData: FormData) {
   const id = formData.get("quoteId");
   if (typeof id !== "string") return;
   await callAdminApi(`/api/quotes/${id}/send`, { method: "POST", body: JSON.stringify({}) });
+  const jar = await cookies();
+  jar.set({ name: "myst-flash", value: "Quote sent", path: "/" });
   revalidatePath("/team");
 }
 
@@ -124,6 +131,8 @@ export async function quoteDecisionAction(formData: FormData) {
     method: "POST",
     body: JSON.stringify({ decision })
   });
+  const jar = await cookies();
+  jar.set({ name: "myst-flash", value: "Quote updated", path: "/" });
   revalidatePath("/team");
 }
 
@@ -133,6 +142,8 @@ export async function attachPaymentAction(formData: FormData) {
   const appt = formData.get("appointmentId");
   if (typeof id !== "string" || typeof appt !== "string" || appt.trim().length === 0) return;
   await callAdminApi(`/api/payments/${id}/attach`, { method: "POST", body: JSON.stringify({ appointmentId: appt }) });
+  const jar = await cookies();
+  jar.set({ name: "myst-flash", value: "Payment attached", path: "/" });
   revalidatePath("/team");
 }
 
@@ -141,6 +152,8 @@ export async function detachPaymentAction(formData: FormData) {
   const id = formData.get("paymentId");
   if (typeof id !== "string") return;
   await callAdminApi(`/api/payments/${id}/detach`, { method: "POST" });
+  const jar = await cookies();
+  jar.set({ name: "myst-flash", value: "Payment detached", path: "/" });
   revalidatePath("/team");
 }
 
@@ -209,8 +222,8 @@ async function MyDay() {
               <span className="ml-2 inline-block align-middle"><CopyButton value={`${a.property.addressLine1}, ${a.property.city}, ${a.property.state} ${a.property.postalCode}`} label="Copy" /></span>
             </p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="completed" /><button className="rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white hover:bg-primary-700">Mark complete</button></form>
-              <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="no_show" /><button className="rounded-md border border-warning px-3 py-1 text-xs text-warning">No-show</button></form>
+              <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="completed" /><SubmitButton className="rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white hover:bg-primary-700" pendingLabel="Saving...">Mark complete</SubmitButton></form>
+              <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="no_show" /><SubmitButton className="rounded-md border border-warning px-3 py-1 text-xs text-warning" pendingLabel="Saving...">No-show</SubmitButton></form>
               <a href={`/schedule?appointmentId=${encodeURIComponent(a.id)}&token=${encodeURIComponent(a.rescheduleToken)}`} className="rounded-md border border-accent-400 bg-accent-50 px-3 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Reschedule</a>
             </div>
             <div className="mt-2 text-xs text-neutral-600">
@@ -221,7 +234,7 @@ async function MyDay() {
                 </>
               ) : null}
             </div>
-            <form action={addApptNote} className="mt-3 flex gap-2"><input type="hidden" name="appointmentId" value={a.id} /><input name="body" placeholder="Add note" className="flex-1 rounded-md border border-neutral-300 px-2 py-1 text-xs" /><button className="rounded-md bg-neutral-800 px-3 py-1 text-xs font-semibold text-white hover:bg-neutral-700">Save</button></form>
+            <form action={addApptNote} className="mt-3 flex gap-2"><input type="hidden" name="appointmentId" value={a.id} /><input name="body" placeholder="Add note" className="flex-1 rounded-md border border-neutral-300 px-2 py-1 text-xs" /><SubmitButton className="rounded-md bg-neutral-800 px-3 py-1 text-xs font-semibold text-white hover:bg-neutral-700" pendingLabel="Saving...">Save</SubmitButton></form>
           </article>
         ))
       )}
@@ -248,14 +261,14 @@ async function Estimates() {
                 <div className="mt-2 flex flex-wrap gap-2">
                   {s === "requested" && (
                     <>
-                      <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="confirmed" /><button className="rounded-full bg-accent-600 px-3 py-1 text-xs font-semibold text-white">Assign / Confirm</button></form>
-                      <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="canceled" /><button className="rounded-full border border-neutral-300 px-3 py-1 text-xs text-neutral-600">Cancel</button></form>
+                      <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="confirmed" /><SubmitButton className="rounded-full bg-accent-600 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Saving...">Assign / Confirm</SubmitButton></form>
+                      <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="canceled" /><SubmitButton className="rounded-full border border-neutral-300 px-3 py-1 text-xs text-neutral-600" pendingLabel="Saving...">Cancel</SubmitButton></form>
                     </>
                   )}
                   {s === "confirmed" && (
                     <>
-                      <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="completed" /><button className="rounded-full bg-primary-800 px-3 py-1 text-xs font-semibold text-white">Mark complete</button></form>
-                      <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="no_show" /><button className="rounded-full border border-warning px-3 py-1 text-xs text-warning">No-show</button></form>
+                      <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="completed" /><SubmitButton className="rounded-full bg-primary-800 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Saving...">Mark complete</SubmitButton></form>
+                      <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="no_show" /><SubmitButton className="rounded-full border border-warning px-3 py-1 text-xs text-warning" pendingLabel="Saving...">No-show</SubmitButton></form>
                     </>
                   )}
                 </div>
@@ -279,7 +292,7 @@ async function Payments() {
   const res = await callAdminApi("/api/payments?status=all");
   if (!res.ok) throw new Error("Failed to load payments");
   const payload = (await res.json()) as { payments: PaymentDto[]; summary: { total: number; matched: number; unmatched: number } };
-  return <PaymentsList initial={payload.payments} summary={payload.summary} />;
+  return <PaymentsList initial={payload.payments} summary={payload.summary} attachAction={attachPaymentAction} detachAction={detachPaymentAction} />;
 }
 
 export const metadata = { title: "Myst Team Console" };
@@ -292,6 +305,11 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
 
   const tab = params?.tab || (hasCrew && !hasOwner ? "myday" : "estimates");
 
+  const flash = cookieStore.get("myst-flash")?.value;
+  if (flash) {
+    cookieStore.set({ name: "myst-flash", value: "", path: "/", maxAge: 0 });
+  }
+
   return (
     <main className="mx-auto max-w-5xl px-4 py-6 space-y-6">
       <header className="space-y-1">
@@ -302,6 +320,10 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
         </div>
       </header>
 
+      {flash ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{flash}</div>
+      ) : null}
+
       {/* Inline login prompts if required for the active tab */}
       {tab === "myday" && !hasCrew ? (
         <section className="max-w-md"><CrewLoginForm redirectTo="/team?tab=myday" /></section>
@@ -310,10 +332,30 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       ) : null}
 
       {/* Content */}
-      {tab === "myday" && hasCrew ? <MyDay /> : null}
-      {tab === "estimates" && hasOwner ? <Estimates /> : null}
-      {tab === "quotes" && hasOwner ? <Quotes /> : null}
-      {tab === "payments" && hasOwner ? <Payments /> : null}
+      {tab === "myday" && hasCrew ? (
+        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading My Day…</div>}>
+          {/* @ts-expect-error Async Server Component */}
+          <MyDay />
+        </React.Suspense>
+      ) : null}
+      {tab === "estimates" && hasOwner ? (
+        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Estimates…</div>}>
+          {/* @ts-expect-error Async Server Component */}
+          <Estimates />
+        </React.Suspense>
+      ) : null}
+      {tab === "quotes" && hasOwner ? (
+        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Quotes…</div>}>
+          {/* @ts-expect-error Async Server Component */}
+          <Quotes />
+        </React.Suspense>
+      ) : null}
+      {tab === "payments" && hasOwner ? (
+        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Payments…</div>}>
+          {/* @ts-expect-error Async Server Component */}
+          <Payments />
+        </React.Suspense>
+      ) : null}
       {tab === "settings" ? (
         <section className="space-y-4 text-sm text-neutral-700">
           <div className="space-y-2">
