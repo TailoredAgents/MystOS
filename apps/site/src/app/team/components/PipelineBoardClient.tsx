@@ -66,6 +66,8 @@ const STAGE_THEMES: Record<string, StageTheme> = {
   }
 };
 
+const DEFAULT_STAGE_THEME: StageTheme = STAGE_THEMES.default;
+
 function labelForStage(stage: string): string {
   return STAGE_LABELS[stage] ?? stage;
 }
@@ -75,7 +77,7 @@ function themeForStage(stage: string): StageTheme {
   if (theme) {
     return theme;
   }
-  return STAGE_THEMES["default"];
+  return DEFAULT_STAGE_THEME;
 }
 
 function sortContacts(contacts: PipelineContact[]): PipelineContact[] {
