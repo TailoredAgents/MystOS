@@ -93,31 +93,31 @@ export default async function TeamPage({
       ) : null}
 
       {tab === "myday" && hasCrew ? (
-        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading My Day…</div>}>
+        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading My Day</div>}>
           <MyDaySection />
         </React.Suspense>
       ) : null}
 
       {tab === "estimates" && hasOwner ? (
-        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Estimates…</div>}>
+        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Estimates</div>}>
           <EstimatesSection />
         </React.Suspense>
       ) : null}
 
       {tab === "quotes" && hasOwner ? (
-        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Quotes…</div>}>
+        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Quotes</div>}>
           <QuotesSection />
         </React.Suspense>
       ) : null}
 
       {tab === "contacts" && hasOwner ? (
-        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading contacts…</div>}>
+        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading contacts</div>}>
           <ContactsSection search={contactsQuery} />
         </React.Suspense>
       ) : null}
 
       {tab === "payments" && hasOwner ? (
-        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Payments…</div>}>
+        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Payments</div>}>
           <PaymentsSection />
         </React.Suspense>
       ) : null}
