@@ -244,7 +244,12 @@ async function callOpenAI(
     body: JSON.stringify({
       model: OPENAI_MODEL,
       input: messages,
-      temperature: 0.3,
+      reasoning: {
+        effort: "low"
+      },
+      text: {
+        verbosity: "medium"
+      },
       max_output_tokens: 600
     })
   });
