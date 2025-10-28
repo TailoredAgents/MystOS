@@ -250,7 +250,7 @@ export async function createQuoteAction(formData: FormData) {
   if (typeof surfaceArea === "string" && surfaceArea.trim().length > 0) {
     const area = Number(surfaceArea);
     if (!Number.isNaN(area) && area > 0) {
-      payload.surfaceArea = area;
+      payload["surfaceArea"] = area;
     }
   }
 
