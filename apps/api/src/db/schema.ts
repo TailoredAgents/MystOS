@@ -85,6 +85,55 @@ export const properties = pgTable(
   })
 );
 
+export const crmPipelineStageEnum = pgEnum("crm_pipeline_stage", [
+  "new",
+  "contacted",
+  "qualified",
+  "quoted",
+  "won",
+  "lost"
+]);
+
+export const crmTaskStatusEnum = pgEnum("crm_task_status", ["open", "completed"]);
+
+export const crmPipeline = pgTable("crm_pipeline", {
+  contactId: uuid("contact_id")
+    .notNull()
+    .references(() => contacts.id, { onDelete: "cascade" })
+    .primaryKey(),
+  stage: crmPipelineStageEnum("stage").default("new").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull()
+    .$onUpdate(() => new Date())
+});
+
+export const crmTasks = pgTable(
+  "crm_tasks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    contactId: uuid("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    dueAt: timestamp("due_at", { withTimezone: true }),
+    assignedTo: text("assigned_to"),
+    status: crmTaskStatusEnum("status").default("open").notNull(),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .notNull()
+      .$onUpdate(() => new Date())
+  },
+  (table) => ({
+    contactIdx: index("crm_tasks_contact_idx").on(table.contactId),
+    dueIdx: index("crm_tasks_due_idx").on(table.dueAt)
+  })
+);
+
 export const leads = pgTable(
   "leads",
   {
@@ -234,11 +283,16 @@ export const quoteRelations = relations(quotes, ({ one }) => ({
   })
 }));
 
-export const contactRelations = relations(contacts, ({ many }) => ({
+export const contactRelations = relations(contacts, ({ many, one }) => ({
   properties: many(properties),
   leads: many(leads),
   quotes: many(quotes),
-  appointments: many(appointments)
+  appointments: many(appointments),
+  tasks: many(crmTasks),
+  pipeline: one(crmPipeline, {
+    fields: [contacts.id],
+    references: [crmPipeline.contactId]
+  })
 }));
 
 export const propertyRelations = relations(properties, ({ one, many }) => ({
@@ -283,6 +337,20 @@ export const appointmentNoteRelations = relations(appointmentNotes, ({ one }) =>
   appointment: one(appointments, {
     fields: [appointmentNotes.appointmentId],
     references: [appointments.id]
+  })
+}));
+
+export const crmTaskRelations = relations(crmTasks, ({ one }) => ({
+  contact: one(contacts, {
+    fields: [crmTasks.contactId],
+    references: [contacts.id]
+  })
+}));
+
+export const crmPipelineRelations = relations(crmPipeline, ({ one }) => ({
+  contact: one(contacts, {
+    fields: [crmPipeline.contactId],
+    references: [contacts.id]
   })
 }));
 

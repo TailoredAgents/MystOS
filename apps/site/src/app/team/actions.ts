@@ -302,6 +302,374 @@ export async function createContactAction(formData: FormData) {
   revalidatePath("/team");
 }
 
+async function readErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = (await response.json()) as { error?: string; message?: string };
+    const message = data.message ?? data.error;
+    if (typeof message === "string" && message.trim().length > 0) {
+      return message.replace(/_/g, " ");
+    }
+  } catch {
+    // ignore
+  }
+  return fallback;
+}
+
+export async function updateContactAction(formData: FormData) {
+  const jar = await cookies();
+  const contactId = formData.get("contactId");
+  if (typeof contactId !== "string" || contactId.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Contact ID missing", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const payload: Record<string, unknown> = {};
+  const stringFields: Array<[keyof Record<string, unknown>, string | FormDataEntryValue | null]> = [
+    ["firstName", formData.get("firstName")],
+    ["lastName", formData.get("lastName")],
+    ["email", formData.get("email")],
+    ["phone", formData.get("phone")]
+  ];
+
+  for (const [key, value] of stringFields) {
+    if (typeof value === "string") {
+      payload[key] = value.trim();
+    }
+  }
+
+  if (Object.keys(payload).length === 0) {
+    jar.set({ name: "myst-flash-error", value: "No changes to apply", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const response = await callAdminApi(`/api/admin/contacts/${contactId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, "Unable to update contact");
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  jar.set({ name: "myst-flash", value: "Contact updated", path: "/" });
+  revalidatePath("/team");
+}
+
+export async function deleteContactAction(formData: FormData) {
+  const jar = await cookies();
+  const contactId = formData.get("contactId");
+  if (typeof contactId !== "string" || contactId.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Contact ID missing", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const response = await callAdminApi(`/api/admin/contacts/${contactId}`, { method: "DELETE" });
+  if (!response.ok) {
+    const message = await readErrorMessage(response, "Unable to delete contact");
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  jar.set({ name: "myst-flash", value: "Contact deleted", path: "/" });
+  revalidatePath("/team");
+}
+
+export async function addPropertyAction(formData: FormData) {
+  const jar = await cookies();
+  const contactId = formData.get("contactId");
+  if (typeof contactId !== "string" || contactId.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Contact ID missing", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const addressLine1 = formData.get("addressLine1");
+  const addressLine2 = formData.get("addressLine2");
+  const city = formData.get("city");
+  const state = formData.get("state");
+  const postalCode = formData.get("postalCode");
+
+  if (
+    typeof addressLine1 !== "string" ||
+    addressLine1.trim().length === 0 ||
+    typeof city !== "string" ||
+    city.trim().length === 0 ||
+    typeof state !== "string" ||
+    state.trim().length === 0 ||
+    typeof postalCode !== "string" ||
+    postalCode.trim().length === 0
+  ) {
+    jar.set({ name: "myst-flash-error", value: "Property details are required", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const response = await callAdminApi(`/api/admin/contacts/${contactId}/properties`, {
+    method: "POST",
+    body: JSON.stringify({
+      addressLine1: addressLine1.trim(),
+      addressLine2: typeof addressLine2 === "string" && addressLine2.trim().length ? addressLine2.trim() : undefined,
+      city: city.trim(),
+      state: state.trim(),
+      postalCode: postalCode.trim()
+    })
+  });
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, "Unable to add property");
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  jar.set({ name: "myst-flash", value: "Property added", path: "/" });
+  revalidatePath("/team");
+}
+
+export async function updatePropertyAction(formData: FormData) {
+  const jar = await cookies();
+  const contactId = formData.get("contactId");
+  const propertyId = formData.get("propertyId");
+  if (
+    typeof contactId !== "string" ||
+    contactId.trim().length === 0 ||
+    typeof propertyId !== "string" ||
+    propertyId.trim().length === 0
+  ) {
+    jar.set({ name: "myst-flash-error", value: "Property details missing", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const payload: Record<string, unknown> = {};
+  const updates: Array<[string, FormDataEntryValue | null]> = [
+    ["addressLine1", formData.get("addressLine1")],
+    ["addressLine2", formData.get("addressLine2")],
+    ["city", formData.get("city")],
+    ["state", formData.get("state")],
+    ["postalCode", formData.get("postalCode")]
+  ];
+
+  for (const [key, value] of updates) {
+    if (typeof value === "string") {
+      payload[key] = value.trim();
+    }
+  }
+
+  if (Object.keys(payload).length === 0) {
+    jar.set({ name: "myst-flash-error", value: "No property changes to apply", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const response = await callAdminApi(
+    `/api/admin/contacts/${contactId}/properties/${propertyId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload)
+    }
+  );
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, "Unable to update property");
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  jar.set({ name: "myst-flash", value: "Property updated", path: "/" });
+  revalidatePath("/team");
+}
+
+export async function deletePropertyAction(formData: FormData) {
+  const jar = await cookies();
+  const contactId = formData.get("contactId");
+  const propertyId = formData.get("propertyId");
+  if (
+    typeof contactId !== "string" ||
+    contactId.trim().length === 0 ||
+    typeof propertyId !== "string" ||
+    propertyId.trim().length === 0
+  ) {
+    jar.set({ name: "myst-flash-error", value: "Property details missing", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const response = await callAdminApi(
+    `/api/admin/contacts/${contactId}/properties/${propertyId}`,
+    { method: "DELETE" }
+  );
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, "Unable to delete property");
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  jar.set({ name: "myst-flash", value: "Property removed", path: "/" });
+  revalidatePath("/team");
+}
+
+export async function updatePipelineStageAction(formData: FormData) {
+  const jar = await cookies();
+  const contactId = formData.get("contactId");
+  const stage = formData.get("stage");
+  const notes = formData.get("notes");
+
+  if (typeof contactId !== "string" || contactId.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Contact ID missing", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+  if (typeof stage !== "string" || stage.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Stage is required", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const payload: Record<string, unknown> = { stage: stage.trim() };
+  if (typeof notes === "string") {
+    payload["notes"] = notes.trim();
+  }
+
+  const response = await callAdminApi(`/api/admin/crm/pipeline/${contactId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, "Unable to update stage");
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  jar.set({ name: "myst-flash", value: "Pipeline updated", path: "/" });
+  revalidatePath("/team");
+}
+
+export async function createTaskAction(formData: FormData) {
+  const jar = await cookies();
+  const contactId = formData.get("contactId");
+  const title = formData.get("title");
+  const dueAt = formData.get("dueAt");
+  const assignedTo = formData.get("assignedTo");
+
+  if (typeof contactId !== "string" || contactId.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Contact ID missing", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+  if (typeof title !== "string" || title.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Task title required", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const payload: Record<string, unknown> = {
+    contactId: contactId.trim(),
+    title: title.trim()
+  };
+
+  if (typeof dueAt === "string" && dueAt.trim().length > 0) {
+    payload["dueAt"] = dueAt.trim();
+  }
+  if (typeof assignedTo === "string" && assignedTo.trim().length > 0) {
+    payload["assignedTo"] = assignedTo.trim();
+  }
+
+  const response = await callAdminApi(`/api/admin/crm/tasks`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, "Unable to create task");
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  jar.set({ name: "myst-flash", value: "Task added", path: "/" });
+  revalidatePath("/team");
+}
+
+export async function updateTaskAction(formData: FormData) {
+  const jar = await cookies();
+  const taskId = formData.get("taskId");
+  if (typeof taskId !== "string" || taskId.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Task ID missing", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const payload: Record<string, unknown> = {};
+  const fields: Array<[string, FormDataEntryValue | null]> = [
+    ["title", formData.get("title")],
+    ["dueAt", formData.get("dueAt")],
+    ["assignedTo", formData.get("assignedTo")],
+    ["status", formData.get("status")],
+    ["notes", formData.get("notes")]
+  ];
+
+  for (const [key, value] of fields) {
+    if (typeof value === "string") {
+      payload[key] = value.trim();
+    }
+  }
+
+  if (Object.keys(payload).length === 0) {
+    jar.set({ name: "myst-flash-error", value: "No task changes to apply", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const response = await callAdminApi(`/api/admin/crm/tasks/${taskId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const message = await readErrorMessage(response, "Unable to update task");
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  jar.set({ name: "myst-flash", value: "Task updated", path: "/" });
+  revalidatePath("/team");
+}
+
+export async function deleteTaskAction(formData: FormData) {
+  const jar = await cookies();
+  const taskId = formData.get("taskId");
+  if (typeof taskId !== "string" || taskId.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Task ID missing", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const response = await callAdminApi(`/api/admin/crm/tasks/${taskId}`, { method: "DELETE" });
+  if (!response.ok) {
+    const message = await readErrorMessage(response, "Unable to delete task");
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  jar.set({ name: "myst-flash", value: "Task removed", path: "/" });
+  revalidatePath("/team");
+}
+
 export async function logoutCrew() {
   const jar = await cookies();
   jar.set({ name: "myst-crew-session", value: "", path: "/", maxAge: 0 });
@@ -313,4 +681,3 @@ export async function logoutOwner() {
   jar.set({ name: "myst-admin-session", value: "", path: "/", maxAge: 0 });
   redirect("/team");
 }
-

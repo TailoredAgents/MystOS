@@ -11,6 +11,7 @@ import { EstimatesSection } from "./components/EstimatesSection";
 import { QuotesSection } from "./components/QuotesSection";
 import { PaymentsSection } from "./components/PaymentsSection";
 import { ContactsSection } from "./components/ContactsSection";
+import { PipelineSection } from "./components/PipelineSection";
 
 const ADMIN_COOKIE = "myst-admin-session";
 const CREW_COOKIE = "myst-crew-session";
@@ -34,6 +35,7 @@ function Tabs({ active, hasOwner, hasCrew }: { active: string; hasOwner: boolean
       {mk("myday", "My Day", "crew")}
       {mk("estimates", "Estimates", "owner")}
       {mk("quotes", "Quotes", "owner")}
+      {mk("pipeline", "Pipeline", "owner")}
       {mk("contacts", "Contacts", "owner")}
       {mk("payments", "Payments", "owner")}
       {mk("settings", "Settings")}
@@ -46,7 +48,7 @@ export const metadata = { title: "Myst Team Console" };
 export default async function TeamPage({
   searchParams
 }: {
-  searchParams: Promise<{ tab?: string; q?: string }>;
+  searchParams: Promise<{ tab?: string; q?: string; offset?: string }>;
 }) {
   const params = await searchParams;
   const cookieStore = await cookies();
@@ -55,6 +57,13 @@ export default async function TeamPage({
 
   const tab = params?.tab || (hasCrew && !hasOwner ? "myday" : "estimates");
   const contactsQuery = typeof params?.q === "string" ? params.q : undefined;
+  let contactsOffset: number | undefined;
+  if (typeof params?.offset === "string") {
+    const parsed = Number(params.offset);
+    if (!Number.isNaN(parsed) && parsed >= 0) {
+      contactsOffset = parsed;
+    }
+  }
 
   const flash = cookieStore.get("myst-flash")?.value ?? null;
   const flashError = cookieStore.get("myst-flash-error")?.value ?? null;
@@ -110,9 +119,15 @@ export default async function TeamPage({
         </React.Suspense>
       ) : null}
 
+      {tab === "pipeline" && hasOwner ? (
+        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading pipeline</div>}>
+          <PipelineSection />
+        </React.Suspense>
+      ) : null}
+
       {tab === "contacts" && hasOwner ? (
         <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading contacts</div>}>
-          <ContactsSection search={contactsQuery} />
+          <ContactsSection search={contactsQuery} offset={contactsOffset} />
         </React.Suspense>
       ) : null}
 

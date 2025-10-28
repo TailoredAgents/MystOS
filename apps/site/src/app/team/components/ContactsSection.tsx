@@ -2,29 +2,70 @@ import React, { type ReactElement } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createContactAction } from "../actions";
 import { callAdminApi } from "../lib/api";
+import ContactsListClient from "./ContactsListClient";
+import type { ContactSummary, PaginationInfo } from "./contacts.types";
 
-type ContactSummary = {
-  id: string;
-  name: string;
-  firstName: string;
-  lastName: string;
-  email: string | null;
-  phone: string | null;
-  phoneE164: string | null;
-  createdAt: string;
-  updatedAt: string;
-  lastActivityAt: string | null;
-  properties: Array<{ id: string; addressLine1: string; city: string; state: string; postalCode: string; createdAt: string }>;
-  stats: { appointments: number; quotes: number };
+const PAGE_SIZE = 25;
+
+function buildHref(args: { search?: string; offset?: number }): string {
+  const query = new URLSearchParams();
+  query.set("tab", "contacts");
+  if (args.search && args.search.trim().length > 0) {
+    query.set("q", args.search.trim());
+  }
+  if (typeof args.offset === "number" && args.offset > 0) {
+    query.set("offset", String(args.offset));
+  }
+  return `/team?${query.toString()}`;
+}
+
+function formatRange(pagination: PaginationInfo, count: number): string {
+  if (pagination.total === 0) {
+    return "Showing 0 of 0";
+  }
+  const start = pagination.offset + 1;
+  const end = pagination.offset + count;
+  return `Showing ${start}-${end} of ${pagination.total}`;
+}
+
+type ContactsSectionProps = {
+  search?: string;
+  offset?: number;
 };
 
-export async function ContactsSection({ search }: { search?: string }): Promise<ReactElement> {
-  const query = search && search.trim().length ? `?q=${encodeURIComponent(search.trim())}` : "";
-  const res = await callAdminApi(`/api/admin/contacts${query}`);
-  if (!res.ok) throw new Error("Failed to load contacts");
+export async function ContactsSection({ search, offset }: ContactsSectionProps): Promise<ReactElement> {
+  const safeOffset = typeof offset === "number" && offset > 0 ? offset : 0;
 
-  const payload = (await res.json()) as { contacts: ContactSummary[] };
+  const params = new URLSearchParams();
+  params.set("limit", String(PAGE_SIZE));
+  if (safeOffset > 0) params.set("offset", String(safeOffset));
+  if (search && search.trim().length > 0) params.set("q", search.trim());
+
+  const response = await callAdminApi(`/api/admin/contacts?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error("Failed to load contacts");
+  }
+
+  const payload = (await response.json()) as {
+    contacts: ContactSummary[];
+    pagination?: PaginationInfo;
+  };
+
   const contacts = payload.contacts ?? [];
+  const pagination: PaginationInfo = payload.pagination ?? {
+    limit: PAGE_SIZE,
+    offset: safeOffset,
+    total: contacts.length,
+    nextOffset: null
+  };
+
+  const hasPrev = pagination.offset > 0;
+  const prevOffset = hasPrev ? Math.max(pagination.offset - pagination.limit, 0) : 0;
+  const hasNext =
+    typeof pagination.nextOffset === "number" && pagination.nextOffset > pagination.offset;
+  const nextOffset = hasNext
+    ? pagination.nextOffset ?? pagination.offset + contacts.length
+    : pagination.offset;
 
   return (
     <section className="space-y-6">
@@ -75,6 +116,7 @@ export async function ContactsSection({ search }: { search?: string }): Promise<
 
       <form method="get" className="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
         <input type="hidden" name="tab" value="contacts" />
+        <input type="hidden" name="offset" value="0" />
         <input
           name="q"
           defaultValue={search ?? ""}
@@ -91,38 +133,57 @@ export async function ContactsSection({ search }: { search?: string }): Promise<
           No contacts yet. Add your first lead above.
         </p>
       ) : (
-        <ul className="space-y-3">
-          {contacts.map((contact) => (
-            <li key={contact.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <h3 className="text-base font-semibold text-primary-900">{contact.name}</h3>
-                  <div className="text-xs text-neutral-600">
-                    {contact.email ? <p>{contact.email}</p> : null}
-                    {contact.phone ? <p>{contact.phone}</p> : null}
-                  </div>
-                </div>
-                <div className="flex gap-4 text-xs text-neutral-600">
-                  <span>Appointments: {contact.stats.appointments}</span>
-                  <span>Quotes: {contact.stats.quotes}</span>
-                </div>
-              </div>
-              <div className="mt-3 space-y-1 text-xs text-neutral-600">
-                {contact.properties.map((property) => (
-                  <p key={property.id}>
-                    {property.addressLine1}, {property.city}, {property.state} {property.postalCode}
-                  </p>
-                ))}
-              </div>
-              <p className="mt-2 text-[11px] text-neutral-500">
-                Last activity:{" "}
-                {contact.lastActivityAt
-                  ? new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(contact.lastActivityAt))
-                  : "None yet"}
-              </p>
-            </li>
-          ))}
-        </ul>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between text-xs text-neutral-500">
+            <span>{formatRange(pagination, contacts.length)}</span>
+            <div className="flex gap-2">
+              <a
+                aria-disabled={!hasPrev}
+                className={`rounded-md border border-neutral-300 px-3 py-1 ${
+                  hasPrev ? "text-neutral-700 hover:bg-neutral-100" : "pointer-events-none opacity-50"
+                }`}
+                href={hasPrev ? buildHref({ search, offset: prevOffset }) : "#"}
+              >
+                Previous
+              </a>
+              <a
+                aria-disabled={!hasNext}
+                className={`rounded-md border border-neutral-300 px-3 py-1 ${
+                  hasNext ? "text-neutral-700 hover:bg-neutral-100" : "pointer-events-none opacity-50"
+                }`}
+                href={hasNext ? buildHref({ search, offset: nextOffset }) : "#"}
+              >
+                Next
+              </a>
+            </div>
+          </div>
+
+          <ContactsListClient contacts={contacts} />
+
+          <div className="flex items-center justify-between text-xs text-neutral-500">
+            <span>{formatRange(pagination, contacts.length)}</span>
+            <div className="flex gap-2">
+              <a
+                aria-disabled={!hasPrev}
+                className={`rounded-md border border-neutral-300 px-3 py-1 ${
+                  hasPrev ? "text-neutral-700 hover:bg-neutral-100" : "pointer-events-none opacity-50"
+                }`}
+                href={hasPrev ? buildHref({ search, offset: prevOffset }) : "#"}
+              >
+                Previous
+              </a>
+              <a
+                aria-disabled={!hasNext}
+                className={`rounded-md border border-neutral-300 px-3 py-1 ${
+                  hasNext ? "text-neutral-700 hover:bg-neutral-100" : "pointer-events-none opacity-50"
+                }`}
+                href={hasNext ? buildHref({ search, offset: nextOffset }) : "#"}
+              >
+                Next
+              </a>
+            </div>
+          </div>
+        </div>
       )}
     </section>
   );
