@@ -334,25 +334,21 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       {/* Content */}
       {tab === "myday" && hasCrew ? (
         <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading My Day…</div>}>
-          {/* @ts-expect-error Async Server Component */}
           <MyDay />
         </React.Suspense>
       ) : null}
       {tab === "estimates" && hasOwner ? (
         <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Estimates…</div>}>
-          {/* @ts-expect-error Async Server Component */}
           <Estimates />
         </React.Suspense>
       ) : null}
       {tab === "quotes" && hasOwner ? (
         <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Quotes…</div>}>
-          {/* @ts-expect-error Async Server Component */}
           <Quotes />
         </React.Suspense>
       ) : null}
       {tab === "payments" && hasOwner ? (
         <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Payments…</div>}>
-          {/* @ts-expect-error Async Server Component */}
           <Payments />
         </React.Suspense>
       ) : null}
