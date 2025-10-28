@@ -52,9 +52,10 @@ export default async function TeamPage({
     { id: "payments", label: "Payments", href: "/team?tab=payments", requires: "owner" },
     { id: "settings", label: "Settings", href: "/team?tab=settings" }
   ];
-  const activeTab = tabs.find((item) => item.id === tab) ?? tabs[0];
-  const needsCrewLogin = activeTab.requires === "crew" && !hasCrew && !hasOwner;
-  const needsOwnerLogin = activeTab.requires === "owner" && !hasOwner;
+  const activeTab = tabs.find((item) => item.id === tab) ?? tabs[0] ?? null;
+  const activeRequirement = activeTab?.requires;
+  const needsCrewLogin = activeRequirement === "crew" && !hasCrew && !hasOwner;
+  const needsOwnerLogin = activeRequirement === "owner" && !hasOwner;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-50">
