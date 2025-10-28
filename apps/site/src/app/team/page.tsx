@@ -13,6 +13,7 @@ import { PaymentsSection } from "./components/PaymentsSection";
 import { ContactsSection } from "./components/ContactsSection";
 import { PipelineSection } from "./components/PipelineSection";
 import { QuoteBuilderSection } from "./components/QuoteBuilderSection";
+import { ChatSection } from "./components/ChatSection";
 import { TabNav, type TabNavItem } from "./components/TabNav";
 
 const ADMIN_COOKIE = "myst-admin-session";
@@ -48,6 +49,7 @@ export default async function TeamPage({
     { id: "estimates", label: "Estimates", href: "/team?tab=estimates", requires: "owner" },
     { id: "quotes", label: "Quotes", href: "/team?tab=quotes", requires: "owner" },
     { id: "quote-builder", label: "Quote Builder", href: "/team?tab=quote-builder", requires: "crew" },
+    { id: "chat", label: "Chat", href: "/team?tab=chat", requires: "owner" },
     { id: "pipeline", label: "Pipeline", href: "/team?tab=pipeline", requires: "owner" },
     { id: "contacts", label: "Contacts", href: "/team?tab=contacts", requires: "owner" },
     { id: "payments", label: "Payments", href: "/team?tab=payments", requires: "owner" },
@@ -137,6 +139,18 @@ export default async function TeamPage({
             }
           >
             <QuoteBuilderSection initialContactId={quoteContactId} />
+          </React.Suspense>
+        ) : null}
+
+        {tab === "chat" && hasOwner ? (
+          <React.Suspense
+            fallback={
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
+                Loading chat
+              </div>
+            }
+          >
+            <ChatSection />
           </React.Suspense>
         ) : null}
 
