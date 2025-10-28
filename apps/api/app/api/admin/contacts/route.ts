@@ -88,13 +88,12 @@ export async function GET(request: NextRequest): Promise<Response> {
   const whereClause =
     filters.length === 0 ? undefined : filters.length === 1 ? filters[0] : or(...filters);
 
-  const totalResult = await (() => {
-    let query = db.select({ count: sql<number>`count(*)` }).from(contacts);
-    if (whereClause) {
-      query = query.where(whereClause);
-    }
-    return query;
-  })();
+  const totalResult = whereClause
+    ? await db
+        .select({ count: sql<number>`count(*)` })
+        .from(contacts)
+        .where(whereClause)
+    : await db.select({ count: sql<number>`count(*)` }).from(contacts);
   const total = Number(totalResult[0]?.count ?? 0);
 
   const contactRows = await (() => {
