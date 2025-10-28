@@ -148,14 +148,16 @@ export async function GET(request: NextRequest): Promise<Response> {
     const quoteStat = quoteMap.get(contactId);
     const openTasks = openTaskMap.get(contactId) ?? 0;
 
-    const dates: Date[] = [row.updatedAt];
-    if (row.pipelineUpdatedAt) dates.push(row.pipelineUpdatedAt);
-    if (appointmentStat?.latest) dates.push(appointmentStat.latest);
-    if (quoteStat?.latest) dates.push(quoteStat.latest);
+    const dates = [
+      toDate(row.updatedAt),
+      toDate(row.pipelineUpdatedAt ?? null),
+      toDate(appointmentStat?.latest ?? null),
+      toDate(quoteStat?.latest ?? null)
+    ];
 
     const lastActivity =
       dates
-        .filter((value): value is Date => Boolean(value))
+        .filter((value): value is Date => value instanceof Date)
         .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
 
     lane.contacts.push({
@@ -198,4 +200,10 @@ export async function GET(request: NextRequest): Promise<Response> {
   }
 
   return NextResponse.json({ stages: PIPELINE_STAGES, lanes });
+}
+function toDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const parsed = new Date(value as string);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }

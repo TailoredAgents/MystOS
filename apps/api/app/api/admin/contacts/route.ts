@@ -244,12 +244,14 @@ export async function GET(request: NextRequest): Promise<Response> {
     const pipeline = pipelineMap.get(contact.id);
     const tasksForContact = tasksMap.get(contact.id) ?? [];
 
-    const dates: Date[] = [contact.updatedAt];
-    if (appointmentStat?.latest) dates.push(appointmentStat.latest);
-    if (quoteStat?.latest) dates.push(quoteStat.latest);
+    const dates = [
+      toDate(contact.updatedAt),
+      toDate(appointmentStat?.latest ?? null),
+      toDate(quoteStat?.latest ?? null)
+    ];
     const lastActivity =
       dates
-        .filter((value): value is Date => Boolean(value))
+        .filter((value): value is Date => value instanceof Date)
         .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
 
     const fullName = `${contact.firstName} ${contact.lastName}`.trim();
@@ -452,4 +454,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     const status = message === "contact_insert_failed" ? 500 : 400;
     return NextResponse.json({ error: message }, { status });
   }
+}
+function toDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  const parsed = new Date(value as string);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
