@@ -12,38 +12,10 @@ import { QuotesSection } from "./components/QuotesSection";
 import { PaymentsSection } from "./components/PaymentsSection";
 import { ContactsSection } from "./components/ContactsSection";
 import { PipelineSection } from "./components/PipelineSection";
+import { TabNav, type TabNavItem } from "./components/TabNav";
 
 const ADMIN_COOKIE = "myst-admin-session";
 const CREW_COOKIE = "myst-crew-session";
-
-function Tabs({ active, hasOwner, hasCrew }: { active: string; hasOwner: boolean; hasCrew: boolean }) {
-  const mk = (tab: string, label: string, require?: "owner" | "crew") => {
-    const disabled = (require === "owner" && !hasOwner) || (require === "crew" && !hasCrew);
-    const href = `/team?tab=${encodeURIComponent(tab)}`;
-    const cls = `flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition ${
-      active === tab
-        ? "bg-primary-600 text-white shadow-md shadow-primary-200/50"
-        : "text-slate-600 hover:bg-slate-100"
-    } ${disabled ? "pointer-events-none opacity-40" : ""}`;
-    return (
-      <a key={tab} href={href} className={cls}>
-        {label}
-      </a>
-    );
-  };
-
-  return (
-    <nav className="grid gap-2 rounded-2xl border border-slate-200 bg-white/80 p-2 shadow-sm shadow-primary-100/40 sm:grid-cols-3 lg:grid-cols-6">
-      {mk("myday", "My Day", "crew")}
-      {mk("estimates", "Estimates", "owner")}
-      {mk("quotes", "Quotes", "owner")}
-      {mk("pipeline", "Pipeline", "owner")}
-      {mk("contacts", "Contacts", "owner")}
-      {mk("payments", "Payments", "owner")}
-      {mk("settings", "Settings")}
-    </nav>
-  );
-}
 
 export const metadata = { title: "Myst Team Console" };
 
@@ -75,6 +47,16 @@ export default async function TeamPage({
   if (flashError) {
     cookieStore.set({ name: "myst-flash-error", value: "", path: "/", maxAge: 0 });
   }
+
+  const tabs: TabNavItem[] = [
+    { id: "myday", label: "My Day", href: "/team?tab=myday", requires: "crew" },
+    { id: "estimates", label: "Estimates", href: "/team?tab=estimates", requires: "owner" },
+    { id: "quotes", label: "Quotes", href: "/team?tab=quotes", requires: "owner" },
+    { id: "pipeline", label: "Pipeline", href: "/team?tab=pipeline", requires: "owner" },
+    { id: "contacts", label: "Contacts", href: "/team?tab=contacts", requires: "owner" },
+    { id: "payments", label: "Payments", href: "/team?tab=payments", requires: "owner" },
+    { id: "settings", label: "Settings", href: "/team?tab=settings" }
+  ];
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-50">
@@ -109,7 +91,7 @@ export default async function TeamPage({
             </div>
           </div>
           <div className="mt-6">
-            <Tabs active={tab} hasOwner={hasOwner} hasCrew={hasCrew} />
+            <TabNav items={tabs} activeId={tab} hasOwner={hasOwner} hasCrew={hasCrew} />
           </div>
         </header>
 
