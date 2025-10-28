@@ -1,18 +1,14 @@
 import { z } from "zod";
-import {
-  addOns,
-  bundles,
-  defaultDepositRate,
-  defaultPricingContext,
-  serviceRates,
-  zones
-} from "../config/defaults";
+import { addOns, bundles, defaultPricingContext, serviceRates, zones } from "../config/defaults";
 import type {
   QuoteBreakdown,
   QuoteRequestInput,
   ServiceBaseRate,
-  ZoneConfig
+  ZoneConfig,
+  ConcreteSurfaceKind
 } from "../types";
+
+const CONCRETE_RATE = 0.14;
 
 const quoteInputSchema = z.object({
   zoneId: z.string(),
@@ -21,7 +17,16 @@ const quoteInputSchema = z.object({
   selectedAddOns: z.array(z.string()).optional(),
   applyBundles: z.boolean().optional(),
   depositRate: z.number().positive().max(1).optional(),
-  serviceOverrides: z.record(z.string(), z.number().positive()).optional()
+  serviceOverrides: z.record(z.string(), z.number().positive()).optional(),
+  concreteSurfaces: z
+    .array(
+      z.object({
+        kind: z.enum(["driveway", "deck", "other"]),
+        squareFeet: z.number().positive()
+      })
+    )
+    .max(3)
+    .optional()
 });
 
 function resolveZone(zoneId: string): ZoneConfig {
@@ -89,10 +94,39 @@ export function calculateQuoteBreakdown(
     selectedAddOns,
     applyBundles,
     depositRate,
-    serviceOverrides
+    serviceOverrides,
+    concreteSurfaces
   } = parsed.data;
   const zone = resolveZone(zoneId);
   const overrides = (serviceOverrides ?? {}) as Record<string, number>;
+  const normalizedConcreteSurfaces = (concreteSurfaces ?? []).map((surface) => ({
+    kind: surface.kind as ConcreteSurfaceKind,
+    squareFeet: surface.squareFeet
+  }));
+
+  const concreteLineItems: QuoteBreakdown["lineItems"] = [];
+  let concreteTotal = 0;
+
+  if (normalizedConcreteSurfaces.length > 0) {
+    normalizedConcreteSurfaces.forEach((surface, index) => {
+      const labelBase =
+        surface.kind === "driveway"
+          ? "Driveway"
+          : surface.kind === "deck"
+            ? "Deck/Patio"
+            : "Concrete Surface";
+      const amount = Math.round(surface.squareFeet * CONCRETE_RATE * 100) / 100;
+      concreteTotal += amount;
+      concreteLineItems.push({
+        id: `concrete-${index}`,
+        label: `${labelBase} ${index + 1} (${surface.squareFeet} sq ft)`,
+        amount,
+        category: "service"
+      });
+    });
+
+    overrides["driveway"] = Math.round(concreteTotal * 100) / 100;
+  }
 
   const lineItems: QuoteBreakdown["lineItems"] = [];
 
@@ -101,6 +135,11 @@ export function calculateQuoteBreakdown(
 
     if (!rate) {
       return sum;
+    }
+
+    if (serviceId === "driveway" && concreteLineItems.length > 0) {
+      lineItems.push(...concreteLineItems);
+      return sum + concreteTotal;
     }
 
     const overrideAmount = overrides[serviceId];
@@ -165,7 +204,7 @@ export function calculateQuoteBreakdown(
   }
 
   const resolvedDepositRate =
-    options?.depositRate ?? depositRate ?? input.depositRate ?? defaultDepositRate;
+    options?.depositRate ?? depositRate ?? input.depositRate ?? 0;
   const depositDue = Math.round(total * resolvedDepositRate * 100) / 100;
   const balanceDue = Math.max(total - depositDue, 0);
 

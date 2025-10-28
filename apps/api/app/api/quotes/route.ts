@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { calculateQuoteBreakdown } from "@myst-os/pricing/src/engine/calculate";
 import { serviceRates } from "@myst-os/pricing/src/config/defaults";
-import type { ServiceCategory } from "@myst-os/pricing/src/types";
+import type { ConcreteSurfaceInput, ServiceCategory } from "@myst-os/pricing/src/types";
 import { getDb, quotes, contacts, properties } from "@/db";
 import { isAdminRequest } from "../web/admin";
 import { eq, desc } from "drizzle-orm";
@@ -32,7 +32,16 @@ const CreateQuoteSchema = z.object({
   depositRate: z.number().positive().max(1).optional(),
   expiresInDays: z.number().int().min(1).max(90).optional(),
   notes: z.string().max(2000).optional(),
-  serviceOverrides: z.record(z.string().min(1), z.number().positive()).optional()
+  serviceOverrides: z.record(z.string().min(1), z.number().positive()).optional(),
+  concreteSurfaces: z
+    .array(
+      z.object({
+        kind: z.enum(["driveway", "deck", "other"]),
+        squareFeet: z.number().positive()
+      })
+    )
+    .max(3)
+    .optional()
 });
 
 const toPgNumeric = (value: number | string): string => value.toString();
@@ -196,6 +205,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     }
   }
 
+  const concreteSurfaces = (body.concreteSurfaces ?? []) as ConcreteSurfaceInput[];
+
   const breakdown = calculateQuoteBreakdown({
     zoneId: body.zoneId,
     selectedServices,
@@ -203,7 +214,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     surfaceArea: body.surfaceArea,
     applyBundles: body.applyBundles,
     depositRate: body.depositRate,
-    serviceOverrides: sanitizedOverrides
+    serviceOverrides: sanitizedOverrides,
+    concreteSurfaces
   });
 
   const expiresAt = body.expiresInDays

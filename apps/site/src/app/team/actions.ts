@@ -142,6 +142,7 @@ export async function createQuoteAction(formData: FormData) {
   const expiresInDays = formData.get("expiresInDays");
   const applyBundles = formData.get("applyBundles");
   const notes = formData.get("notes");
+  const concreteSurfacesRaw = formData.get("concreteSurfaces");
   const serviceOverridesRaw = formData.get("serviceOverrides");
 
   if (typeof contactId !== "string" || typeof propertyId !== "string" || typeof zoneId !== "string") {
@@ -217,6 +218,43 @@ export async function createQuoteAction(formData: FormData) {
     } catch {
       // ignore malformed overrides
     }
+  }
+
+  const allowedConcreteKinds = new Set(["driveway", "deck", "other"]);
+  const concreteSurfaces: Array<{ kind: string; squareFeet: number }> = [];
+
+  if (typeof concreteSurfacesRaw === "string" && concreteSurfacesRaw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(concreteSurfacesRaw) as Array<{ kind?: string; squareFeet?: number }>;
+      if (Array.isArray(parsed)) {
+        for (const entry of parsed) {
+          if (!entry || typeof entry.kind !== "string") continue;
+          if (!allowedConcreteKinds.has(entry.kind)) continue;
+          const amount = Number(entry.squareFeet);
+          if (!Number.isFinite(amount) || amount <= 0) continue;
+          if (concreteSurfaces.length >= 3) break;
+          concreteSurfaces.push({ kind: entry.kind, squareFeet: amount });
+        }
+      }
+    } catch {
+      // ignore malformed JSON
+    }
+  }
+
+  for (let index = 1; index <= 3 && concreteSurfaces.length < 3; index++) {
+    const kind = formData.get(`concreteSurface${index}Kind`);
+    const squareFeet = formData.get(`concreteSurface${index}Sqft`);
+    if (typeof kind !== "string" || typeof squareFeet !== "string") continue;
+    const trimmedKind = kind.trim();
+    const trimmedValue = squareFeet.trim();
+    if (!allowedConcreteKinds.has(trimmedKind) || trimmedValue.length === 0) continue;
+    const amount = Number(trimmedValue);
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+    concreteSurfaces.push({ kind: trimmedKind, squareFeet: amount });
+  }
+
+  if (concreteSurfaces.length > 0) {
+    payload["concreteSurfaces"] = concreteSurfaces.slice(0, 3);
   }
 
   const response = await callAdminApi(`/api/quotes`, {

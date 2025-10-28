@@ -1,5 +1,5 @@
 import React, { type ReactElement } from "react";
-import { defaultDepositRate, serviceRates, zones } from "@myst-os/pricing/src/config/defaults";
+import { serviceRates, zones } from "@myst-os/pricing/src/config/defaults";
 import { callAdminApi } from "../lib/api";
 import type { ContactSummary } from "./contacts.types";
 import QuoteBuilderClient, {
@@ -50,7 +50,6 @@ export async function QuoteBuilderSection({ initialContactId }: { initialContact
       services={serviceOptions}
       zones={zoneOptions}
       defaultZoneId={zones[0]?.id ?? null}
-      defaultDepositRate={defaultDepositRate}
       initialContactId={initialContactId}
     />
   );

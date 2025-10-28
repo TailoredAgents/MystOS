@@ -75,6 +75,13 @@ export interface WeeklyAvailability {
   };
 }
 
+export type ConcreteSurfaceKind = "driveway" | "deck" | "other";
+
+export interface ConcreteSurfaceInput {
+  kind: ConcreteSurfaceKind;
+  squareFeet: number;
+}
+
 export type LineItemCategory =
   | "service"
   | "add-on"
@@ -92,6 +99,7 @@ export interface QuoteRequestInput {
   applyBundles?: boolean;
   depositRate?: number;
   serviceOverrides?: Partial<Record<ServiceCategory, number>>;
+  concreteSurfaces?: ConcreteSurfaceInput[];
 }
 
 export interface LineItem {

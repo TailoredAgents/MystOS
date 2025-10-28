@@ -3,6 +3,7 @@
 
 import React from "react";
 import { SubmitButton } from "@/components/SubmitButton";
+import type { ConcreteSurfaceKind } from "@myst-os/pricing/src/types";
 import { createQuoteAction } from "../actions";
 
 export type QuoteBuilderPropertyOption = {
@@ -31,12 +32,25 @@ export type QuoteBuilderZoneOption = {
   name: string;
 };
 
+const MAX_CONCRETE_SURFACES = 3;
+const CONCRETE_RATE = 0.14;
+const concreteSurfaceOptions: Array<{ value: ConcreteSurfaceKind; label: string }> = [
+  { value: "driveway", label: "Driveway" },
+  { value: "deck", label: "Deck/Patio" },
+  { value: "other", label: "Other" }
+];
+
+type ConcreteSurfaceFormEntry = {
+  id: string;
+  kind: ConcreteSurfaceKind;
+  squareFeet: string;
+};
+
 interface QuoteBuilderClientProps {
   contacts: QuoteBuilderContactOption[];
   services: QuoteBuilderServiceOption[];
   zones: QuoteBuilderZoneOption[];
   defaultZoneId: string | null;
-  defaultDepositRate: number;
   initialContactId?: string;
 }
 
@@ -45,7 +59,6 @@ export function QuoteBuilderClient({
   services,
   zones,
   defaultZoneId,
-  defaultDepositRate,
   initialContactId
 }: QuoteBuilderClientProps) {
   const [contactId, setContactId] = React.useState<string>(() => {
@@ -78,6 +91,37 @@ export function QuoteBuilderClient({
     return Boolean(contacts[0]?.email);
   });
   const [servicePrices, setServicePrices] = React.useState<Record<string, string>>({});
+  const [concreteSurfaces, setConcreteSurfaces] = React.useState<ConcreteSurfaceFormEntry[]>([]);
+
+  const createConcreteSurfaceEntry = React.useCallback((): ConcreteSurfaceFormEntry => {
+    return {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      kind: "driveway",
+      squareFeet: ""
+    };
+  }, []);
+
+  const addConcreteSurface = React.useCallback(() => {
+    setConcreteSurfaces((prev) => {
+      if (prev.length >= MAX_CONCRETE_SURFACES) {
+        return prev;
+      }
+      return [...prev, createConcreteSurfaceEntry()];
+    });
+  }, [createConcreteSurfaceEntry]);
+
+  const updateConcreteSurface = React.useCallback(
+    (id: string, updates: Partial<ConcreteSurfaceFormEntry>) => {
+      setConcreteSurfaces((prev) =>
+        prev.map((surface) => (surface.id === id ? { ...surface, ...updates } : surface))
+      );
+    },
+    []
+  );
+
+  const removeConcreteSurface = React.useCallback((id: string) => {
+    setConcreteSurfaces((prev) => prev.filter((surface) => surface.id !== id));
+  }, []);
 
   const selectedContact = React.useMemo(
     () => contacts.find((contact) => contact.id === contactId) ?? null,
@@ -86,6 +130,72 @@ export function QuoteBuilderClient({
 
   const canSendEmail = Boolean(selectedContact?.email);
   const serviceLookup = React.useMemo(() => new Map(services.map((service) => [service.id, service])), [services]);
+  const selectableServices = React.useMemo(
+    () => services.filter((service) => service.id !== "driveway"),
+    [services]
+  );
+  const normalizedConcreteSurfaces = React.useMemo(() => {
+    return concreteSurfaces
+      .map((surface) => {
+        const trimmed = surface.squareFeet.trim();
+        if (trimmed.length === 0) {
+          return null;
+        }
+        const amount = Number(trimmed);
+        if (!Number.isFinite(amount) || amount <= 0) {
+          return null;
+        }
+        return {
+          kind: surface.kind,
+          squareFeet: amount
+        };
+      })
+      .filter((entry): entry is { kind: ConcreteSurfaceKind; squareFeet: number } => entry !== null);
+  }, [concreteSurfaces]);
+  const concreteValid =
+    concreteSurfaces.length === 0 || normalizedConcreteSurfaces.length === concreteSurfaces.length;
+  const concreteTotal = React.useMemo(
+    () => normalizedConcreteSurfaces.reduce((sum, surface) => sum + surface.squareFeet * CONCRETE_RATE, 0),
+    [normalizedConcreteSurfaces]
+  );
+  const roundedConcreteTotal = Math.round(concreteTotal * 100) / 100;
+  const canAddConcreteSurface = concreteSurfaces.length < MAX_CONCRETE_SURFACES;
+  const serializedConcreteSurfaces = React.useMemo(
+    () =>
+      JSON.stringify(
+        normalizedConcreteSurfaces.map(({ kind, squareFeet }) => ({
+          kind,
+          squareFeet
+        }))
+      ),
+    [normalizedConcreteSurfaces]
+  );
+
+  React.useEffect(() => {
+    setSelectedServices((prev) => {
+      const hasDriveway = prev.includes("driveway");
+      if (normalizedConcreteSurfaces.length > 0) {
+        return hasDriveway ? prev : [...prev, "driveway"];
+      }
+      if (!hasDriveway) {
+        return prev;
+      }
+      return prev.filter((id) => id !== "driveway");
+    });
+  }, [normalizedConcreteSurfaces.length]);
+
+  React.useEffect(() => {
+    if (normalizedConcreteSurfaces.length === 0) {
+      setServicePrices((prev) => {
+        if (!("driveway" in prev)) {
+          return prev;
+        }
+        const { driveway, ...rest } = prev;
+        return rest;
+      });
+    }
+  }, [normalizedConcreteSurfaces.length]);
+
   const serviceOverrides = React.useMemo(() => {
     const overrides: Record<string, number> = {};
     for (const serviceId of selectedServices) {
@@ -100,8 +210,18 @@ export function QuoteBuilderClient({
         overrides[serviceId] = value;
       }
     }
+    if (normalizedConcreteSurfaces.length > 0) {
+      overrides["driveway"] = roundedConcreteTotal;
+    }
     return overrides;
-  }, [selectedServices, serviceLookup, servicePrices]);
+  }, [
+    normalizedConcreteSurfaces.length,
+    roundedConcreteTotal,
+    selectedServices,
+    serviceLookup,
+    servicePrices
+  ]);
+
   const hasAllCustomPrices = React.useMemo(() => {
     return selectedServices.every((serviceId) => {
       const service = serviceLookup.get(serviceId);
@@ -183,7 +303,8 @@ export function QuoteBuilderClient({
     propertyId.length > 0 &&
     selectedServices.length > 0 &&
     zoneId.length > 0 &&
-    hasAllCustomPrices;
+    hasAllCustomPrices &&
+    concreteValid;
 
   if (contacts.length === 0) {
     return (
@@ -214,6 +335,7 @@ export function QuoteBuilderClient({
         <form action={createQuoteAction} className="mt-5 space-y-6">
           <input type="hidden" name="services" value={JSON.stringify(selectedServices)} />
           <input type="hidden" name="serviceOverrides" value={serializedOverrides} />
+          <input type="hidden" name="concreteSurfaces" value={serializedConcreteSurfaces} />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -286,7 +408,7 @@ export function QuoteBuilderClient({
             </label>
 
             <label className="flex flex-col gap-2 text-sm text-slate-600">
-              <span>Surface area (sq ft)</span>
+              <span>General surface area (sq ft)</span>
               <input
                 type="number"
                 name="surfaceArea"
@@ -298,10 +420,91 @@ export function QuoteBuilderClient({
             </label>
           </div>
 
+          <div className="space-y-3 rounded-2xl border border-slate-200 bg-white/85 p-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <span className="text-sm font-semibold text-slate-700">Concrete surfaces</span>
+                <p className="text-xs text-slate-500">
+                  Automatically priced at ${CONCRETE_RATE.toFixed(2)} per sq ft. Add up to three areas.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={addConcreteSurface}
+                disabled={!canAddConcreteSurface}
+                className="inline-flex items-center justify-center rounded-full border border-primary-200 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:border-primary-300 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Add surface
+              </button>
+            </div>
+            {concreteSurfaces.length === 0 ? (
+              <p className="text-xs text-slate-500">No concrete surfaces added.</p>
+            ) : (
+              <div className="space-y-3">
+                {concreteSurfaces.map((surface, index) => (
+                  <div
+                    key={surface.id}
+                    className="grid gap-3 rounded-xl border border-slate-200 bg-white/90 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
+                  >
+                    <label className="flex flex-col gap-1 text-xs text-slate-600">
+                      <span>Surface type {index + 1}</span>
+                      <select
+                        value={surface.kind}
+                        onChange={(event) =>
+                          updateConcreteSurface(surface.id, {
+                            kind: event.target.value as ConcreteSurfaceKind
+                          })
+                        }
+                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                      >
+                        {concreteSurfaceOptions.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-slate-600">
+                      <span>Square feet</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={surface.squareFeet}
+                        onChange={(event) =>
+                          updateConcreteSurface(surface.id, { squareFeet: event.target.value })
+                        }
+                        placeholder="e.g. 1200"
+                        className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => removeConcreteSurface(surface.id)}
+                      className="inline-flex items-center justify-center rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {normalizedConcreteSurfaces.length > 0 ? (
+              <p className="text-xs font-medium text-slate-600">
+                Concrete total: ${roundedConcreteTotal.toFixed(2)}
+              </p>
+            ) : null}
+            {concreteSurfaces.length > 0 && !concreteValid ? (
+              <p className="text-xs text-rose-500">
+                Enter a surface type and square footage for each concrete area.
+              </p>
+            ) : null}
+          </div>
+
           <fieldset className="space-y-3">
             <legend className="text-sm font-semibold text-slate-700">Services included</legend>
             <div className="grid gap-2 sm:grid-cols-2">
-              {services.map((service) => {
+              {selectableServices.map((service) => {
                 const checked = selectedServices.includes(service.id);
                 const containerClasses = checked
                   ? "border-primary-300 bg-primary-50 text-primary-800 shadow-sm"
@@ -371,33 +574,6 @@ export function QuoteBuilderClient({
             </p>
           </fieldset>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              <span>Deposit rate (0-1)</span>
-              <input
-                type="number"
-                name="depositRate"
-                min="0"
-                max="1"
-                step="0.05"
-                placeholder={defaultDepositRate.toString()}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
-              />
-            </label>
-
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              <span>Expires in (days)</span>
-              <input
-                type="number"
-                name="expiresInDays"
-                min="1"
-                max="90"
-                placeholder="30"
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
-              />
-            </label>
-          </div>
-
           <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
             <label className="inline-flex items-center gap-2">
               <input
@@ -460,6 +636,11 @@ export function QuoteBuilderClient({
             </SubmitButton>
             {hasAllCustomPrices ? null : (
               <p className="w-full text-[11px] text-rose-500">Enter a custom price for each selected service.</p>
+            )}
+            {concreteValid ? null : (
+              <p className="w-full text-[11px] text-rose-500">
+                Enter a surface type and square footage for each concrete area.
+              </p>
             )}
           </div>
         </form>

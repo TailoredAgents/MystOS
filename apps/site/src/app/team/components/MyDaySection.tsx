@@ -163,18 +163,34 @@ export async function MyDaySection(): Promise<ReactElement> {
                     </select>
                   </label>
                   <label className="flex flex-col gap-1">
-                    <span>Surface area (sq ft)</span>
+                    <span>General surface area (sq ft)</span>
                     <input type="number" name="surfaceArea" min="0" step="1" placeholder="Optional" className="rounded-md border border-neutral-300 px-2 py-1" />
                   </label>
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1">
-                      <span>Deposit rate (0-1)</span>
-                      <input type="number" name="depositRate" min="0" max="1" step="0.05" placeholder="0.2" className="rounded-md border border-neutral-300 px-2 py-1" />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                      <span>Expires in (days)</span>
-                      <input type="number" name="expiresInDays" min="1" max="90" placeholder="30" className="rounded-md border border-neutral-300 px-2 py-1" />
-                    </label>
+                  <div className="space-y-2 rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                    <span className="text-xs font-semibold text-neutral-700">Concrete surfaces (optional)</span>
+                    {[1, 2, 3].map((index) => (
+                      <div key={index} className="flex flex-col gap-2 sm:flex-row">
+                        <select
+                          name={`concreteSurface${index}Kind`}
+                          defaultValue=""
+                          className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700"
+                        >
+                          <option value="">Select surface</option>
+                          <option value="driveway">Driveway</option>
+                          <option value="deck">Deck/Patio</option>
+                          <option value="other">Other</option>
+                        </select>
+                        <input
+                          name={`concreteSurface${index}Sqft`}
+                          type="number"
+                          min="0"
+                          step="1"
+                          placeholder="Sq ft"
+                          className="rounded-md border border-neutral-300 px-2 py-1 text-xs"
+                        />
+                      </div>
+                    ))}
+                    <p className="text-[11px] text-neutral-500">Priced automatically at $0.14 per sq ft.</p>
                   </div>
                   <label className="inline-flex items-center gap-2 text-xs text-neutral-700">
                     <input type="checkbox" name="applyBundles" defaultChecked className="rounded border-neutral-300" />
