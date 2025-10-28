@@ -225,38 +225,57 @@ async function callOpenAI(
 ): Promise<string | null> {
   if (!OPENAI_API_KEY) return null;
   try {
-    const messages = [
-      { role: "system", content: systemPrompt },
-      ...history.map((entry) => ({
-        role: entry.role,
-        content: entry.content
-      })),
-      { role: "user", content: userMessage }
-    ];
+  const messages = [
+    { role: "system" as const, content: systemPrompt },
+    ...history.map((entry) => ({
+      role: entry.role,
+      content: entry.content
+    })),
+    { role: "user" as const, content: userMessage }
+  ];
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENAI_API_KEY}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        messages,
-        temperature: 0.3,
-        max_tokens: 600
-      })
-    });
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+      "OpenAI-Beta": "assistants=v2"
+    },
+    body: JSON.stringify({
+      model: OPENAI_MODEL,
+      input: messages,
+      temperature: 0.3,
+      max_output_tokens: 600
+    })
+  });
 
-    if (!response.ok) {
-      console.error("OpenAI error", await response.text());
-      return null;
+  if (!response.ok) {
+    console.error("OpenAI error", await response.text());
+    return null;
+  }
+  const payload = (await response.json()) as {
+    output?: Array<{
+      content?: Array<{ text?: string }>;
+    }>;
+    output_text?: string;
+  };
+
+  if (Array.isArray(payload.output)) {
+    const combined = payload.output
+      .flatMap((item) => item?.content ?? [])
+      .map((chunk) => chunk?.text ?? "")
+      .filter((chunk) => chunk && chunk.trim().length > 0)
+      .join("\n")
+      .trim();
+    if (combined.length > 0) {
+      return combined;
     }
-    const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const reply = payload?.choices?.[0]?.message?.content;
-    return typeof reply === "string" && reply.trim().length > 0 ? reply.trim() : null;
+  }
+  if (typeof payload.output_text === "string" && payload.output_text.trim().length > 0) {
+    return payload.output_text.trim();
+  }
+
+  return null;
   } catch (error) {
     console.error("OpenAI request failed", error);
     return null;

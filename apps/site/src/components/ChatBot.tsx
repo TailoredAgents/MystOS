@@ -74,7 +74,7 @@ export function ChatBot() {
   return (
     <div className="fixed right-6 bottom-24 md:bottom-6 z-50 flex flex-col items-end gap-3">
       {isOpen ? (
-        <div className="w-full max-w-xs rounded-xl border border-neutral-300/70 bg-white shadow-xl shadow-primary-900/10 sm:max-w-sm">
+        <div className="w-full max-w-sm rounded-xl border border-neutral-300/70 bg-white shadow-xl shadow-primary-900/10 sm:max-w-md">
           <div className="flex items-center justify-between border-b border-neutral-200 px-4 py-3">
             <div>
               <p className="font-semibold text-primary-800">Myst Assist</p>
@@ -94,8 +94,10 @@ export function ChatBot() {
               <div
                 key={m.id}
                 className={cn(
-                  "rounded-lg px-3 py-2",
-                  m.sender === "bot" ? "bg-neutral-100 text-neutral-700" : "ml-auto bg-accent-600 text-white"
+                  "rounded-lg px-3 py-2 max-w-[92%] sm:max-w-[75%]",
+                  m.sender === "bot"
+                    ? "bg-neutral-100 text-neutral-700"
+                    : "ml-auto bg-primary-600 text-white shadow-lg shadow-primary-900/20"
                 )}
               >
                 {m.text}

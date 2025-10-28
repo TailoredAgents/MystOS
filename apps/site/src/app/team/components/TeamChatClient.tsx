@@ -122,7 +122,7 @@ export function TeamChatClient() {
               <div
                 key={message.id}
                 className={cn(
-                  "max-w-[80%] rounded-xl px-3 py-2 leading-relaxed sm:max-w-[70%]",
+                  "max-w-[92%] rounded-xl px-3 py-2 leading-relaxed sm:max-w-[75%]",
                   message.sender === "bot"
                     ? "bg-slate-100 text-slate-700"
                     : "ml-auto bg-primary-600 text-white shadow-primary-900/10"
