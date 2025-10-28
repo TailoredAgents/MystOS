@@ -4,16 +4,16 @@ import { getDb, contacts, properties } from "@/db";
 import { isAdminRequest } from "../../../../web/admin";
 import { eq } from "drizzle-orm";
 
-type RouteParams = {
-  params: { contactId?: string };
+type RouteContext = {
+  params: Promise<{ contactId?: string }>;
 };
 
-export async function POST(request: NextRequest, { params }: RouteParams): Promise<Response> {
+export async function POST(request: NextRequest, context: RouteContext): Promise<Response> {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const contactId = params.contactId;
+  const { contactId } = await context.params;
   if (!contactId) {
     return NextResponse.json({ error: "contact_id_required" }, { status: 400 });
   }

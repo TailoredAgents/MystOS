@@ -4,18 +4,18 @@ import { getDb, crmTasks } from "@/db";
 import { isAdminRequest } from "../../../../web/admin";
 import { eq } from "drizzle-orm";
 
-type RouteParams = {
-  params: { taskId?: string };
+type RouteContext = {
+  params: Promise<{ taskId?: string }>;
 };
 
 const VALID_STATUSES = new Set(["open", "completed"]);
 
-export async function PATCH(request: NextRequest, { params }: RouteParams): Promise<Response> {
+export async function PATCH(request: NextRequest, context: RouteContext): Promise<Response> {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const taskId = params.taskId;
+  const { taskId } = await context.params;
   if (!taskId) {
     return NextResponse.json({ error: "task_id_required" }, { status: 400 });
   }
@@ -120,12 +120,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams): Prom
   });
 }
 
-export async function DELETE(request: NextRequest, { params }: RouteParams): Promise<Response> {
+export async function DELETE(request: NextRequest, context: RouteContext): Promise<Response> {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const taskId = params.taskId;
+  const { taskId } = await context.params;
   if (!taskId) {
     return NextResponse.json({ error: "task_id_required" }, { status: 400 });
   }

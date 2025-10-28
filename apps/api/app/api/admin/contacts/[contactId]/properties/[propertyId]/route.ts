@@ -4,17 +4,16 @@ import { getDb, properties } from "@/db";
 import { isAdminRequest } from "../../../../../web/admin";
 import { and, eq } from "drizzle-orm";
 
-type RouteParams = {
-  params: { contactId?: string; propertyId?: string };
+type RouteContext = {
+  params: Promise<{ contactId?: string; propertyId?: string }>;
 };
 
-export async function PATCH(request: NextRequest, { params }: RouteParams): Promise<Response> {
+export async function PATCH(request: NextRequest, context: RouteContext): Promise<Response> {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const contactId = params.contactId;
-  const propertyId = params.propertyId;
+  const { contactId, propertyId } = await context.params;
   if (!contactId || !propertyId) {
     return NextResponse.json({ error: "contact_and_property_required" }, { status: 400 });
   }
@@ -112,13 +111,12 @@ export async function PATCH(request: NextRequest, { params }: RouteParams): Prom
   });
 }
 
-export async function DELETE(request: NextRequest, { params }: RouteParams): Promise<Response> {
+export async function DELETE(request: NextRequest, context: RouteContext): Promise<Response> {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const contactId = params.contactId;
-  const propertyId = params.propertyId;
+  const { contactId, propertyId } = await context.params;
   if (!contactId || !propertyId) {
     return NextResponse.json({ error: "contact_and_property_required" }, { status: 400 });
   }

@@ -83,25 +83,29 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
         }
       };
 
-      const stripped = current.map((lane) => ({
-        ...lane,
-        contacts: lane.contacts.filter((c) => c.id !== contactId)
-      }));
+    const stripped = current.map((lane) => ({
+      ...lane,
+      contacts: lane.contacts.filter((c) => c.id !== contactId)
+    }));
 
-      const targetIndex = stripped.findIndex((lane) => lane.stage === targetStage);
-      if (targetIndex === -1) {
-        return current;
-      }
+    const targetIndex = stripped.findIndex((lane) => lane.stage === targetStage);
+    if (targetIndex === -1) {
+      return current;
+    }
 
-      const targetLane = stripped[targetIndex];
-      stripped[targetIndex] = {
-        ...targetLane,
-        contacts: sortContacts([...targetLane.contacts, updatedContact])
-      };
+    const targetLane = stripped[targetIndex];
+    if (!targetLane) {
+      return current;
+    }
 
-      return stripped;
-    });
-  }
+    stripped[targetIndex] = {
+      ...targetLane,
+      contacts: sortContacts([...targetLane.contacts, updatedContact])
+    };
+
+    return stripped;
+  });
+}
 
   function handleDrop(event: React.DragEvent<HTMLDivElement>, stage: string) {
     event.preventDefault();
