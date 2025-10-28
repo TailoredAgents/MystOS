@@ -28,7 +28,7 @@ function labelForStage(stage: string): string {
   return STAGE_LABELS[stage] ?? stage;
 }
 
-function accentForStage(stage: string) {
+function accentForStage(stage: string): { lane: string; badge: string } {
   return STAGE_ACCENTS[stage] ?? STAGE_ACCENTS["default"];
 }
 
