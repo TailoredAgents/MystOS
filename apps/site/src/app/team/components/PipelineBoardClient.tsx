@@ -66,7 +66,12 @@ const STAGE_THEMES: Record<string, StageTheme> = {
   }
 };
 
-const DEFAULT_STAGE_THEME: StageTheme = STAGE_THEMES.default;
+const DEFAULT_STAGE_THEME: StageTheme = {
+  dot: "bg-slate-400",
+  badge: "bg-slate-100 text-slate-600",
+  cardBorder: "border-slate-200 hover:border-slate-300",
+  cardBackground: "bg-white"
+};
 
 function labelForStage(stage: string): string {
   return STAGE_LABELS[stage] ?? stage;
