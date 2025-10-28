@@ -29,7 +29,9 @@ function labelForStage(stage: string): string {
 }
 
 function accentForStage(stage: string): { lane: string; badge: string } {
-  return STAGE_ACCENTS[stage] ?? STAGE_ACCENTS["default"];
+  const accent = STAGE_ACCENTS[stage];
+  if (accent) return accent;
+  return STAGE_ACCENTS["default"];
 }
 
 function sortContacts(contacts: PipelineContact[]): PipelineContact[] {
