@@ -33,7 +33,12 @@ function fallbackResponse(message: string): string {
   return "Got it! Emphasize safety, document before/after pics in the job notes, and keep the customer looped in with friendly updates.";
 }
 
-async function callAssistant(message: string): Promise<string | null> {
+type AssistantPayload = {
+  reply?: string;
+  actionNote?: string;
+};
+
+async function callAssistant(message: string): Promise<AssistantPayload | null> {
   try {
     const response = await fetch("/api/chat", {
       method: "POST",
@@ -43,8 +48,8 @@ async function callAssistant(message: string): Promise<string | null> {
     if (!response.ok) {
       return null;
     }
-    const data = (await response.json()) as { reply?: string };
-    return typeof data?.reply === "string" ? data.reply : null;
+    const data = (await response.json()) as AssistantPayload;
+    return data ?? null;
   } catch {
     return null;
   }
@@ -78,9 +83,14 @@ export function TeamChatClient() {
       setIsSending(true);
 
       const augmentedPrompt = `${TEAM_CONTEXT}\n\nTeam request: ${text}`;
-      const reply = (await callAssistant(augmentedPrompt)) ?? fallbackResponse(text);
+      const ai = await callAssistant(augmentedPrompt);
+      const reply = ai?.reply ?? fallbackResponse(text);
+      const combinedReply =
+        ai?.actionNote && ai.actionNote.trim().length
+          ? `${reply}\n\n${ai.actionNote}`
+          : reply;
 
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), sender: "bot", text: reply }]);
+      setMessages((prev) => [...prev, { id: crypto.randomUUID(), sender: "bot", text: combinedReply }]);
       setIsSending(false);
     },
     [isSending]
@@ -155,4 +165,3 @@ export function TeamChatClient() {
     </div>
   );
 }
-
