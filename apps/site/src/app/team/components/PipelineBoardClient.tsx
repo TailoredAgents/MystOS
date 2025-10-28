@@ -231,9 +231,9 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
           return (
             <section
               key={stage}
-              onDragOver={(event) => handleDragOver(event, stage)}
-              onDrop={(event) => handleDrop(event, stage)}
-              onDragLeave={(event) => {
+              onDragOver={(event: React.DragEvent<HTMLDivElement>) => handleDragOver(event, stage)}
+              onDrop={(event: React.DragEvent<HTMLDivElement>) => handleDrop(event, stage)}
+              onDragLeave={(event: React.DragEvent<HTMLDivElement>) => {
                 if (!event.currentTarget.contains(event.relatedTarget as Node)) {
                   setHoverStage(null);
                 }
