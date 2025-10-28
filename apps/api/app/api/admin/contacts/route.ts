@@ -96,24 +96,22 @@ export async function GET(request: NextRequest): Promise<Response> {
     : await db.select({ count: sql<number>`count(*)` }).from(contacts);
   const total = Number(totalResult[0]?.count ?? 0);
 
-  const contactRows = await (() => {
-    let query = db
-      .select({
-        id: contacts.id,
-        firstName: contacts.firstName,
-        lastName: contacts.lastName,
-        email: contacts.email,
-        phone: contacts.phone,
-        phoneE164: contacts.phoneE164,
-        createdAt: contacts.createdAt,
-        updatedAt: contacts.updatedAt
-      })
-      .from(contacts);
-    if (whereClause) {
-      query = query.where(whereClause);
-    }
-    return query.orderBy(desc(contacts.updatedAt)).limit(limit).offset(offset);
-  })();
+  const baseContactsQuery = db
+    .select({
+      id: contacts.id,
+      firstName: contacts.firstName,
+      lastName: contacts.lastName,
+      email: contacts.email,
+      phone: contacts.phone,
+      phoneE164: contacts.phoneE164,
+      createdAt: contacts.createdAt,
+      updatedAt: contacts.updatedAt
+    })
+    .from(contacts);
+
+  const contactRows = await (whereClause
+    ? baseContactsQuery.where(whereClause).orderBy(desc(contacts.updatedAt)).limit(limit).offset(offset)
+    : baseContactsQuery.orderBy(desc(contacts.updatedAt)).limit(limit).offset(offset));
 
   const contactIds = contactRows.map((row) => row.id);
 
