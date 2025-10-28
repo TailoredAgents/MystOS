@@ -46,7 +46,7 @@ export const serviceRates: ServiceBaseRate[] = [
     label: "Driveway Degrease",
     description: "Surface clean concrete or paver driveways.",
     basePrice: 149,
-    pricePerSquareFoot: 0.12,
+    pricePerSquareFoot: 0.14,
     minimumSquareFootage: 600
   },
   {

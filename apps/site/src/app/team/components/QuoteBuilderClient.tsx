@@ -22,6 +22,8 @@ export type QuoteBuilderServiceOption = {
   id: string;
   label: string;
   description?: string | null;
+  allowCustomPrice: boolean;
+  autoPricingNote?: string | null;
 };
 
 export type QuoteBuilderZoneOption = {
@@ -75,6 +77,7 @@ export function QuoteBuilderClient({
     }
     return Boolean(contacts[0]?.email);
   });
+  const [servicePrices, setServicePrices] = React.useState<Record<string, string>>({});
 
   const selectedContact = React.useMemo(
     () => contacts.find((contact) => contact.id === contactId) ?? null,
@@ -82,6 +85,42 @@ export function QuoteBuilderClient({
   );
 
   const canSendEmail = Boolean(selectedContact?.email);
+  const serviceLookup = React.useMemo(() => new Map(services.map((service) => [service.id, service])), [services]);
+  const serviceOverrides = React.useMemo(() => {
+    const overrides: Record<string, number> = {};
+    for (const serviceId of selectedServices) {
+      const service = serviceLookup.get(serviceId);
+      if (!service || !service.allowCustomPrice) continue;
+      const raw = servicePrices[serviceId];
+      if (typeof raw !== "string") continue;
+      const trimmed = raw.trim();
+      if (trimmed.length === 0) continue;
+      const value = Number(trimmed);
+      if (Number.isFinite(value) && value > 0) {
+        overrides[serviceId] = value;
+      }
+    }
+    return overrides;
+  }, [selectedServices, serviceLookup, servicePrices]);
+  const hasAllCustomPrices = React.useMemo(() => {
+    return selectedServices.every((serviceId) => {
+      const service = serviceLookup.get(serviceId);
+      if (!service || !service.allowCustomPrice) {
+        return true;
+      }
+      const raw = servicePrices[serviceId];
+      if (typeof raw !== "string") {
+        return false;
+      }
+      const trimmed = raw.trim();
+      if (trimmed.length === 0) {
+        return false;
+      }
+      const value = Number(trimmed);
+      return Number.isFinite(value) && value > 0;
+    });
+  }, [selectedServices, serviceLookup, servicePrices]);
+  const serializedOverrides = React.useMemo(() => JSON.stringify(serviceOverrides), [serviceOverrides]);
 
   React.useEffect(() => {
     if (!initialContactId) return;
@@ -110,17 +149,41 @@ export function QuoteBuilderClient({
     }
   }, [canSendEmail]);
 
-  const toggleService = React.useCallback((serviceId: string) => {
-    setSelectedServices((prev) => {
-      if (prev.includes(serviceId)) {
-        return prev.filter((id) => id !== serviceId);
-      }
-      return [...prev, serviceId];
-    });
-  }, []);
+  const toggleService = React.useCallback(
+    (serviceId: string) => {
+      setSelectedServices((prev) => {
+        if (prev.includes(serviceId)) {
+          setServicePrices((current) => {
+            if (!(serviceId in current)) {
+              return current;
+            }
+            const { [serviceId]: _removed, ...rest } = current;
+            return rest;
+          });
+          return prev.filter((id) => id !== serviceId);
+        }
+        return [...prev, serviceId];
+      });
+    },
+    [setServicePrices]
+  );
+
+  const handlePriceChange = React.useCallback(
+    (serviceId: string, value: string) => {
+      setServicePrices((prev) => ({
+        ...prev,
+        [serviceId]: value
+      }));
+    },
+    [setServicePrices]
+  );
 
   const canSubmit =
-    selectedContact !== null && propertyId.length > 0 && selectedServices.length > 0 && zoneId.length > 0;
+    selectedContact !== null &&
+    propertyId.length > 0 &&
+    selectedServices.length > 0 &&
+    zoneId.length > 0 &&
+    hasAllCustomPrices;
 
   if (contacts.length === 0) {
     return (
@@ -150,6 +213,7 @@ export function QuoteBuilderClient({
 
         <form action={createQuoteAction} className="mt-5 space-y-6">
           <input type="hidden" name="services" value={JSON.stringify(selectedServices)} />
+          <input type="hidden" name="serviceOverrides" value={serializedOverrides} />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -239,29 +303,66 @@ export function QuoteBuilderClient({
             <div className="grid gap-2 sm:grid-cols-2">
               {services.map((service) => {
                 const checked = selectedServices.includes(service.id);
+                const containerClasses = checked
+                  ? "border-primary-300 bg-primary-50 text-primary-800 shadow-sm"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:bg-primary-50/40";
+                const priceValue = servicePrices[service.id] ?? "";
+                const requiresCustomPrice = service.allowCustomPrice;
+                const trimmedPrice = priceValue.trim();
+                const numericPrice = Number(trimmedPrice);
+                const priceInvalid =
+                  requiresCustomPrice &&
+                  checked &&
+                  (trimmedPrice.length === 0 || !Number.isFinite(numericPrice) || numericPrice <= 0);
                 return (
-                  <label
+                  <div
                     key={service.id}
-                    className={`flex cursor-pointer items-start gap-3 rounded-2xl border px-4 py-3 transition ${
-                      checked
-                        ? "border-primary-300 bg-primary-50 text-primary-800 shadow-sm"
-                        : "border-slate-200 bg-white text-slate-600 hover:border-primary-200 hover:bg-primary-50/40"
-                    }`}
+                    className={`rounded-2xl border px-4 py-3 transition ${containerClasses}`}
                   >
-                    <input
-                      type="checkbox"
-                      value={service.id}
-                      checked={checked}
-                      onChange={() => toggleService(service.id)}
-                      className="mt-1 rounded border-slate-300 text-primary-600 focus:ring-primary-400"
-                    />
-                    <span className="flex-1">
-                      <span className="block text-sm font-semibold">{service.label}</span>
-                      {service.description ? (
-                        <span className="mt-1 block text-xs text-slate-500">{service.description}</span>
-                      ) : null}
-                    </span>
-                  </label>
+                    <label className="flex cursor-pointer items-start gap-3">
+                      <input
+                        type="checkbox"
+                        value={service.id}
+                        checked={checked}
+                        onChange={() => toggleService(service.id)}
+                        className="mt-1 rounded border-slate-300 text-primary-600 focus:ring-primary-400"
+                      />
+                      <div className="flex-1">
+                        <span className="block text-sm font-semibold">{service.label}</span>
+                        {service.description ? (
+                          <span className="mt-1 block text-xs text-slate-500">{service.description}</span>
+                        ) : null}
+                      </div>
+                    </label>
+                    {requiresCustomPrice ? (
+                      <div className="mt-3 space-y-1 pl-8">
+                        <label className="flex flex-col gap-1 text-xs text-slate-600">
+                          <span className="font-medium text-slate-700">Custom price (total)</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            inputMode="decimal"
+                            value={priceValue}
+                            onChange={(event) => handlePriceChange(service.id, event.target.value)}
+                            disabled={!checked}
+                            placeholder="Enter total price"
+                            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+                          />
+                        </label>
+                        {checked ? (
+                          <p className="text-[11px] text-slate-500">Provide the total for this service.</p>
+                        ) : (
+                          <p className="text-[11px] text-slate-400">Select this service to enter a price.</p>
+                        )}
+                        {priceInvalid ? (
+                          <p className="text-[11px] text-rose-500">Enter a positive amount.</p>
+                        ) : null}
+                      </div>
+                    ) : service.autoPricingNote ? (
+                      <p className="mt-3 pl-8 text-[11px] text-slate-500">{service.autoPricingNote}</p>
+                    ) : null}
+                  </div>
                 );
               })}
             </div>
@@ -357,6 +458,9 @@ export function QuoteBuilderClient({
             >
               Create quote
             </SubmitButton>
+            {hasAllCustomPrices ? null : (
+              <p className="w-full text-[11px] text-rose-500">Enter a custom price for each selected service.</p>
+            )}
           </div>
         </form>
       </div>

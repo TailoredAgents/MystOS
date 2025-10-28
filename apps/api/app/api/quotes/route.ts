@@ -31,7 +31,8 @@ const CreateQuoteSchema = z.object({
   applyBundles: z.boolean().optional(),
   depositRate: z.number().positive().max(1).optional(),
   expiresInDays: z.number().int().min(1).max(90).optional(),
-  notes: z.string().max(2000).optional()
+  notes: z.string().max(2000).optional(),
+  serviceOverrides: z.record(z.string().min(1), z.number().positive()).optional()
 });
 
 const toPgNumeric = (value: number | string): string => value.toString();
@@ -180,6 +181,20 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const selectedServices = body.selectedServices as ServiceCategory[];
+  const sanitizedOverrides: Partial<Record<ServiceCategory, number>> = {};
+  if (body.serviceOverrides) {
+    for (const [serviceId, amount] of Object.entries(body.serviceOverrides)) {
+      if (
+        SERVICE_ID_SET.has(serviceId as ServiceCategory) &&
+        serviceId !== "driveway" &&
+        selectedServices.includes(serviceId as ServiceCategory) &&
+        typeof amount === "number" &&
+        amount > 0
+      ) {
+        sanitizedOverrides[serviceId as ServiceCategory] = amount;
+      }
+    }
+  }
 
   const breakdown = calculateQuoteBreakdown({
     zoneId: body.zoneId,
@@ -187,7 +202,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     selectedAddOns: body.selectedAddOns,
     surfaceArea: body.surfaceArea,
     applyBundles: body.applyBundles,
-    depositRate: body.depositRate
+    depositRate: body.depositRate,
+    serviceOverrides: sanitizedOverrides
   });
 
   const expiresAt = body.expiresInDays

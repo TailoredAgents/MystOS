@@ -142,6 +142,7 @@ export async function createQuoteAction(formData: FormData) {
   const expiresInDays = formData.get("expiresInDays");
   const applyBundles = formData.get("applyBundles");
   const notes = formData.get("notes");
+  const serviceOverridesRaw = formData.get("serviceOverrides");
 
   if (typeof contactId !== "string" || typeof propertyId !== "string" || typeof zoneId !== "string") {
     jar.set({ name: "myst-flash-error", value: "Missing quote details", path: "/" });
@@ -198,6 +199,24 @@ export async function createQuoteAction(formData: FormData) {
 
   if (typeof notes === "string" && notes.trim().length > 0) {
     payload["notes"] = notes.trim();
+  }
+
+  if (typeof serviceOverridesRaw === "string" && serviceOverridesRaw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(serviceOverridesRaw) as Record<string, unknown>;
+      const sanitized: Record<string, number> = {};
+      for (const [key, value] of Object.entries(parsed)) {
+        const numeric = typeof value === "number" ? value : Number(value);
+        if (Number.isFinite(numeric) && numeric > 0 && key !== "driveway") {
+          sanitized[key] = numeric;
+        }
+      }
+      if (Object.keys(sanitized).length > 0) {
+        payload["serviceOverrides"] = sanitized;
+      }
+    } catch {
+      // ignore malformed overrides
+    }
   }
 
   const response = await callAdminApi(`/api/quotes`, {

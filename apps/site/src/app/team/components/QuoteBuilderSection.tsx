@@ -33,7 +33,10 @@ export async function QuoteBuilderSection({ initialContactId }: { initialContact
   const serviceOptions: QuoteBuilderServiceOption[] = serviceRates.map((service) => ({
     id: service.service,
     label: service.label,
-    description: service.description ?? null
+    description: service.description ?? null,
+    allowCustomPrice: service.service !== "driveway",
+    autoPricingNote:
+      service.service === "driveway" ? "Automatically calculated from surface area at $0.14 per sq ft." : null
   }));
 
   const zoneOptions: QuoteBuilderZoneOption[] = zones.map((zone) => ({

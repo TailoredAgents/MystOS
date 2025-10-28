@@ -19,7 +19,9 @@ const quoteInputSchema = z.object({
   surfaceArea: z.number().positive().optional(),
   selectedServices: z.array(z.string()).min(1),
   selectedAddOns: z.array(z.string()).optional(),
-  applyBundles: z.boolean().optional()
+  applyBundles: z.boolean().optional(),
+  depositRate: z.number().positive().max(1).optional(),
+  serviceOverrides: z.record(z.string(), z.number().positive()).optional()
 });
 
 function resolveZone(zoneId: string): ZoneConfig {
@@ -80,8 +82,17 @@ export function calculateQuoteBreakdown(
     throw parsed.error;
   }
 
-  const { zoneId, surfaceArea, selectedServices, selectedAddOns, applyBundles } = parsed.data;
+  const {
+    zoneId,
+    surfaceArea,
+    selectedServices,
+    selectedAddOns,
+    applyBundles,
+    depositRate,
+    serviceOverrides
+  } = parsed.data;
   const zone = resolveZone(zoneId);
+  const overrides = (serviceOverrides ?? {}) as Record<string, number>;
 
   const lineItems: QuoteBreakdown["lineItems"] = [];
 
@@ -92,7 +103,11 @@ export function calculateQuoteBreakdown(
       return sum;
     }
 
-    const amount = computeServiceAmount(rate, surfaceArea);
+    const overrideAmount = overrides[serviceId];
+    const amount =
+      typeof overrideAmount === "number" && serviceId !== "driveway"
+        ? overrideAmount
+        : computeServiceAmount(rate, surfaceArea);
     lineItems.push({
       id: `service-${serviceId}`,
       label: rate.label,
@@ -136,7 +151,8 @@ export function calculateQuoteBreakdown(
   }
 
   const subtotal = servicesSubtotal + addOnsTotal + travelFee;
-  const discounts = computeBundleDiscount(selectedServices, applyBundles);
+  const allowBundleDiscounts = applyBundles && Object.keys(overrides).length === 0;
+  const discounts = computeBundleDiscount(selectedServices, allowBundleDiscounts);
   const total = subtotal - discounts;
 
   if (discounts > 0) {
@@ -149,7 +165,7 @@ export function calculateQuoteBreakdown(
   }
 
   const resolvedDepositRate =
-    options?.depositRate ?? input.depositRate ?? defaultDepositRate;
+    options?.depositRate ?? depositRate ?? input.depositRate ?? defaultDepositRate;
   const depositDue = Math.round(total * resolvedDepositRate * 100) / 100;
   const balanceDue = Math.max(total - depositDue, 0);
 

@@ -91,6 +91,7 @@ export interface QuoteRequestInput {
   selectedAddOns?: string[];
   applyBundles?: boolean;
   depositRate?: number;
+  serviceOverrides?: Partial<Record<ServiceCategory, number>>;
 }
 
 export interface LineItem {
