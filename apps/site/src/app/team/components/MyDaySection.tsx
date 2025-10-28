@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type ReactElement } from "react";
 import { availabilityWindows, zones } from "@myst-os/pricing/src/config/defaults";
 import { CopyButton } from "@/components/CopyButton";
 import { SubmitButton } from "@/components/SubmitButton";
@@ -36,7 +36,7 @@ interface AppointmentDto {
   notes: Array<{ id: string; body: string; createdAt: string }>;
 }
 
-export async function MyDaySection(): Promise<JSX.Element> {
+export async function MyDaySection(): Promise<ReactElement> {
   const res = await callAdminApi("/api/appointments?status=confirmed");
   if (!res.ok) {
     throw new Error("Failed to load appointments");
@@ -216,4 +216,3 @@ export async function MyDaySection(): Promise<JSX.Element> {
     </section>
   );
 }
-

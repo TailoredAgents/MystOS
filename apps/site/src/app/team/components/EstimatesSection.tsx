@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type ReactElement } from "react";
 import { availabilityWindows, zones } from "@myst-os/pricing/src/config/defaults";
 import { SubmitButton } from "@/components/SubmitButton";
 import {
@@ -20,7 +20,7 @@ interface AppointmentDto {
   rescheduleToken: string;
 }
 
-export async function EstimatesSection(): Promise<JSX.Element> {
+export async function EstimatesSection(): Promise<ReactElement> {
   const res = await callAdminApi("/api/appointments?status=all");
   if (!res.ok) {
     throw new Error("Failed to load appointments");
@@ -182,4 +182,3 @@ export async function EstimatesSection(): Promise<JSX.Element> {
     </section>
   );
 }
-

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type ReactElement } from "react";
 import { PaymentsList } from "../PaymentsList";
 import { callAdminApi } from "../lib/api";
 import { attachPaymentAction, detachPaymentAction } from "../actions";
@@ -17,7 +17,7 @@ type PaymentDto = {
   appointment: null | { id: string; status: string; startAt: string | null; contactName: string | null };
 };
 
-export async function PaymentsSection(): Promise<JSX.Element> {
+export async function PaymentsSection(): Promise<ReactElement> {
   const res = await callAdminApi("/api/payments?status=all");
   if (!res.ok) throw new Error("Failed to load payments");
 
@@ -35,4 +35,3 @@ export async function PaymentsSection(): Promise<JSX.Element> {
     />
   );
 }
-

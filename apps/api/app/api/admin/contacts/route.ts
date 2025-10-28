@@ -1,8 +1,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getDb, contacts, properties } from "@/db";
+import { getDb, contacts, properties, appointments, quotes } from "@/db";
 import { isAdminRequest } from "../../web/admin";
 import { normalizePhone } from "../../web/utils";
+import { desc, inArray, sql } from "drizzle-orm";
 
 export async function GET(request: NextRequest): Promise<Response> {
   if (!isAdminRequest(request)) {
@@ -14,57 +15,106 @@ export async function GET(request: NextRequest): Promise<Response> {
   const limitParam = request.nextUrl.searchParams.get("limit");
   const limit = limitParam ? Math.max(1, Math.min(Number(limitParam) || 50, 200)) : 50;
 
-  const contactRows = await db.query.contacts.findMany({
-    with: {
-      properties: true,
-      appointments: {
-        columns: {
-          id: true,
-          status: true,
-          startAt: true,
-          updatedAt: true
-        }
-      },
-      quotes: {
-        columns: {
-          id: true,
-          status: true,
-          total: true,
-          updatedAt: true
-        }
-      }
-    },
-    orderBy: (fields, operators) => operators.desc(fields.updatedAt),
-    limit
-  });
+  const contactRows = await db
+    .select({
+      id: contacts.id,
+      firstName: contacts.firstName,
+      lastName: contacts.lastName,
+      email: contacts.email,
+      phone: contacts.phone,
+      phoneE164: contacts.phoneE164,
+      createdAt: contacts.createdAt,
+      updatedAt: contacts.updatedAt
+    })
+    .from(contacts)
+    .orderBy(desc(contacts.updatedAt))
+    .limit(limit);
 
-  const filtered = search
+  const filteredContacts = search
     ? contactRows.filter((contact) => {
-        const haystack = [
-          contact.firstName,
-          contact.lastName,
-          contact.email ?? "",
-          contact.phone ?? "",
-          contact.phoneE164 ?? "",
-          contact.properties.map((p) => `${p.addressLine1} ${p.city} ${p.state} ${p.postalCode}`).join(" ")
-        ]
+        const haystack = [contact.firstName, contact.lastName, contact.email ?? "", contact.phone ?? "", contact.phoneE164 ?? ""]
           .join(" ")
           .toLowerCase();
         return haystack.includes(search);
       })
     : contactRows;
 
-  const contactsDto = filtered.map((contact) => {
+  const contactIds = filteredContacts.map((contact) => contact.id);
+
+  const propertyRows =
+    contactIds.length > 0
+      ? await db
+          .select({
+            id: properties.id,
+            contactId: properties.contactId,
+            addressLine1: properties.addressLine1,
+            city: properties.city,
+            state: properties.state,
+            postalCode: properties.postalCode,
+            createdAt: properties.createdAt
+          })
+          .from(properties)
+          .where(inArray(properties.contactId, contactIds))
+      : [];
+
+  const appointmentStats =
+    contactIds.length > 0
+      ? await db
+          .select({
+            contactId: appointments.contactId,
+            count: sql<number>`count(*)`,
+            latest: sql<Date | null>`max(coalesce(${appointments.updatedAt}, ${appointments.startAt}))`
+          })
+          .from(appointments)
+          .where(inArray(appointments.contactId, contactIds))
+          .groupBy(appointments.contactId)
+      : [];
+
+  const quoteStats =
+    contactIds.length > 0
+      ? await db
+          .select({
+            contactId: quotes.contactId,
+            count: sql<number>`count(*)`,
+            latest: sql<Date | null>`max(${quotes.updatedAt})`
+          })
+          .from(quotes)
+          .where(inArray(quotes.contactId, contactIds))
+          .groupBy(quotes.contactId)
+      : [];
+
+  const propertyMap = new Map<string, typeof propertyRows>();
+  for (const property of propertyRows) {
+    if (!property.contactId) continue;
+    if (!propertyMap.has(property.contactId)) {
+      propertyMap.set(property.contactId, []);
+    }
+    propertyMap.get(property.contactId)!.push(property);
+  }
+
+  const appointmentMap = new Map<string, { count: number; latest: Date | null }>();
+  for (const stat of appointmentStats) {
+    if (!stat.contactId) continue;
+    appointmentMap.set(stat.contactId, { count: Number(stat.count), latest: stat.latest });
+  }
+
+  const quoteMap = new Map<string, { count: number; latest: Date | null }>();
+  for (const stat of quoteStats) {
+    if (!stat.contactId) continue;
+    quoteMap.set(stat.contactId, { count: Number(stat.count), latest: stat.latest });
+  }
+
+  const contactsDto = filteredContacts.map((contact) => {
+    const propertiesForContact = propertyMap.get(contact.id) ?? [];
+    const appointmentStat = appointmentMap.get(contact.id);
+    const quoteStat = quoteMap.get(contact.id);
+
+    const dates: Date[] = [contact.updatedAt];
+    if (appointmentStat?.latest) dates.push(appointmentStat.latest);
+    if (quoteStat?.latest) dates.push(quoteStat.latest);
+    const lastActivity = dates.filter(Boolean).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+
     const fullName = `${contact.firstName} ${contact.lastName}`.trim();
-    const appointments = contact.appointments ?? [];
-    const quotes = contact.quotes ?? [];
-    const lastActivity = [
-      contact.updatedAt,
-      ...appointments.map((a) => a.updatedAt ?? a.startAt ?? null),
-      ...quotes.map((q) => q.updatedAt ?? null)
-    ]
-      .filter((value): value is Date => value instanceof Date)
-      .sort((a, b) => b.getTime() - a.getTime())[0];
 
     return {
       id: contact.id,
@@ -77,7 +127,7 @@ export async function GET(request: NextRequest): Promise<Response> {
       createdAt: contact.createdAt.toISOString(),
       updatedAt: contact.updatedAt.toISOString(),
       lastActivityAt: lastActivity ? lastActivity.toISOString() : null,
-      properties: (contact.properties ?? []).map((property) => ({
+      properties: propertiesForContact.map((property) => ({
         id: property.id,
         addressLine1: property.addressLine1,
         city: property.city,
@@ -86,8 +136,8 @@ export async function GET(request: NextRequest): Promise<Response> {
         createdAt: property.createdAt.toISOString()
       })),
       stats: {
-        appointments: appointments.length,
-        quotes: quotes.length
+        appointments: appointmentStat?.count ?? 0,
+        quotes: quoteStat?.count ?? 0
       }
     };
   });

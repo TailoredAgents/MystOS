@@ -1,4 +1,4 @@
-import React from "react";
+import React, { type ReactElement } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { createContactAction } from "../actions";
 import { callAdminApi } from "../lib/api";
@@ -18,7 +18,7 @@ type ContactSummary = {
   stats: { appointments: number; quotes: number };
 };
 
-export async function ContactsSection({ search }: { search?: string }): Promise<JSX.Element> {
+export async function ContactsSection({ search }: { search?: string }): Promise<ReactElement> {
   const query = search && search.trim().length ? `?q=${encodeURIComponent(search.trim())}` : "";
   const res = await callAdminApi(`/api/admin/contacts${query}`);
   if (!res.ok) throw new Error("Failed to load contacts");
@@ -127,4 +127,3 @@ export async function ContactsSection({ search }: { search?: string }): Promise<
     </section>
   );
 }
-
