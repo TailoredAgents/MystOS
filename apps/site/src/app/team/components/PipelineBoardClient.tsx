@@ -29,7 +29,7 @@ function labelForStage(stage: string): string {
 }
 
 function accentForStage(stage: string) {
-  return STAGE_ACCENTS[stage] ?? STAGE_ACCENTS.default;
+  return STAGE_ACCENTS[stage] ?? STAGE_ACCENTS["default"];
 }
 
 function sortContacts(contacts: PipelineContact[]): PipelineContact[] {
