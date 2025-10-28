@@ -30,8 +30,11 @@ function labelForStage(stage: string): string {
 
 function accentForStage(stage: string): { lane: string; badge: string } {
   const accent = STAGE_ACCENTS[stage];
-  if (accent) return accent;
-  return STAGE_ACCENTS["default"];
+  if (accent) {
+    return accent;
+  }
+  return STAGE_ACCENTS["default"] as { lane: string; badge: string };
+
 }
 
 function sortContacts(contacts: PipelineContact[]): PipelineContact[] {
@@ -282,3 +285,4 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
     </div>
   );
 }
+
