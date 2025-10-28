@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getDb, crmPipeline, contacts } from "@/db";
 import { isAdminRequest } from "../../../../web/admin";
-import { PIPELINE_STAGE_SET } from "../stages";
+import { PIPELINE_STAGE_SET, type PipelineStage } from "../stages";
 import { eq } from "drizzle-orm";
 
 type RouteContext = {
@@ -34,6 +34,7 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
   if (!PIPELINE_STAGE_SET.has(normalizedStage)) {
     return NextResponse.json({ error: "invalid_stage" }, { status: 400 });
   }
+  const targetStage = normalizedStage as PipelineStage;
 
   const noteValue =
     typeof notes === "string"
@@ -62,7 +63,7 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     .insert(crmPipeline)
     .values({
       contactId,
-      stage: normalizedStage,
+      stage: targetStage,
       notes: noteValue ?? null,
       createdAt: now,
       updatedAt: now
@@ -70,7 +71,7 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     .onConflictDoUpdate({
       target: crmPipeline.contactId,
       set: {
-        stage: normalizedStage,
+        stage: targetStage,
         notes: noteValue ?? null,
         updatedAt: now
       }
