@@ -35,6 +35,7 @@ interface QuoteBuilderClientProps {
   zones: QuoteBuilderZoneOption[];
   defaultZoneId: string | null;
   defaultDepositRate: number;
+  initialContactId?: string;
 }
 
 export function QuoteBuilderClient({
@@ -42,13 +43,38 @@ export function QuoteBuilderClient({
   services,
   zones,
   defaultZoneId,
-  defaultDepositRate
+  defaultDepositRate,
+  initialContactId
 }: QuoteBuilderClientProps) {
-  const [contactId, setContactId] = React.useState<string>(contacts[0]?.id ?? "");
-  const [propertyId, setPropertyId] = React.useState<string>(contacts[0]?.properties[0]?.id ?? "");
+  const [contactId, setContactId] = React.useState<string>(() => {
+    if (initialContactId) {
+      const match = contacts.find((contact) => contact.id === initialContactId);
+      if (match) {
+        return match.id;
+      }
+    }
+    return contacts[0]?.id ?? "";
+  });
+  const [propertyId, setPropertyId] = React.useState<string>(() => {
+    if (initialContactId) {
+      const match = contacts.find((contact) => contact.id === initialContactId);
+      if (match) {
+        return match.properties[0]?.id ?? "";
+      }
+    }
+    return contacts[0]?.properties[0]?.id ?? "";
+  });
   const [zoneId, setZoneId] = React.useState<string>(defaultZoneId ?? zones[0]?.id ?? "");
   const [selectedServices, setSelectedServices] = React.useState<string[]>([]);
-  const [sendQuote, setSendQuote] = React.useState<boolean>(Boolean(contacts[0]?.email));
+  const [sendQuote, setSendQuote] = React.useState<boolean>(() => {
+    if (initialContactId) {
+      const match = contacts.find((contact) => contact.id === initialContactId);
+      if (match) {
+        return Boolean(match.email);
+      }
+    }
+    return Boolean(contacts[0]?.email);
+  });
 
   const selectedContact = React.useMemo(
     () => contacts.find((contact) => contact.id === contactId) ?? null,
@@ -56,6 +82,16 @@ export function QuoteBuilderClient({
   );
 
   const canSendEmail = Boolean(selectedContact?.email);
+
+  React.useEffect(() => {
+    if (!initialContactId) return;
+    const match = contacts.find((contact) => contact.id === initialContactId);
+    if (!match) return;
+    if (match.id === contactId) return;
+    setContactId(match.id);
+    setPropertyId(match.properties[0]?.id ?? "");
+    setSendQuote(Boolean(match.email));
+  }, [initialContactId, contacts, contactId]);
 
   React.useEffect(() => {
     if (!selectedContact) {

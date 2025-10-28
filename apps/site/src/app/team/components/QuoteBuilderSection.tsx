@@ -12,7 +12,7 @@ type ContactsResponse = {
   contacts: ContactSummary[];
 };
 
-export async function QuoteBuilderSection(): Promise<ReactElement> {
+export async function QuoteBuilderSection({ initialContactId }: { initialContactId?: string }): Promise<ReactElement> {
   const response = await callAdminApi("/api/admin/contacts?limit=100");
   if (!response.ok) {
     throw new Error("Failed to load contacts");
@@ -48,7 +48,7 @@ export async function QuoteBuilderSection(): Promise<ReactElement> {
       zones={zoneOptions}
       defaultZoneId={zones[0]?.id ?? null}
       defaultDepositRate={defaultDepositRate}
+      initialContactId={initialContactId}
     />
   );
 }
-

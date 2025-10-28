@@ -152,7 +152,7 @@ function ContactCard({ contact }: ContactCardProps) {
             </form>
             <a
               className="rounded-full border border-slate-200 px-4 py-2 font-medium text-slate-600 transition hover:border-primary-300 hover:text-primary-700"
-              href={teamLink("quotes", { contactId: contactState.id })}
+              href={teamLink("quote-builder", { contactId: contactState.id })}
             >
               Create quote
             </a>

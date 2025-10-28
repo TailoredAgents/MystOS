@@ -15,11 +15,11 @@ export const teamTabTokens = {
     "grid grid-cols-1 gap-2 rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-sm shadow-slate-200/50 backdrop-blur supports-[backdrop-filter]:bg-white/60 sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none",
   item: {
     base:
-      "relative flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium leading-tight transition duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500",
+      "relative flex items-center justify-center rounded-xl border border-transparent px-3 py-2 text-sm font-medium leading-tight transition duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
     active:
-      "bg-primary-600 text-white shadow-lg shadow-primary-400/30 focus-visible:ring-offset-2 focus-visible:ring-offset-primary-600",
+      "border-primary-200 bg-white text-primary-700 shadow-[0_10px_24px_rgba(15,23,42,0.12)] ring-1 ring-primary-200",
     inactive:
-      "text-slate-600 hover:bg-white/80 hover:text-primary-700 focus-visible:bg-white focus-visible:text-primary-700 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+      "text-slate-600 hover:bg-white/80 hover:text-primary-700 focus-visible:bg-white focus-visible:text-primary-700",
     disabled: "opacity-45"
   },
   label: "relative z-10 whitespace-nowrap"

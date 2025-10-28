@@ -23,7 +23,7 @@ export const metadata = { title: "Myst Team Console" };
 export default async function TeamPage({
   searchParams
 }: {
-  searchParams: Promise<{ tab?: string; q?: string; offset?: string }>;
+  searchParams: Promise<{ tab?: string; q?: string; offset?: string; contactId?: string }>;
 }) {
   const params = await searchParams;
   const cookieStore = await cookies();
@@ -39,6 +39,7 @@ export default async function TeamPage({
       contactsOffset = parsed;
     }
   }
+  const quoteContactId = typeof params?.contactId === "string" ? params.contactId : undefined;
 
   const flash = cookieStore.get("myst-flash")?.value ?? null;
   const flashError = cookieStore.get("myst-flash-error")?.value ?? null;
@@ -135,7 +136,7 @@ export default async function TeamPage({
               </div>
             }
           >
-            <QuoteBuilderSection />
+            <QuoteBuilderSection initialContactId={quoteContactId} />
           </React.Suspense>
         ) : null}
 
