@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { AdminLoginForm } from "../admin/login/LoginForm";
 import { CrewLoginForm } from "../crew/login/LoginForm";
 import { revalidatePath } from "next/cache";
+import { CopyButton } from "@/components/CopyButton";
+import React from "react";
 
 const API_BASE_URL =
   process.env["API_BASE_URL"] ??
@@ -140,6 +142,20 @@ export async function detachPaymentAction(formData: FormData) {
   revalidatePath("/team");
 }
 
+export async function logoutCrew() {
+  "use server";
+  const jar = await cookies();
+  jar.set({ name: CREW_COOKIE, value: "", path: "/", maxAge: 0 });
+  redirect("/team");
+}
+
+export async function logoutOwner() {
+  "use server";
+  const jar = await cookies();
+  jar.set({ name: ADMIN_COOKIE, value: "", path: "/", maxAge: 0 });
+  redirect("/team");
+}
+
 function Tabs({ active, hasOwner, hasCrew }: { active: string; hasOwner: boolean; hasCrew: boolean }) {
   const mk = (tab: string, label: string, require?: "owner" | "crew") => {
     const disabled = (require === "owner" && !hasOwner) || (require === "crew" && !hasCrew);
@@ -179,11 +195,29 @@ async function MyDay() {
               <span>{a.services[0] ?? "Exterior cleaning"}{a.services.length > 1 ? ` +${a.services.length - 1}` : ""}</span>
             </div>
             <h3 className="mt-1 text-lg font-semibold text-primary-900">{a.contact.name}</h3>
-            <p className="text-sm text-neutral-600">{a.property.addressLine1}, {a.property.city}, {a.property.state} {a.property.postalCode}</p>
+            <p className="text-sm text-neutral-600">
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${a.property.addressLine1}, ${a.property.city}, ${a.property.state} ${a.property.postalCode}`)}`}
+                target="_blank"
+                rel="noreferrer"
+                className="underline-offset-2 hover:underline"
+              >
+                {a.property.addressLine1}, {a.property.city}, {a.property.state} {a.property.postalCode}
+              </a>
+              <span className="ml-2 inline-block align-middle"><CopyButton value={`${a.property.addressLine1}, ${a.property.city}, ${a.property.state} ${a.property.postalCode}`} label="Copy" /></span>
+            </p>
             <div className="mt-3 flex flex-wrap gap-2">
               <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="completed" /><button className="rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white hover:bg-primary-700">Mark complete</button></form>
               <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="no_show" /><button className="rounded-md border border-warning px-3 py-1 text-xs text-warning">No-show</button></form>
               <a href={`/schedule?appointmentId=${encodeURIComponent(a.id)}&token=${encodeURIComponent(a.rescheduleToken)}`} className="rounded-md border border-accent-400 bg-accent-50 px-3 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Reschedule</a>
+            </div>
+            <div className="mt-2 text-xs text-neutral-600">
+              {a.contact.phone ? (
+                <>
+                  <a href={`tel:${a.contact.phone}`} className="underline-offset-2 hover:underline">Call {a.contact.phone}</a>
+                  <span className="ml-2 inline-block align-middle"><CopyButton value={a.contact.phone} label="Copy" /></span>
+                </>
+              ) : null}
             </div>
             <form action={addApptNote} className="mt-3 flex gap-2"><input type="hidden" name="appointmentId" value={a.id} /><input name="body" placeholder="Add note" className="flex-1 rounded-md border border-neutral-300 px-2 py-1 text-xs" /><button className="rounded-md bg-neutral-800 px-3 py-1 text-xs font-semibold text-white hover:bg-neutral-700">Save</button></form>
           </article>
@@ -236,81 +270,14 @@ async function Quotes() {
   const res = await callAdminApi("/api/quotes");
   if (!res.ok) throw new Error("Failed to load quotes");
   const payload = (await res.json()) as { quotes: QuoteDto[] };
-  return (
-    <section className="space-y-3">
-      {payload.quotes.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-500">No quotes yet.</p>
-      ) : (
-        payload.quotes.map((q) => (
-          <article key={q.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-neutral-500">{q.status.toUpperCase()} • {q.contact.name}</p>
-                <p className="text-sm text-neutral-700">{q.property.addressLine1}, {q.property.city}</p>
-              </div>
-              <p className="text-sm font-semibold text-primary-900">{q.total.toLocaleString("en-US", { style: "currency", currency: "USD" })}</p>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {q.status === "pending" || q.status === "sent" ? (
-                <form action={sendQuoteAction}><input type="hidden" name="quoteId" value={q.id} /><button className="rounded-md bg-accent-600 px-3 py-1 text-xs font-semibold text-white">Send</button></form>
-              ) : null}
-              <form action={quoteDecisionAction}><input type="hidden" name="quoteId" value={q.id} /><input type="hidden" name="decision" value="accepted" /><button className="rounded-md border border-emerald-400 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">Mark accepted</button></form>
-              <form action={quoteDecisionAction}><input type="hidden" name="quoteId" value={q.id} /><input type="hidden" name="decision" value="declined" /><button className="rounded-md border border-rose-400 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">Mark declined</button></form>
-              {q.shareToken ? (
-                <a href={`/quote/${q.shareToken}`} target="_blank" rel="noreferrer" className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700">Open link</a>
-              ) : null}
-            </div>
-          </article>
-        ))
-      )}
-    </section>
-  );
+  return <QuotesList initial={payload.quotes} />;
 }
 
 async function Payments() {
   const res = await callAdminApi("/api/payments?status=all");
   if (!res.ok) throw new Error("Failed to load payments");
   const payload = (await res.json()) as { payments: PaymentDto[]; summary: { total: number; matched: number; unmatched: number } };
-  return (
-    <section className="space-y-4">
-      <div className="flex items-center gap-4 text-sm text-neutral-700">
-        <span>Total: {payload.summary.total}</span>
-        <span>Matched: {payload.summary.matched}</span>
-        <span>Unmatched: {payload.summary.unmatched}</span>
-      </div>
-      <ul className="space-y-3">
-        {payload.payments.map((p) => (
-          <li key={p.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-primary-900">{fmtMoney(p.amount, p.currency)}</p>
-                <p className="text-xs text-neutral-500">{p.stripeChargeId.slice(0, 10)}… • {p.status}</p>
-                {p.appointment ? (
-                  <p className="text-xs text-neutral-600">Linked to {p.appointment.contactName ?? "appointment"} • {fmtTime(p.appointment.startAt)}</p>
-                ) : (
-                  <p className="text-xs text-rose-600">Unmatched</p>
-                )}
-              </div>
-              {p.receiptUrl ? (
-                <a href={p.receiptUrl} target="_blank" rel="noreferrer" className="text-xs text-neutral-600 underline">Receipt</a>
-              ) : null}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {p.appointment ? (
-                <form action={detachPaymentAction}><input type="hidden" name="paymentId" value={p.id} /><button className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700">Detach</button></form>
-              ) : (
-                <form action={attachPaymentAction} className="flex items-center gap-2">
-                  <input type="hidden" name="paymentId" value={p.id} />
-                  <input name="appointmentId" placeholder="Appointment ID" className="rounded-md border border-neutral-300 px-2 py-1 text-xs" />
-                  <button className="rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white">Attach</button>
-                </form>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
+  return <PaymentsList initial={payload.payments} summary={payload.summary} />;
 }
 
 export const metadata = { title: "Myst Team Console" };
@@ -346,11 +313,16 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
       {tab === "quotes" && hasOwner ? <Quotes /> : null}
       {tab === "payments" && hasOwner ? <Payments /> : null}
       {tab === "settings" ? (
-        <section className="space-y-3 text-sm text-neutral-700">
-          <p>Settings will include quick log out buttons and simple preferences.</p>
+        <section className="space-y-4 text-sm text-neutral-700">
+          <div className="space-y-2">
+            <h2 className="text-base font-semibold text-primary-900">Sessions</h2>
+            <div className="flex gap-2">
+              <form action={logoutCrew}><button className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700">Log out crew</button></form>
+              <form action={logoutOwner}><button className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700">Log out owner</button></form>
+            </div>
+          </div>
         </section>
       ) : null}
     </main>
   );
 }
-

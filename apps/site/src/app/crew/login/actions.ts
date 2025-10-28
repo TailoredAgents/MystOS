@@ -19,11 +19,10 @@ export async function crewLoginAction(
     return { error: "Enter the crew key." };
   }
 
-  if (submitted.trim() !== getCrewKey()) {
+  if (submitted.trim().toLowerCase() !== getCrewKey().toLowerCase()) {
     return { error: "Invalid crew key." };
   }
 
   (await cookies()).set(CREW_SESSION_COOKIE, getCrewKey(), crewSessionCookieOptions());
   redirect(redirectTo as any);
 }
-
