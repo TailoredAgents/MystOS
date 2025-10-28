@@ -176,7 +176,7 @@ export async function rescheduleAppointmentAction(formData: FormData) {
     preferredDate
   };
   if (typeof timeWindow === "string" && timeWindow.length > 0) {
-    body.timeWindow = timeWindow;
+    body["timeWindow"] = timeWindow;
   }
 
   const response = await callAdminApi(`/api/web/appointments/${id}/reschedule`, {
