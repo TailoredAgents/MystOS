@@ -4,6 +4,8 @@ import { AdminLoginForm } from "../admin/login/LoginForm";
 import { CrewLoginForm } from "../crew/login/LoginForm";
 import { revalidatePath } from "next/cache";
 import { CopyButton } from "@/components/CopyButton";
+import { QuotesList } from "./QuotesList";
+import { PaymentsList } from "./PaymentsList";
 import React from "react";
 
 const API_BASE_URL =
