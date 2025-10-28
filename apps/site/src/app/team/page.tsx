@@ -7,7 +7,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { QuotesList } from "./QuotesList";
 import { PaymentsList } from "./PaymentsList";
-import { availabilityWindows } from "@myst-os/pricing/src/config/defaults";
+import { availabilityWindows, zones } from "@myst-os/pricing/src/config/defaults";
 import React from "react";
 
 const API_BASE_URL =
@@ -200,6 +200,109 @@ export async function rescheduleAppointmentAction(formData: FormData) {
   revalidatePath("/team");
 }
 
+export async function createQuoteAction(formData: FormData) {
+  "use server";
+  const jar = await cookies();
+
+  const contactId = formData.get("contactId");
+  const propertyId = formData.get("propertyId");
+  const appointmentId = formData.get("appointmentId");
+  const zoneId = formData.get("zoneId");
+  const servicesRaw = formData.get("services");
+  const surfaceArea = formData.get("surfaceArea");
+  const depositRate = formData.get("depositRate");
+  const expiresInDays = formData.get("expiresInDays");
+  const applyBundles = formData.get("applyBundles");
+  const notes = formData.get("notes");
+
+  if (typeof contactId !== "string" || typeof propertyId !== "string" || typeof zoneId !== "string") {
+    jar.set({ name: "myst-flash-error", value: "Missing quote details", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  let services: string[] = [];
+  if (typeof servicesRaw === "string" && servicesRaw.length > 0) {
+    try {
+      const parsed = JSON.parse(servicesRaw) as string[];
+      if (Array.isArray(parsed)) {
+        services = parsed;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  if (!services.length) {
+    jar.set({ name: "myst-flash-error", value: "No services selected", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const payload: Record<string, unknown> = {
+    contactId,
+    propertyId,
+    zoneId,
+    selectedServices: services,
+    applyBundles: typeof applyBundles === "string"
+  };
+
+  if (typeof surfaceArea === "string" && surfaceArea.trim().length > 0) {
+    const area = Number(surfaceArea);
+    if (!Number.isNaN(area) && area > 0) {
+      payload.surfaceArea = area;
+    }
+  }
+
+  if (typeof depositRate === "string" && depositRate.trim().length > 0) {
+    const rate = Number(depositRate);
+    if (!Number.isNaN(rate) && rate > 0 && rate <= 1) {
+      payload.depositRate = rate;
+    }
+  }
+
+  if (typeof expiresInDays === "string" && expiresInDays.trim().length > 0) {
+    const days = Number(expiresInDays);
+    if (!Number.isNaN(days) && days > 0) {
+      payload.expiresInDays = days;
+    }
+  }
+
+  if (typeof notes === "string" && notes.trim().length > 0) {
+    payload.notes = notes.trim();
+  }
+
+  const response = await callAdminApi(`/api/quotes`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    let message = "Unable to create quote";
+    try {
+      const data = (await response.json()) as { error?: string; details?: unknown };
+      if (typeof data.error === "string") {
+        message = data.error;
+      }
+    } catch {
+      // ignore
+    }
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  try {
+    const data = (await response.json()) as { quote?: { id: string; shareToken?: string | null }; shareUrl?: string };
+    const link = data.shareUrl ?? (data.quote?.shareToken ? `/quote/${data.quote.shareToken}` : null);
+    jar.set({ name: "myst-flash", value: link ? `Quote created. Share link: ${link}` : "Quote created", path: "/" });
+  } catch {
+    jar.set({ name: "myst-flash", value: "Quote created", path: "/" });
+  }
+
+  revalidatePath("/team");
+}
+
 export async function logoutCrew() {
   "use server";
   const jar = await cookies();
@@ -293,6 +396,50 @@ async function MyDay() {
                 <SubmitButton className="self-start rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Saving...">Save new time</SubmitButton>
               </form>
             </details>
+            {a.contact.id && a.property.id ? (
+              <details className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+                <summary className="cursor-pointer text-sm font-medium text-neutral-700">Create quote</summary>
+                <form action={createQuoteAction} className="mt-2 flex flex-col gap-2 text-xs">
+                  <input type="hidden" name="appointmentId" value={a.id} />
+                  <input type="hidden" name="contactId" value={a.contact.id} />
+                  <input type="hidden" name="propertyId" value={a.property.id} />
+                  <input type="hidden" name="services" value={JSON.stringify(a.services ?? [])} />
+                  <label className="flex flex-col gap-1">
+                    <span>Zone</span>
+                    <select name="zoneId" defaultValue={zones[0]?.id ?? "zone-core"} className="rounded-md border border-neutral-300 px-2 py-1" required>
+                      {zones.map((zone) => (
+                        <option key={zone.id} value={zone.id}>
+                          {zone.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span>Surface area (sq ft)</span>
+                    <input type="number" name="surfaceArea" min="0" step="1" placeholder="Optional" className="rounded-md border border-neutral-300 px-2 py-1" />
+                  </label>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <label className="flex flex-col gap-1">
+                      <span>Deposit rate (0-1)</span>
+                      <input type="number" name="depositRate" min="0" max="1" step="0.05" placeholder="0.2" className="rounded-md border border-neutral-300 px-2 py-1" />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span>Expires in (days)</span>
+                      <input type="number" name="expiresInDays" min="1" max="90" placeholder="30" className="rounded-md border border-neutral-300 px-2 py-1" />
+                    </label>
+                  </div>
+                  <label className="inline-flex items-center gap-2 text-xs text-neutral-700">
+                    <input type="checkbox" name="applyBundles" defaultChecked className="rounded border-neutral-300" />
+                    Apply bundle discounts
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span>Notes</span>
+                    <textarea name="notes" rows={3} placeholder="Optional quote notes" className="rounded-md border border-neutral-300 px-2 py-1"></textarea>
+                  </label>
+                  <SubmitButton className="self-start rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Creating...">Create quote</SubmitButton>
+                </form>
+              </details>
+            ) : null}
             <div className="mt-2 text-xs text-neutral-600">
               {a.contact.phone ? (
                 <>
@@ -361,6 +508,50 @@ async function Estimates() {
                     <SubmitButton className="self-start rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Saving...">Save new time</SubmitButton>
                   </form>
                 </details>
+                {a.contact.id && a.property.id ? (
+                  <details className="mt-2 rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+                    <summary className="cursor-pointer text-xs font-medium text-neutral-700">Create quote</summary>
+                    <form action={createQuoteAction} className="mt-2 flex flex-col gap-2">
+                      <input type="hidden" name="appointmentId" value={a.id} />
+                      <input type="hidden" name="contactId" value={a.contact.id} />
+                      <input type="hidden" name="propertyId" value={a.property.id} />
+                      <input type="hidden" name="services" value={JSON.stringify(a.services ?? [])} />
+                      <label className="flex flex-col gap-1">
+                        <span>Zone</span>
+                        <select name="zoneId" defaultValue={zones[0]?.id ?? "zone-core"} className="rounded-md border border-neutral-300 px-2 py-1" required>
+                          {zones.map((zone) => (
+                            <option key={zone.id} value={zone.id}>
+                              {zone.name}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="flex flex-col gap-1">
+                        <span>Surface area (sq ft)</span>
+                        <input type="number" name="surfaceArea" min="0" step="1" placeholder="Optional" className="rounded-md border border-neutral-300 px-2 py-1" />
+                      </label>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <label className="flex flex-col gap-1">
+                          <span>Deposit rate (0-1)</span>
+                          <input type="number" name="depositRate" min="0" max="1" step="0.05" placeholder="0.2" className="rounded-md border border-neutral-300 px-2 py-1" />
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span>Expires in (days)</span>
+                          <input type="number" name="expiresInDays" min="1" max="90" placeholder="30" className="rounded-md border border-neutral-300 px-2 py-1" />
+                        </label>
+                      </div>
+                      <label className="inline-flex items-center gap-2 text-xs text-neutral-700">
+                        <input type="checkbox" name="applyBundles" defaultChecked className="rounded border-neutral-300" />
+                        Apply bundle discounts
+                      </label>
+                      <label className="flex flex-col gap-1">
+                        <span>Notes</span>
+                        <textarea name="notes" rows={3} placeholder="Optional quote notes" className="rounded-md border border-neutral-300 px-2 py-1"></textarea>
+                      </label>
+                      <SubmitButton className="self-start rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Creating...">Create quote</SubmitButton>
+                    </form>
+                  </details>
+                ) : null}
               </li>
             ))}
           </ul>
