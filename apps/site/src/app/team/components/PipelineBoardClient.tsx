@@ -71,7 +71,11 @@ function labelForStage(stage: string): string {
 }
 
 function themeForStage(stage: string): StageTheme {
-  return STAGE_THEMES[stage] ?? STAGE_THEMES["default"];
+  const theme = STAGE_THEMES[stage];
+  if (theme) {
+    return theme;
+  }
+  return STAGE_THEMES["default"];
 }
 
 function sortContacts(contacts: PipelineContact[]): PipelineContact[] {
