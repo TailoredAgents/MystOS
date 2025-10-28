@@ -274,6 +274,9 @@ async function handleActionBlock(text: string): Promise<{
   }
 
   const [, actionType, params] = match;
+  if (!params) {
+    return { cleanedText: text.replace(actionRegex, "").trim() };
+  }
   const paramPairs = params.split("|").map((pair) => pair.trim());
   const paramMap = new Map<string, string>();
   for (const pair of paramPairs) {
@@ -371,4 +374,3 @@ export async function POST(request: NextRequest): Promise<Response> {
   persistHistory(updatedHistory, response);
   return response;
 }
-
