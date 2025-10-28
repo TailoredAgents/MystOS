@@ -258,7 +258,7 @@ async function callOpenAI(
       text: {
         verbosity: "medium"
       },
-      max_output_tokens: 600
+      max_completion_tokens: 600
     })
   });
 
