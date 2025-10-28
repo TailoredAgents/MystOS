@@ -362,7 +362,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     ...(actionNote ? { actionNote } : {})
   };
 
-  const updatedHistory = [...history, { role: "user", content: userMessage }];
+  const updatedHistory: ChatHistoryEntry[] = [...history, { role: "user", content: userMessage }];
   if (responseBody.reply) {
     const combinedReply = actionNote
       ? `${responseBody.reply}\n\n${actionNote}`
