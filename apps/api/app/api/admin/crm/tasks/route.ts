@@ -33,29 +33,33 @@ export async function GET(request: NextRequest): Promise<Response> {
     whereClause = eq(crmTasks.status, statusParam);
   }
 
-  const tasks = await (() => {
-    let query = db
-      .select({
-        id: crmTasks.id,
-        contactId: crmTasks.contactId,
-        title: crmTasks.title,
-        dueAt: crmTasks.dueAt,
-        assignedTo: crmTasks.assignedTo,
-        status: crmTasks.status,
-        notes: crmTasks.notes,
-        createdAt: crmTasks.createdAt,
-        updatedAt: crmTasks.updatedAt
-      })
-      .from(crmTasks);
-    if (whereClause) {
-      query = query.where(whereClause);
-    }
-    return query.orderBy(
-      sql`case when ${crmTasks.status} = 'open' then 0 else 1 end`,
-      asc(crmTasks.dueAt),
-      desc(crmTasks.createdAt)
-    );
-  })();
+  const baseQuery = db
+    .select({
+      id: crmTasks.id,
+      contactId: crmTasks.contactId,
+      title: crmTasks.title,
+      dueAt: crmTasks.dueAt,
+      assignedTo: crmTasks.assignedTo,
+      status: crmTasks.status,
+      notes: crmTasks.notes,
+      createdAt: crmTasks.createdAt,
+      updatedAt: crmTasks.updatedAt
+    })
+    .from(crmTasks);
+
+  const tasks = await (whereClause
+    ? baseQuery
+        .where(whereClause)
+        .orderBy(
+          sql`case when ${crmTasks.status} = 'open' then 0 else 1 end`,
+          asc(crmTasks.dueAt),
+          desc(crmTasks.createdAt)
+        )
+    : baseQuery.orderBy(
+        sql`case when ${crmTasks.status} = 'open' then 0 else 1 end`,
+        asc(crmTasks.dueAt),
+        desc(crmTasks.createdAt)
+      ));
 
   return NextResponse.json({
     tasks: tasks.map((task) => ({
