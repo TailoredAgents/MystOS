@@ -79,6 +79,10 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
       createdAt: properties.createdAt
     });
 
+  if (!property) {
+    return NextResponse.json({ error: "property_insert_failed" }, { status: 500 });
+  }
+
   return NextResponse.json({
     property: {
       id: property.id,

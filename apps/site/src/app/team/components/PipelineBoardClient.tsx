@@ -192,7 +192,9 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
                     role="button"
                     tabIndex={0}
                     draggable
-                    onDragStart={(event) => handleDragStart(contact, stage, event)}
+                    onDragStart={(event: React.DragEvent<HTMLDivElement>) =>
+                      handleDragStart(contact, stage, event)
+                    }
                     onDragEnd={handleDragEnd}
                     className={`cursor-grab rounded-md border bg-white p-3 text-xs shadow-sm transition ${
                       dragging?.id === contact.id ? "opacity-60" : "hover:border-primary-300"
