@@ -7,6 +7,7 @@ import { CopyButton } from "@/components/CopyButton";
 import { SubmitButton } from "@/components/SubmitButton";
 import { QuotesList } from "./QuotesList";
 import { PaymentsList } from "./PaymentsList";
+import { availabilityWindows } from "@myst-os/pricing/src/config/defaults";
 import React from "react";
 
 const API_BASE_URL =
@@ -157,6 +158,48 @@ export async function detachPaymentAction(formData: FormData) {
   revalidatePath("/team");
 }
 
+export async function rescheduleAppointmentAction(formData: FormData) {
+  "use server";
+  const id = formData.get("appointmentId");
+  const preferredDate = formData.get("preferredDate");
+  const timeWindow = formData.get("timeWindow");
+
+  const jar = await cookies();
+
+  if (typeof id !== "string" || id.trim().length === 0 || typeof preferredDate !== "string" || preferredDate.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Missing date", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const body: Record<string, unknown> = {
+    preferredDate
+  };
+  if (typeof timeWindow === "string" && timeWindow.length > 0) {
+    body.timeWindow = timeWindow;
+  }
+
+  const response = await callAdminApi(`/api/web/appointments/${id}/reschedule`, {
+    method: "POST",
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    let message = "Unable to reschedule";
+    try {
+      const data = (await response.json()) as { error?: string; message?: string };
+      message = data.message ?? data.error ?? message;
+    } catch {
+      // ignore
+    }
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+  } else {
+    jar.set({ name: "myst-flash", value: "Appointment rescheduled", path: "/" });
+  }
+
+  revalidatePath("/team");
+}
+
 export async function logoutCrew() {
   "use server";
   const jar = await cookies();
@@ -226,6 +269,30 @@ async function MyDay() {
               <form action={updateApptStatus}><input type="hidden" name="appointmentId" value={a.id} /><input type="hidden" name="status" value="no_show" /><SubmitButton className="rounded-md border border-warning px-3 py-1 text-xs text-warning" pendingLabel="Saving...">No-show</SubmitButton></form>
               <a href={`/schedule?appointmentId=${encodeURIComponent(a.id)}&token=${encodeURIComponent(a.rescheduleToken)}`} className="rounded-md border border-accent-400 bg-accent-50 px-3 py-1 text-xs font-medium text-accent-700 hover:bg-accent-100">Reschedule</a>
             </div>
+            <details className="mt-3 rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+              <summary className="cursor-pointer text-sm font-medium text-neutral-700">Reschedule in console</summary>
+              <form action={rescheduleAppointmentAction} className="mt-2 flex flex-col gap-2 text-xs">
+                <input type="hidden" name="appointmentId" value={a.id} />
+                <label className="flex flex-col gap-1">
+                  <span>Date</span>
+                  <input type="date" name="preferredDate" defaultValue={a.startAt ? a.startAt.slice(0, 10) : ""} required className="rounded-md border border-neutral-300 px-2 py-1" />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span>Time window</span>
+                  <select name="timeWindow" defaultValue="" className="rounded-md border border-neutral-300 px-2 py-1" required>
+                    <option value="" disabled>
+                      Select window
+                    </option>
+                    {availabilityWindows.map((window) => (
+                      <option key={window.id} value={window.id}>
+                        {window.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <SubmitButton className="self-start rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Saving...">Save new time</SubmitButton>
+              </form>
+            </details>
             <div className="mt-2 text-xs text-neutral-600">
               {a.contact.phone ? (
                 <>
@@ -272,6 +339,28 @@ async function Estimates() {
                     </>
                   )}
                 </div>
+                <details className="mt-2 rounded-md border border-neutral-200 bg-neutral-50 p-3 text-xs text-neutral-700">
+                  <summary className="cursor-pointer text-xs font-medium text-neutral-700">Reschedule</summary>
+                  <form action={rescheduleAppointmentAction} className="mt-2 flex flex-col gap-2">
+                    <input type="hidden" name="appointmentId" value={a.id} />
+                    <label className="flex flex-col gap-1">
+                      <span>Date</span>
+                      <input type="date" name="preferredDate" defaultValue={a.startAt ? a.startAt.slice(0, 10) : ""} required className="rounded-md border border-neutral-300 px-2 py-1" />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span>Time window</span>
+                      <select name="timeWindow" defaultValue="" className="rounded-md border border-neutral-300 px-2 py-1" required>
+                        <option value="" disabled>Select window</option>
+                        {availabilityWindows.map((window) => (
+                          <option key={window.id} value={window.id}>
+                            {window.label}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <SubmitButton className="self-start rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Saving...">Save new time</SubmitButton>
+                  </form>
+                </details>
               </li>
             ))}
           </ul>
@@ -306,8 +395,12 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   const tab = params?.tab || (hasCrew && !hasOwner ? "myday" : "estimates");
 
   const flash = cookieStore.get("myst-flash")?.value;
+  const flashError = cookieStore.get("myst-flash-error")?.value;
   if (flash) {
     cookieStore.set({ name: "myst-flash", value: "", path: "/", maxAge: 0 });
+  }
+  if (flashError) {
+    cookieStore.set({ name: "myst-flash-error", value: "", path: "/", maxAge: 0 });
   }
 
   return (
@@ -322,6 +415,9 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
 
       {flash ? (
         <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{flash}</div>
+      ) : null}
+      {flashError ? (
+        <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{flashError}</div>
       ) : null}
 
       {/* Inline login prompts if required for the active tab */}
@@ -366,3 +462,4 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
     </main>
   );
 }
+
