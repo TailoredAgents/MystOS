@@ -14,8 +14,22 @@ const STAGE_LABELS: Record<string, string> = {
   lost: "Lost"
 };
 
+const STAGE_ACCENTS: Record<string, { lane: string; badge: string }> = {
+  new: { lane: "border-l-4 border-blue-300 bg-blue-50/70", badge: "bg-blue-100 text-blue-700" },
+  contacted: { lane: "border-l-4 border-sky-300 bg-sky-50/70", badge: "bg-sky-100 text-sky-700" },
+  qualified: { lane: "border-l-4 border-amber-300 bg-amber-50/70", badge: "bg-amber-100 text-amber-700" },
+  quoted: { lane: "border-l-4 border-indigo-300 bg-indigo-50/70", badge: "bg-indigo-100 text-indigo-700" },
+  won: { lane: "border-l-4 border-emerald-300 bg-emerald-50/70", badge: "bg-emerald-100 text-emerald-700" },
+  lost: { lane: "border-l-4 border-rose-300 bg-rose-50/70", badge: "bg-rose-100 text-rose-700" },
+  default: { lane: "border-l-4 border-slate-200 bg-white/90", badge: "bg-slate-100 text-slate-600" }
+};
+
 function labelForStage(stage: string): string {
   return STAGE_LABELS[stage] ?? stage;
+}
+
+function accentForStage(stage: string) {
+  return STAGE_ACCENTS[stage] ?? STAGE_ACCENTS.default;
 }
 
 function sortContacts(contacts: PipelineContact[]): PipelineContact[] {
@@ -83,29 +97,25 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
         }
       };
 
-    const stripped = current.map((lane) => ({
-      ...lane,
-      contacts: lane.contacts.filter((c) => c.id !== contactId)
-    }));
+      const stripped = current.map((lane) => ({
+        ...lane,
+        contacts: lane.contacts.filter((c) => c.id !== contactId)
+      }));
 
-    const targetIndex = stripped.findIndex((lane) => lane.stage === targetStage);
-    if (targetIndex === -1) {
-      return current;
-    }
+      const targetIndex = stripped.findIndex((lane) => lane.stage === targetStage);
+      if (targetIndex === -1) return current;
 
-    const targetLane = stripped[targetIndex];
-    if (!targetLane) {
-      return current;
-    }
+      const targetLane = stripped[targetIndex];
+      if (!targetLane) return current;
 
-    stripped[targetIndex] = {
-      ...targetLane,
-      contacts: sortContacts([...targetLane.contacts, updatedContact])
-    };
+      stripped[targetIndex] = {
+        ...targetLane,
+        contacts: sortContacts([...targetLane.contacts, updatedContact])
+      };
 
-    return stripped;
-  });
-}
+      return stripped;
+    });
+  }
 
   function handleDrop(event: React.DragEvent<HTMLDivElement>, stage: string) {
     event.preventDefault();
@@ -126,8 +136,7 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
       contactId = dragging.id;
     }
 
-    if (!contactId) return;
-    if (dragging?.stage === stage) return;
+    if (!contactId || dragging?.stage === stage) return;
 
     moveContact(contactId, stage);
     setDragging(null);
@@ -174,99 +183,100 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
                 setHoverStage(null);
               }
             }}
-            className={`flex min-h-[260px] flex-col gap-3 rounded-lg border p-3 ${
-              isHover ? "border-primary-400 bg-primary-50" : "border-neutral-200 bg-neutral-50"
+            className={`flex min-h-[280px] flex-col gap-4 rounded-3xl border border-slate-200 bg-white/75 p-4 shadow-lg shadow-slate-200/60 transition ${
+              isHover ? "border-primary-400 ring-2 ring-primary-200/60" : ""
             }`}
           >
             <header className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-primary-900">{labelForStage(stage)}</h3>
-              <span className="text-xs text-neutral-500">{lane.contacts.length}</span>
+              <h3 className="text-sm font-semibold text-slate-900">{labelForStage(stage)}</h3>
+              <span className="rounded-full bg-white/60 px-2 py-0.5 text-xs text-slate-500">{lane.contacts.length}</span>
             </header>
             <div className="flex flex-1 flex-col gap-3">
               {lane.contacts.length === 0 ? (
-                <p className="rounded-md border border-dashed border-neutral-300 bg-white p-3 text-xs text-neutral-400">Drop a contact here</p>
+                <p className="rounded-2xl border border-dashed border-slate-200 bg-white/70 px-4 py-6 text-center text-xs text-slate-400">
+                  Drop a contact here
+                </p>
               ) : (
-                lane.contacts.map((contact) => (
-                  <article
-                    key={contact.id}
-                    role="button"
-                    tabIndex={0}
-                    draggable
-                    onDragStart={(event: React.DragEvent<HTMLDivElement>) =>
-                      handleDragStart(contact, stage, event)
-                    }
-                    onDragEnd={handleDragEnd}
-                    className={`cursor-grab rounded-md border bg-white p-3 text-xs shadow-sm transition ${
-                      dragging?.id === contact.id ? "opacity-60" : "hover:border-primary-300"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="text-sm font-semibold text-primary-900">
-                          {contact.firstName} {contact.lastName}
-                        </p>
-                        <p className="text-[11px] text-neutral-500">
-                          Updated {formatShortDate(contact.lastActivityAt)} · {contact.openTasks} open tasks
-                        </p>
-                      </div>
-                      <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium uppercase text-neutral-600">
-                        {labelForStage(contact.pipeline.stage)}
-                      </span>
-                    </div>
-                    {contact.property ? (
-                      <p className="mt-2 text-[11px] text-neutral-600">
-                        {contact.property.addressLine1}, {contact.property.city}
-                      </p>
-                    ) : null}
-                    <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                      <a
-                        className="rounded-md border border-neutral-300 px-2 py-1 text-neutral-700"
-                        href={`/team?tab=contacts&q=${encodeURIComponent(`${contact.firstName} ${contact.lastName}`.trim())}`}
-                      >
-                        View contact
-                      </a>
-                      <a
-                        className="rounded-md border border-neutral-300 px-2 py-1 text-neutral-700"
-                        href={`/team?tab=quotes&contactId=${encodeURIComponent(contact.id)}`}
-                      >
-                        Create quote
-                      </a>
-                    </div>
-                    <form
-                      action={updatePipelineStageAction}
-                      className="mt-3 flex items-center gap-2 text-[11px]"
-                      onSubmit={() => setHoverStage(null)}
+                lane.contacts.map((contact) => {
+                  const accent = accentForStage(contact.pipeline.stage);
+                  return (
+                    <article
+                      key={contact.id}
+                      role="button"
+                      tabIndex={0}
+                      draggable
+                      onDragStart={(event: React.DragEvent<HTMLDivElement>) => handleDragStart(contact, stage, event)}
+                      onDragEnd={handleDragEnd}
+                      className={`cursor-grab rounded-2xl border border-slate-200 p-4 text-xs shadow-md transition ${
+                        dragging?.id === contact.id ? "opacity-60" : "hover:shadow-lg hover:border-primary-200"
+                      } ${accent.lane}`}
                     >
-                      <input type="hidden" name="contactId" value={contact.id} />
-                      <select
-                        name="stage"
-                        defaultValue={contact.pipeline.stage}
-                        className="rounded-md border border-neutral-300 px-2 py-1"
-                        onClick={(event) => event.stopPropagation()}
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900">
+                            {contact.firstName} {contact.lastName}
+                          </p>
+                          <p className="text-[11px] text-slate-500">
+                            Updated {formatShortDate(contact.lastActivityAt)} · {contact.openTasks} open tasks
+                          </p>
+                        </div>
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide ${accent.badge}`}>
+                          {labelForStage(contact.pipeline.stage)}
+                        </span>
+                      </div>
+                      {contact.property ? (
+                        <p className="mt-2 text-[11px] text-slate-600">
+                          {contact.property.addressLine1}, {contact.property.city}
+                        </p>
+                      ) : null}
+                      <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
+                        <a
+                          className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600 hover:border-primary-300 hover:text-primary-700"
+                          href={`/team?tab=contacts&q=${encodeURIComponent(`${contact.firstName} ${contact.lastName}`.trim())}`}
+                        >
+                          View contact
+                        </a>
+                        <a
+                          className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600 hover:border-primary-300 hover:text-primary-700"
+                          href={`/team?tab=quotes&contactId=${encodeURIComponent(contact.id)}`}
+                        >
+                          Create quote
+                        </a>
+                      </div>
+                      <form
+                        action={updatePipelineStageAction}
+                        className="mt-3 flex items-center gap-2 text-[11px]"
+                        onSubmit={() => setHoverStage(null)}
                       >
-                        {stages.map((option) => (
-                          <option key={option} value={option}>
-                            {labelForStage(option)}
-                          </option>
-                        ))}
-                      </select>
-                      <SubmitButton
-                        className="rounded-md border border-neutral-300 px-2 py-1 text-neutral-700"
-                        pendingLabel="Saving..."
-                      >
-                        Update
-                      </SubmitButton>
-                    </form>
-                  </article>
-                ))
+                        <input type="hidden" name="contactId" value={contact.id} />
+                        <select
+                          name="stage"
+                          defaultValue={contact.pipeline.stage}
+                          className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600 focus:border-primary-400 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                          onClick={(event) => event.stopPropagation()}
+                        >
+                          {stages.map((option) => (
+                            <option key={option} value={option}>
+                              {labelForStage(option)}
+                            </option>
+                          ))}
+                        </select>
+                        <SubmitButton
+                          className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600 hover:border-primary-300 hover:text-primary-700"
+                          pendingLabel="Saving..."
+                        >
+                          Update
+                        </SubmitButton>
+                      </form>
+                    </article>
+                  );
+                })
               )}
             </div>
           </div>
         );
       })}
-      {isPending ? (
-        <div className="col-span-full text-center text-xs text-neutral-500">Saving updates…</div>
-      ) : null}
+      {isPending ? <div className="col-span-full text-center text-xs text-slate-500">Saving updates…</div> : null}
     </div>
   );
 }

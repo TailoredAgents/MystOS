@@ -13,17 +13,17 @@ export async function PipelineSection(): Promise<ReactElement> {
   const totalContacts = payload.lanes.reduce((sum, lane) => sum + lane.contacts.length, 0);
 
   return (
-    <section className="space-y-4">
-      <header className="space-y-1">
-        <h2 className="text-lg font-semibold text-primary-900">Pipeline</h2>
-        <p className="text-xs text-neutral-600">
-          Drag contacts between stages or use the inline controls to keep their status up to date. Each card links back to the contact record for quick
+    <section className="space-y-5">
+      <header className="rounded-3xl border border-slate-200 bg-white/90 p-5 shadow-xl shadow-slate-200/50 backdrop-blur">
+        <h2 className="text-lg font-semibold text-slate-900">Pipeline</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Drag contacts between stages or use the inline controls to keep their stage in sync. Boards update instantly and link back to each record for fast
           follow-up.
         </p>
       </header>
 
       {totalContacts === 0 ? (
-        <p className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-500">
+        <p className="rounded-2xl border border-dashed border-slate-200 bg-white/80 p-5 text-sm text-slate-500 shadow-sm">
           No contacts in the pipeline yet. Create contacts to get started.
         </p>
       ) : (

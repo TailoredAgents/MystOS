@@ -107,305 +107,341 @@ function ContactCard({ contact }: ContactCardProps) {
   );
 
   return (
-    <li className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h3 className="text-base font-semibold text-primary-900">{contactState.name}</h3>
-            <span className="rounded-full bg-primary-50 px-2 py-0.5 text-[11px] font-medium uppercase tracking-wide text-primary-700">
-              {stageLabel(contactState.pipeline.stage)}
-            </span>
+    <li className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-xl shadow-slate-200/60">
+      <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="space-y-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
+              <h3 className="text-lg font-semibold text-slate-900">{contactState.name}</h3>
+              <span className="inline-flex items-center rounded-full bg-primary-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-primary-700">
+                {stageLabel(contactState.pipeline.stage)}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+              {contactState.email ? (
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1">{contactState.email}</span>
+              ) : null}
+              {contactState.phone ? (
+                <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1">{contactState.phone}</span>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-slate-500">
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1">
+                Appointments: {contactState.stats.appointments}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1">
+                Quotes: {contactState.stats.quotes}
+              </span>
+              <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1">Open tasks: {openTasks.length}</span>
+            </div>
+            <p className="text-xs text-slate-400">Last activity: {formatDateTime(contactState.lastActivityAt)}</p>
           </div>
-          <div className="text-xs text-neutral-600 space-y-0.5">
-            {contactState.email ? <p>{contactState.email}</p> : null}
-            {contactState.phone ? <p>{contactState.phone}</p> : null}
-            <p>Last activity: {formatDateTime(contactState.lastActivityAt)}</p>
-            <p>
-              Stats: {contactState.stats.appointments} appointments · {contactState.stats.quotes} quotes
-            </p>
-          </div>
-          {editingContact ? (
-            <form
-              action={updateContactAction}
-              className="mt-3 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2"
-              onSubmit={() => setEditingContact(false)}
+          <div className="flex flex-wrap gap-2 text-xs">
+            <button
+              type="button"
+              className="rounded-full border border-slate-200 px-4 py-2 font-medium text-slate-600 transition hover:border-primary-300 hover:text-primary-700"
+              onClick={() => setEditingContact((prev) => !prev)}
             >
+              {editingContact ? "Close edit" : "Edit contact"}
+            </button>
+            <form action={deleteContactAction} className="inline">
               <input type="hidden" name="contactId" value={contactState.id} />
+              <SubmitButton className="rounded-full border border-rose-200 px-4 py-2 font-medium text-rose-600 transition hover:bg-rose-50" pendingLabel="Removing...">
+                Delete
+              </SubmitButton>
+            </form>
+            <a
+              className="rounded-full border border-slate-200 px-4 py-2 font-medium text-slate-600 transition hover:border-primary-300 hover:text-primary-700"
+              href={teamLink("quotes", { contactId: contactState.id })}
+            >
+              Create quote
+            </a>
+            <a
+              className="rounded-full border border-slate-200 px-4 py-2 font-medium text-slate-600 transition hover:border-primary-300 hover:text-primary-700"
+              href={teamLink("myday", { contactId: contactState.id })}
+            >
+              Schedule visit
+            </a>
+            <a
+              className={`rounded-full border px-4 py-2 font-medium ${
+                mapsLink ? "border-slate-200 text-slate-600 hover:border-primary-300 hover:text-primary-700" : "pointer-events-none border-slate-100 text-slate-300"
+              }`}
+              href={mapsLink ?? "#"}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open in Maps
+            </a>
+          </div>
+        </div>
+
+        {editingContact ? (
+          <form
+            action={updateContactAction}
+            className="grid grid-cols-1 gap-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4 text-xs text-slate-600 shadow-inner"
+            onSubmit={() => setEditingContact(false)}
+          >
+            <input type="hidden" name="contactId" value={contactState.id} />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1">
                 <span>First name</span>
-                <input name="firstName" defaultValue={contactState.firstName} required className="rounded-md border border-neutral-300 px-2 py-1.5" />
+                <input
+                  name="firstName"
+                  defaultValue={contactState.firstName}
+                  required
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                />
               </label>
               <label className="flex flex-col gap-1">
                 <span>Last name</span>
-                <input name="lastName" defaultValue={contactState.lastName} required className="rounded-md border border-neutral-300 px-2 py-1.5" />
+                <input
+                  name="lastName"
+                  defaultValue={contactState.lastName}
+                  required
+                  className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                />
               </label>
               <label className="flex flex-col gap-1">
                 <span>Email</span>
-                <input name="email" defaultValue={contactState.email ?? ""} type="email" className="rounded-md border border-neutral-300 px-2 py-1.5" />
+                <input name="email" defaultValue={contactState.email ?? ""} className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
               </label>
               <label className="flex flex-col gap-1">
                 <span>Phone</span>
-                <input name="phone" defaultValue={contactState.phone ?? ""} className="rounded-md border border-neutral-300 px-2 py-1.5" />
+                <input name="phone" defaultValue={contactState.phone ?? ""} className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
               </label>
-              <div className="flex gap-2 sm:col-span-2">
-                <SubmitButton className="rounded-md bg-primary-700 px-3 py-1.5 text-xs font-semibold text-white" pendingLabel="Saving...">
-                  Save changes
-                </SubmitButton>
-                <button
-                  type="button"
-                  className="rounded-md border border-neutral-300 px-3 py-1.5 text-xs text-neutral-700"
-                  onClick={() => setEditingContact(false)}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 text-xs text-neutral-600">
-          <button
-            type="button"
-            className="rounded-md border border-neutral-300 px-3 py-1 text-neutral-700"
-            onClick={() => setEditingContact((prev) => !prev)}
-          >
-            {editingContact ? "Close edit" : "Edit contact"}
-          </button>
-          <form action={deleteContactAction} className="inline">
-            <input type="hidden" name="contactId" value={contactState.id} />
-            <SubmitButton className="rounded-md border border-rose-300 px-3 py-1 text-rose-700" pendingLabel="Removing...">
-              Delete
-            </SubmitButton>
-          </form>
-          <a className="rounded-md border border-neutral-300 px-3 py-1 text-neutral-700" href={teamLink("quotes", { contactId: contactState.id })}>
-            Create quote
-          </a>
-          <a className="rounded-md border border-neutral-300 px-3 py-1 text-neutral-700" href={teamLink("myday", { contactId: contactState.id })}>
-            Schedule visit
-          </a>
-          <a
-            className={`rounded-md border px-3 py-1 ${mapsLink ? "border-neutral-300 text-neutral-700" : "pointer-events-none border-neutral-200 text-neutral-400"}`}
-            href={mapsLink ?? "#"}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Open in Maps
-          </a>
-        </div>
-      </div>
-
-      <div className="mt-4 space-y-3 text-xs text-neutral-700">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-primary-900">Properties</h4>
-            {addingProperty ? null : (
+            </div>
+            <div className="flex gap-2">
+              <SubmitButton className="rounded-full bg-primary-600 px-4 py-2 font-semibold text-white shadow hover:bg-primary-700" pendingLabel="Saving...">
+                Save changes
+              </SubmitButton>
               <button
                 type="button"
-                className="rounded-md border border-neutral-300 px-2 py-1 text-xs text-neutral-700"
-                onClick={() => {
-                  setAddingProperty(true);
-                  setEditingPropertyId(null);
-                }}
+                className="rounded-full border border-slate-200 px-4 py-2 font-medium text-slate-600 hover:border-slate-300 hover:text-slate-800"
+                onClick={() => setEditingContact(false)}
               >
-                Add property
+                Cancel
               </button>
-            )}
-          </div>
-          <div className="space-y-2">
-            {contactState.properties.map((property) => (
-              <div key={property.id} className="rounded-md border border-neutral-200 p-3">
-                <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <div>
-                    <p className="font-medium text-neutral-800">
-                      {property.addressLine1}
-                      {property.addressLine2 ? `, ${property.addressLine2}` : ""}
-                    </p>
-                    <p className="text-neutral-500">
-                      {property.city}, {property.state} {property.postalCode}
-                    </p>
-                    <p className="text-neutral-400">Added {formatDateTime(property.createdAt)}</p>
+            </div>
+          </form>
+        ) : null}
+
+        <div className="grid gap-4 lg:grid-cols-5">
+          <div className="space-y-4 lg:col-span-3">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-inner">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-slate-800">Properties</h4>
+                {addingProperty ? null : (
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-primary-300 hover:text-primary-700"
+                    onClick={() => {
+                      setAddingProperty(true);
+                      setEditingPropertyId(null);
+                    }}
+                  >
+                    Add property
+                  </button>
+                )}
+              </div>
+              <div className="mt-3 space-y-3">
+                {contactState.properties.map((property) => (
+                  <div key={property.id} className="rounded-2xl border border-white/60 bg-white/90 p-4 shadow-sm shadow-slate-200/40">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="space-y-1 text-sm text-slate-600">
+                        <p className="font-medium text-slate-800">
+                          {property.addressLine1}
+                          {property.addressLine2 ? `, ${property.addressLine2}` : ""}
+                        </p>
+                        <p>
+                          {property.city}, {property.state} {property.postalCode}
+                        </p>
+                        <p className="text-xs text-slate-400">Added {formatDateTime(property.createdAt)}</p>
+                      </div>
+                      <div className="flex gap-2 text-xs">
+                        <button
+                          type="button"
+                          className="rounded-full border border-slate-200 px-3 py-1.5 font-medium text-slate-600 hover:border-primary-300 hover:text-primary-700"
+                          onClick={() => {
+                            setEditingPropertyId((current) => (current === property.id ? null : property.id));
+                            setAddingProperty(false);
+                          }}
+                        >
+                          {editingPropertyId === property.id ? "Close" : "Edit"}
+                        </button>
+                        <form action={deletePropertyAction}>
+                          <input type="hidden" name="contactId" value={contactState.id} />
+                          <input type="hidden" name="propertyId" value={property.id} />
+                          <SubmitButton className="rounded-full border border-rose-200 px-3 py-1.5 font-medium text-rose-600 hover:bg-rose-50" pendingLabel="Removing...">
+                            Delete
+                          </SubmitButton>
+                        </form>
+                      </div>
+                    </div>
+                    {editingPropertyId === property.id ? (
+                      <form
+                        action={updatePropertyAction}
+                        className="mt-3 grid grid-cols-1 gap-3 text-xs text-slate-600 sm:grid-cols-2"
+                        onSubmit={() => setEditingPropertyId(null)}
+                      >
+                        <input type="hidden" name="contactId" value={contactState.id} />
+                        <input type="hidden" name="propertyId" value={property.id} />
+                        <label className="flex flex-col gap-1">
+                          <span>Address line 1</span>
+                          <input name="addressLine1" defaultValue={property.addressLine1} required className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span>Address line 2</span>
+                          <input name="addressLine2" defaultValue={property.addressLine2 ?? ""} className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                        </label>
+                        <label className="flex flex-col gap-1">
+                          <span>City</span>
+                          <input name="city" defaultValue={property.city} required className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                        </label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <label className="flex flex-col gap-1">
+                            <span>State</span>
+                            <input name="state" defaultValue={property.state} required maxLength={2} className="rounded-xl border border-slate-200 bg-white px-3 py-2 uppercase" />
+                          </label>
+                          <label className="flex flex-col gap-1">
+                            <span>Postal code</span>
+                            <input name="postalCode" defaultValue={property.postalCode} required className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                          </label>
+                        </div>
+                        <div className="flex gap-2 sm:col-span-2">
+                          <SubmitButton className="rounded-full bg-primary-600 px-4 py-2 font-semibold text-white shadow hover:bg-primary-700" pendingLabel="Saving...">
+                            Save property
+                          </SubmitButton>
+                          <button
+                            type="button"
+                            className="rounded-full border border-slate-200 px-4 py-2 font-medium text-slate-600 hover:border-slate-300 hover:text-slate-800"
+                            onClick={() => setEditingPropertyId(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    ) : null}
                   </div>
-                  <div className="flex gap-2">
+                ))}
+              </div>
+              {addingProperty ? (
+                <form
+                  action={addPropertyAction}
+                  className="mt-4 grid grid-cols-1 gap-3 rounded-2xl border border-dashed border-slate-300 bg-white/70 p-4 text-xs text-slate-600 shadow-inner sm:grid-cols-2"
+                  onSubmit={() => setAddingProperty(false)}
+                >
+                  <input type="hidden" name="contactId" value={contactState.id} />
+                  <label className="flex flex-col gap-1">
+                    <span>Address line 1</span>
+                    <input name="addressLine1" required className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span>Address line 2</span>
+                    <input name="addressLine2" className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span>City</span>
+                    <input name="city" required className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex flex-col gap-1">
+                      <span>State</span>
+                      <input name="state" required maxLength={2} className="rounded-xl border border-slate-200 bg-white px-3 py-2 uppercase" />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span>Postal code</span>
+                      <input name="postalCode" required className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                    </label>
+                  </div>
+                  <div className="flex gap-2 sm:col-span-2">
+                    <SubmitButton className="rounded-full bg-primary-600 px-4 py-2 font-semibold text-white shadow hover:bg-primary-700" pendingLabel="Saving...">
+                      Save property
+                    </SubmitButton>
                     <button
                       type="button"
-                      className="rounded-md border border-neutral-300 px-2 py-1 text-neutral-700"
-                      onClick={() => {
-                        setEditingPropertyId((current) => (current === property.id ? null : property.id));
-                        setAddingProperty(false);
-                      }}
+                      className="rounded-full border border-slate-200 px-4 py-2 font-medium text-slate-600 hover:border-slate-300 hover:text-slate-800"
+                      onClick={() => setAddingProperty(false)}
                     >
-                      {editingPropertyId === property.id ? "Close" : "Edit"}
+                      Cancel
                     </button>
-                    <form action={deletePropertyAction}>
-                      <input type="hidden" name="contactId" value={contactState.id} />
-                      <input type="hidden" name="propertyId" value={property.id} />
-                      <SubmitButton className="rounded-md border border-rose-300 px-2 py-1 text-rose-700" pendingLabel="Removing...">
-                        Delete
-                      </SubmitButton>
-                    </form>
                   </div>
-                </div>
-                {editingPropertyId === property.id ? (
-                  <form
-                    action={updatePropertyAction}
-                    className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2"
-                    onSubmit={() => setEditingPropertyId(null)}
-                  >
-                    <input type="hidden" name="contactId" value={contactState.id} />
-                    <input type="hidden" name="propertyId" value={property.id} />
-                    <label className="flex flex-col gap-1">
-                      <span>Address line 1</span>
-                      <input name="addressLine1" defaultValue={property.addressLine1} required className="rounded-md border border-neutral-300 px-2 py-1" />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                      <span>Address line 2</span>
-                      <input name="addressLine2" defaultValue={property.addressLine2 ?? ""} className="rounded-md border border-neutral-300 px-2 py-1" />
-                    </label>
-                    <label className="flex flex-col gap-1">
-                      <span>City</span>
-                      <input name="city" defaultValue={property.city} required className="rounded-md border border-neutral-300 px-2 py-1" />
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <label className="flex flex-col gap-1">
-                        <span>State</span>
-                        <input name="state" defaultValue={property.state} required maxLength={2} className="rounded-md border border-neutral-300 px-2 py-1 uppercase" />
-                      </label>
-                      <label className="flex flex-col gap-1">
-                        <span>Postal code</span>
-                        <input name="postalCode" defaultValue={property.postalCode} required className="rounded-md border border-neutral-300 px-2 py-1" />
-                      </label>
-                    </div>
-                    <div className="flex gap-2 sm:col-span-2">
-                      <SubmitButton className="rounded-md bg-primary-700 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Saving...">
-                        Save property
-                      </SubmitButton>
-                      <button
-                        type="button"
-                        className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700"
-                        onClick={() => setEditingPropertyId(null)}
-                      >
-                        Cancel
-                      </button>
-                    </div>
-                  </form>
-                ) : null}
-              </div>
-            ))}
+                </form>
+              ) : null}
+            </div>
           </div>
 
-          {addingProperty ? (
-            <form
-              action={addPropertyAction}
-              className="rounded-md border border-dashed border-neutral-300 p-3"
-              onSubmit={() => setAddingProperty(false)}
-            >
-              <input type="hidden" name="contactId" value={contactState.id} />
-              <div className="grid grid-cols-1 gap-2 text-xs sm:grid-cols-2">
-                <label className="flex flex-col gap-1">
-                  <span>Address line 1</span>
-                  <input name="addressLine1" required className="rounded-md border border-neutral-300 px-2 py-1" />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span>Address line 2</span>
-                  <input name="addressLine2" className="rounded-md border border-neutral-300 px-2 py-1" />
-                </label>
-                <label className="flex flex-col gap-1">
-                  <span>City</span>
-                  <input name="city" required className="rounded-md border border-neutral-300 px-2 py-1" />
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="flex flex-col gap-1">
-                    <span>State</span>
-                    <input name="state" required maxLength={2} className="rounded-md border border-neutral-300 px-2 py-1 uppercase" />
-                  </label>
-                  <label className="flex flex-col gap-1">
-                    <span>Postal code</span>
-                    <input name="postalCode" required className="rounded-md border border-neutral-300 px-2 py-1" />
-                  </label>
-                </div>
-              </div>
-              <div className="mt-3 flex gap-2">
-                <SubmitButton className="rounded-md bg-primary-700 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Saving...">
-                  Save property
-                </SubmitButton>
+          <div className="space-y-4 lg:col-span-2">
+            <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4 shadow-inner">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold text-slate-800">Tasks</h4>
                 <button
                   type="button"
-                  className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700"
-                  onClick={() => setAddingProperty(false)}
+                  className="rounded-full border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-primary-300 hover:text-primary-700"
+                  onClick={() => setShowTaskForm((prev) => !prev)}
                 >
-                  Cancel
+                  {showTaskForm ? "Close" : "Add task"}
                 </button>
               </div>
-            </form>
-          ) : null}
-        </div>
-
-        <div className="rounded-md border border-neutral-200 p-3">
-          <div className="flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-primary-900">Tasks</h4>
-            <button
-              type="button"
-              className="rounded-md border border-neutral-300 px-2 py-1 text-neutral-700"
-              onClick={() => setShowTaskForm((prev) => !prev)}
-            >
-              {showTaskForm ? "Close" : "Add task"}
-            </button>
-          </div>
-          <div className="mt-2 space-y-2">
-            {contactState.tasks.length === 0 ? (
-              <p className="text-xs text-neutral-500">No tasks yet.</p>
-            ) : (
-              <>
-                {openTasks.map((task) => (
-                  <TaskRow key={task.id} task={task} />
-                ))}
-                {completedTasks.length > 0 ? (
-                  <details className="rounded-md border border-neutral-200 p-2 text-neutral-500">
-                    <summary className="cursor-pointer text-xs font-medium text-neutral-600">
-                      Completed ({completedTasks.length})
-                    </summary>
-                    <div className="mt-2 space-y-2">
-                      {completedTasks.map((task) => (
-                        <TaskRow key={task.id} task={task} />
-                      ))}
-                    </div>
-                  </details>
-                ) : null}
-              </>
-            )}
-          </div>
-          {showTaskForm ? (
-            <form
-              action={createTaskAction}
-              className="mt-3 grid grid-cols-1 gap-2 text-xs sm:grid-cols-2"
-              onSubmit={() => setShowTaskForm(false)}
-            >
-              <input type="hidden" name="contactId" value={contactState.id} />
-              <label className="flex flex-col gap-1 sm:col-span-2">
-                <span>Title</span>
-                <input name="title" required className="rounded-md border border-neutral-300 px-2 py-1.5" />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span>Due date</span>
-                <input name="dueAt" type="date" className="rounded-md border border-neutral-300 px-2 py-1.5" />
-              </label>
-              <label className="flex flex-col gap-1">
-                <span>Assignee</span>
-                <input name="assignedTo" placeholder="Optional" className="rounded-md border border-neutral-300 px-2 py-1.5" />
-              </label>
-              <div className="flex gap-2 sm:col-span-2">
-                <SubmitButton className="rounded-md bg-primary-700 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Saving...">
-                  Add task
-                </SubmitButton>
-                <button
-                  type="button"
-                  className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700"
-                  onClick={() => setShowTaskForm(false)}
-                >
-                  Cancel
-                </button>
+              <div className="mt-3 space-y-3">
+                {contactState.tasks.length === 0 ? (
+                  <p className="rounded-xl border border-dashed border-slate-200 bg-white/60 px-3 py-2 text-xs text-slate-500">
+                    No tasks yet. Capture follow-ups to keep the pipeline moving.
+                  </p>
+                ) : (
+                  <>
+                    {openTasks.map((task) => (
+                      <TaskRow key={task.id} task={task} />
+                    ))}
+                    {completedTasks.length > 0 ? (
+                      <details className="rounded-xl border border-slate-200 bg-white/70 p-3 text-slate-500">
+                        <summary className="cursor-pointer text-xs font-medium text-slate-600">
+                          Completed ({completedTasks.length})
+                        </summary>
+                        <div className="mt-2 space-y-2">
+                          {completedTasks.map((task) => (
+                            <TaskRow key={task.id} task={task} />
+                          ))}
+                        </div>
+                      </details>
+                    ) : null}
+                  </>
+                )}
               </div>
-            </form>
-          ) : null}
+              {showTaskForm ? (
+                <form
+                  action={createTaskAction}
+                  className="mt-4 grid grid-cols-1 gap-3 text-xs text-slate-600 sm:grid-cols-2"
+                  onSubmit={() => setShowTaskForm(false)}
+                >
+                  <input type="hidden" name="contactId" value={contactState.id} />
+                  <label className="flex flex-col gap-1 sm:col-span-2">
+                    <span>Title</span>
+                    <input name="title" required className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span>Due date</span>
+                    <input name="dueAt" type="date" className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                  </label>
+                  <label className="flex flex-col gap-1">
+                    <span>Assignee</span>
+                    <input name="assignedTo" placeholder="Optional" className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                  </label>
+                  <div className="flex gap-2 sm:col-span-2">
+                    <SubmitButton className="rounded-full bg-primary-600 px-4 py-2 font-semibold text-white shadow hover:bg-primary-700" pendingLabel="Saving...">
+                      Add task
+                    </SubmitButton>
+                    <button
+                      type="button"
+                      className="rounded-full border border-slate-200 px-4 py-2 font-medium text-slate-600 hover:border-slate-300 hover:text-slate-800"
+                      onClick={() => setShowTaskForm(false)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
     </li>
@@ -415,22 +451,27 @@ function ContactCard({ contact }: ContactCardProps) {
 function TaskRow({ task }: { task: TaskSummary }) {
   const isCompleted = task.status === "completed";
   return (
-    <div className={`rounded-md border px-3 py-2 ${isCompleted ? "border-neutral-200 bg-neutral-50" : "border-emerald-200 bg-emerald-50"}`}>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-1 text-xs">
-          <p className={`font-medium ${isCompleted ? "text-neutral-600" : "text-emerald-900"}`}>{task.title}</p>
-          <p className="text-neutral-500">
+    <div
+      className={`rounded-2xl border px-4 py-3 text-xs shadow-sm ${
+        isCompleted ? "border-slate-200 bg-white/70 text-slate-500" : "border-emerald-200/70 bg-emerald-50/70 text-emerald-900"
+      }`}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <p className={`text-sm font-semibold ${isCompleted ? "text-slate-600" : "text-emerald-900"}`}>{task.title}</p>
+          <p className="text-[11px]">
             {taskStatusLabel[task.status] ?? task.status} · {formatDate(task.dueAt)}
             {task.assignedTo ? ` · ${task.assignedTo}` : ""}
           </p>
+          {task.notes ? <p className="text-[11px] opacity-80">{task.notes}</p> : null}
         </div>
         <div className="flex gap-2">
           <form action={updateTaskAction}>
             <input type="hidden" name="taskId" value={task.id} />
             <input type="hidden" name="status" value={isCompleted ? "open" : "completed"} />
             <SubmitButton
-              className={`rounded-md border px-2 py-1 text-xs ${
-                isCompleted ? "border-neutral-300 text-neutral-600" : "border-emerald-300 text-emerald-700"
+              className={`rounded-full px-3 py-1.5 font-medium ${
+                isCompleted ? "border border-slate-200 text-slate-500 hover:border-slate-300 hover:text-slate-700" : "border border-emerald-300 text-emerald-700 hover:bg-emerald-100"
               }`}
               pendingLabel="Updating..."
             >
@@ -439,7 +480,7 @@ function TaskRow({ task }: { task: TaskSummary }) {
           </form>
           <form action={deleteTaskAction}>
             <input type="hidden" name="taskId" value={task.id} />
-            <SubmitButton className="rounded-md border border-rose-300 px-2 py-1 text-xs text-rose-700" pendingLabel="Removing...">
+            <SubmitButton className="rounded-full border border-rose-200 px-3 py-1.5 font-medium text-rose-600 hover:bg-rose-50" pendingLabel="Removing...">
               Delete
             </SubmitButton>
           </form>
@@ -451,7 +492,7 @@ function TaskRow({ task }: { task: TaskSummary }) {
 
 export default function ContactsListClient({ contacts }: { contacts: ContactSummary[] }) {
   return (
-    <ul className="space-y-3">
+    <ul className="space-y-4">
       {contacts.map((contact) => (
         <ContactCard key={contact.id} contact={contact} />
       ))}

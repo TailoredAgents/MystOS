@@ -20,9 +20,11 @@ function Tabs({ active, hasOwner, hasCrew }: { active: string; hasOwner: boolean
   const mk = (tab: string, label: string, require?: "owner" | "crew") => {
     const disabled = (require === "owner" && !hasOwner) || (require === "crew" && !hasCrew);
     const href = `/team?tab=${encodeURIComponent(tab)}`;
-    const cls = `rounded-md px-3 py-1 text-sm font-medium ${
-      active === tab ? "bg-primary-50 text-primary-800 border border-primary-200" : "text-neutral-700 hover:bg-neutral-50 border border-transparent"
-    } ${disabled ? "opacity-50 pointer-events-none" : ""}`;
+    const cls = `flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium transition ${
+      active === tab
+        ? "bg-primary-600 text-white shadow-md shadow-primary-200/50"
+        : "text-slate-600 hover:bg-slate-100"
+    } ${disabled ? "pointer-events-none opacity-40" : ""}`;
     return (
       <a key={tab} href={href} className={cls}>
         {label}
@@ -31,7 +33,7 @@ function Tabs({ active, hasOwner, hasCrew }: { active: string; hasOwner: boolean
   };
 
   return (
-    <nav className="flex flex-wrap gap-2">
+    <nav className="grid gap-2 rounded-2xl border border-slate-200 bg-white/80 p-2 shadow-sm shadow-primary-100/40 sm:grid-cols-3 lg:grid-cols-6">
       {mk("myday", "My Day", "crew")}
       {mk("estimates", "Estimates", "owner")}
       {mk("quotes", "Quotes", "owner")}
@@ -75,84 +77,156 @@ export default async function TeamPage({
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-6 space-y-6">
-      <header className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">Myst Team</p>
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-semibold text-primary-900">Team Console</h1>
-          <Tabs active={tab} hasOwner={hasOwner} hasCrew={hasCrew} />
-        </div>
-      </header>
-
-      {flash ? (
-        <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">{flash}</div>
-      ) : null}
-      {flashError ? (
-        <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700">{flashError}</div>
-      ) : null}
-
-      {tab === "myday" && !hasCrew ? (
-        <section className="max-w-md">
-          <CrewLoginForm redirectTo="/team?tab=myday" />
-        </section>
-      ) : tab !== "myday" && !hasOwner ? (
-        <section className="max-w-md">
-          <AdminLoginForm redirectTo={`/team?tab=${encodeURIComponent(tab)}`} />
-        </section>
-      ) : null}
-
-      {tab === "myday" && hasCrew ? (
-        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading My Day</div>}>
-          <MyDaySection />
-        </React.Suspense>
-      ) : null}
-
-      {tab === "estimates" && hasOwner ? (
-        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Estimates</div>}>
-          <EstimatesSection />
-        </React.Suspense>
-      ) : null}
-
-      {tab === "quotes" && hasOwner ? (
-        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Quotes</div>}>
-          <QuotesSection />
-        </React.Suspense>
-      ) : null}
-
-      {tab === "pipeline" && hasOwner ? (
-        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading pipeline</div>}>
-          <PipelineSection />
-        </React.Suspense>
-      ) : null}
-
-      {tab === "contacts" && hasOwner ? (
-        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading contacts</div>}>
-          <ContactsSection search={contactsQuery} offset={contactsOffset} />
-        </React.Suspense>
-      ) : null}
-
-      {tab === "payments" && hasOwner ? (
-        <React.Suspense fallback={<div className="rounded-md border border-neutral-200 bg-white p-6 text-sm text-neutral-500">Loading Payments</div>}>
-          <PaymentsSection />
-        </React.Suspense>
-      ) : null}
-
-      {tab === "settings" ? (
-        <section className="space-y-4 text-sm text-neutral-700">
-          <div className="space-y-2">
-            <h2 className="text-base font-semibold text-primary-900">Sessions</h2>
-            <div className="flex gap-2">
-              <form action={logoutCrew}>
-                <button className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700">Log out crew</button>
-              </form>
-              <form action={logoutOwner}>
-                <button className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700">Log out owner</button>
-              </form>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-50">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.12),_transparent_50%)]" />
+      <main className="relative mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6 lg:px-8">
+        <header className="overflow-hidden rounded-3xl border border-white/70 bg-white/80 p-6 shadow-xl shadow-slate-200/60 backdrop-blur sm:p-8">
+          <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <span className="inline-flex items-center rounded-full bg-primary-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.25em] text-primary-700">
+                Myst Team
+              </span>
+              <h1 className="mt-4 text-3xl font-semibold text-slate-900 sm:text-4xl">Team Console</h1>
+              <p className="mt-2 max-w-3xl text-sm text-slate-600 sm:text-base">
+                Monitor appointments, quotes, pipeline health, and contacts from a single polished workspace designed for your crew and office team.
+              </p>
+            </div>
+            <div className="grid gap-3 text-sm text-slate-600">
+              <span
+                className={`inline-flex items-center justify-center rounded-full px-4 py-2 font-medium ${
+                  hasCrew ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                Crew {hasCrew ? "signed in" : "login required"}
+              </span>
+              <span
+                className={`inline-flex items-center justify-center rounded-full px-4 py-2 font-medium ${
+                  hasOwner ? "bg-primary-100 text-primary-700" : "bg-slate-100 text-slate-500"
+                }`}
+              >
+                Owner {hasOwner ? "access granted" : "login required"}
+              </span>
             </div>
           </div>
-        </section>
-      ) : null}
-    </main>
+          <div className="mt-6">
+            <Tabs active={tab} hasOwner={hasOwner} hasCrew={hasCrew} />
+          </div>
+        </header>
+
+        {flash ? (
+          <div className="rounded-2xl border border-emerald-200/70 bg-emerald-50/80 p-4 text-sm text-emerald-700 shadow-sm shadow-emerald-100">
+            {flash}
+          </div>
+        ) : null}
+        {flashError ? (
+          <div className="rounded-2xl border border-rose-200/70 bg-rose-50/80 p-4 text-sm text-rose-700 shadow-sm shadow-rose-100">
+            {flashError}
+          </div>
+        ) : null}
+
+        {tab === "myday" && !hasCrew ? (
+          <section className="max-w-md rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/60">
+            <CrewLoginForm redirectTo="/team?tab=myday" />
+          </section>
+        ) : tab !== "myday" && !hasOwner ? (
+          <section className="max-w-md rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/60">
+            <AdminLoginForm redirectTo={`/team?tab=${encodeURIComponent(tab)}`} />
+          </section>
+        ) : null}
+
+        {tab === "myday" && hasCrew ? (
+          <React.Suspense
+            fallback={
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
+                Loading My Day
+              </div>
+            }
+          >
+            <MyDaySection />
+          </React.Suspense>
+        ) : null}
+
+        {tab === "estimates" && hasOwner ? (
+          <React.Suspense
+            fallback={
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
+                Loading Estimates
+              </div>
+            }
+          >
+            <EstimatesSection />
+          </React.Suspense>
+        ) : null}
+
+        {tab === "quotes" && hasOwner ? (
+          <React.Suspense
+            fallback={
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
+                Loading Quotes
+              </div>
+            }
+          >
+            <QuotesSection />
+          </React.Suspense>
+        ) : null}
+
+        {tab === "pipeline" && hasOwner ? (
+          <React.Suspense
+            fallback={
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
+                Loading pipeline
+              </div>
+            }
+          >
+            <PipelineSection />
+          </React.Suspense>
+        ) : null}
+
+        {tab === "contacts" && hasOwner ? (
+          <React.Suspense
+            fallback={
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
+                Loading contacts
+              </div>
+            }
+          >
+            <ContactsSection search={contactsQuery} offset={contactsOffset} />
+          </React.Suspense>
+        ) : null}
+
+        {tab === "payments" && hasOwner ? (
+          <React.Suspense
+            fallback={
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
+                Loading Payments
+              </div>
+            }
+          >
+            <PaymentsSection />
+          </React.Suspense>
+        ) : null}
+
+        {tab === "settings" ? (
+          <section className="rounded-2xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-600 shadow-lg shadow-slate-200/60">
+            <div className="space-y-4">
+              <h2 className="text-base font-semibold text-slate-900">Sessions</h2>
+              <div className="flex flex-wrap gap-3">
+                <form action={logoutCrew}>
+                  <button className="rounded-full border border-slate-200 px-4 py-2 text-xs font-medium text-slate-600 hover:border-slate-300 hover:text-slate-800">
+                    Log out crew
+                  </button>
+                </form>
+                <form action={logoutOwner}>
+                  <button className="rounded-full border border-slate-200 px-4 py-2 text-xs font-medium text-slate-600 hover:border-slate-300 hover:text-slate-800">
+                    Log out owner
+                  </button>
+                </form>
+              </div>
+            </div>
+          </section>
+        ) : null}
+      </main>
+    </div>
   );
 }
 

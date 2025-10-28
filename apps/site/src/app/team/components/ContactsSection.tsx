@@ -69,78 +69,124 @@ export async function ContactsSection({ search, offset }: ContactsSectionProps):
 
   return (
     <section className="space-y-6">
-      <div className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-        <h2 className="text-base font-semibold text-primary-900">Add contact</h2>
-        <form action={createContactAction} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <label className="flex flex-col gap-1 text-sm text-neutral-700">
+      <div className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-xl shadow-slate-200/60 backdrop-blur">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900">Add a contact</h2>
+            <p className="mt-1 text-sm text-slate-600">Capture new homeowners or door-knock leads with full address details for instant follow-up.</p>
+          </div>
+        </div>
+        <form action={createContactAction} className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <label className="flex flex-col gap-1 text-sm text-slate-600">
             <span>First name</span>
-            <input name="firstName" required className="rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+            <input
+              name="firstName"
+              required
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-neutral-700">
+          <label className="flex flex-col gap-1 text-sm text-slate-600">
             <span>Last name</span>
-            <input name="lastName" required className="rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+            <input
+              name="lastName"
+              required
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-neutral-700">
+          <label className="flex flex-col gap-1 text-sm text-slate-600">
             <span>Email</span>
-            <input name="email" type="email" placeholder="optional" className="rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+            <input
+              name="email"
+              type="email"
+              placeholder="optional"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-neutral-700">
+          <label className="flex flex-col gap-1 text-sm text-slate-600">
             <span>Phone</span>
-            <input name="phone" type="tel" placeholder="optional" className="rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+            <input
+              name="phone"
+              type="tel"
+              placeholder="optional"
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-neutral-700 sm:col-span-2">
-            <span>Address</span>
-            <input name="addressLine1" required className="rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+          <label className="flex flex-col gap-1 text-sm text-slate-600 sm:col-span-2">
+            <span>Street address</span>
+            <input
+              name="addressLine1"
+              required
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            />
           </label>
-          <label className="flex flex-col gap-1 text-sm text-neutral-700">
+          <label className="flex flex-col gap-1 text-sm text-slate-600">
             <span>City</span>
-            <input name="city" required className="rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+            <input
+              name="city"
+              required
+              className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+            />
           </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="flex flex-col gap-1 text-sm text-neutral-700">
+          <div className="grid grid-cols-2 gap-4">
+            <label className="flex flex-col gap-1 text-sm text-slate-600">
               <span>State</span>
-              <input name="state" required maxLength={2} className="rounded-md border border-neutral-300 px-3 py-2 text-sm uppercase" />
+              <input
+                name="state"
+                required
+                maxLength={2}
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm uppercase text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+              />
             </label>
-            <label className="flex flex-col gap-1 text-sm text-neutral-700">
+            <label className="flex flex-col gap-1 text-sm text-slate-600">
               <span>Postal code</span>
-              <input name="postalCode" required className="rounded-md border border-neutral-300 px-3 py-2 text-sm" />
+              <input
+                name="postalCode"
+                required
+                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+              />
             </label>
           </div>
           <div className="sm:col-span-2">
-            <SubmitButton className="inline-flex items-center rounded-md bg-primary-800 px-4 py-2 text-sm font-semibold text-white" pendingLabel="Saving...">
+            <SubmitButton className="inline-flex items-center rounded-full bg-primary-600 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-primary-200/50 transition hover:bg-primary-700" pendingLabel="Saving...">
               Save contact
             </SubmitButton>
           </div>
         </form>
       </div>
 
-      <form method="get" className="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
+      <form
+        method="get"
+        className="flex flex-wrap items-center gap-3 rounded-2xl border border-slate-200 bg-white/90 px-4 py-3 text-sm text-slate-600 shadow-md shadow-slate-200/50"
+      >
         <input type="hidden" name="tab" value="contacts" />
         <input type="hidden" name="offset" value="0" />
         <input
           name="q"
           defaultValue={search ?? ""}
           placeholder="Search name, email, address"
-          className="min-w-[220px] flex-1 rounded-md border border-neutral-300 px-3 py-2"
+          className="min-w-[220px] flex-1 rounded-xl border border-slate-200 bg-white px-4 py-2 text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
         />
-        <button type="submit" className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-700">
+        <button
+          type="submit"
+          className="inline-flex items-center rounded-full border border-slate-200 px-4 py-2 font-medium text-slate-600 transition hover:border-primary-300 hover:text-primary-700"
+        >
           Search
         </button>
       </form>
 
       {contacts.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-500">
+        <p className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-5 text-sm text-slate-500 shadow-sm">
           No contacts yet. Add your first lead above.
         </p>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-between text-xs text-neutral-500">
+          <div className="flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
             <span>{formatRange(pagination, contacts.length)}</span>
             <div className="flex gap-2">
               <a
                 aria-disabled={!hasPrev}
-                className={`rounded-md border border-neutral-300 px-3 py-1 ${
-                  hasPrev ? "text-neutral-700 hover:bg-neutral-100" : "pointer-events-none opacity-50"
+                className={`rounded-full border border-slate-200 px-4 py-1.5 ${
+                  hasPrev ? "text-slate-600 hover:border-primary-300 hover:text-primary-700" : "pointer-events-none opacity-40"
                 }`}
                 href={hasPrev ? buildHref({ search, offset: prevOffset }) : "#"}
               >
@@ -148,8 +194,8 @@ export async function ContactsSection({ search, offset }: ContactsSectionProps):
               </a>
               <a
                 aria-disabled={!hasNext}
-                className={`rounded-md border border-neutral-300 px-3 py-1 ${
-                  hasNext ? "text-neutral-700 hover:bg-neutral-100" : "pointer-events-none opacity-50"
+                className={`rounded-full border border-slate-200 px-4 py-1.5 ${
+                  hasNext ? "text-slate-600 hover:border-primary-300 hover:text-primary-700" : "pointer-events-none opacity-40"
                 }`}
                 href={hasNext ? buildHref({ search, offset: nextOffset }) : "#"}
               >
@@ -160,13 +206,13 @@ export async function ContactsSection({ search, offset }: ContactsSectionProps):
 
           <ContactsListClient contacts={contacts} />
 
-          <div className="flex items-center justify-between text-xs text-neutral-500">
+          <div className="flex flex-col gap-2 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
             <span>{formatRange(pagination, contacts.length)}</span>
             <div className="flex gap-2">
               <a
                 aria-disabled={!hasPrev}
-                className={`rounded-md border border-neutral-300 px-3 py-1 ${
-                  hasPrev ? "text-neutral-700 hover:bg-neutral-100" : "pointer-events-none opacity-50"
+                className={`rounded-full border border-slate-200 px-4 py-1.5 ${
+                  hasPrev ? "text-slate-600 hover:border-primary-300 hover:text-primary-700" : "pointer-events-none opacity-40"
                 }`}
                 href={hasPrev ? buildHref({ search, offset: prevOffset }) : "#"}
               >
@@ -174,8 +220,8 @@ export async function ContactsSection({ search, offset }: ContactsSectionProps):
               </a>
               <a
                 aria-disabled={!hasNext}
-                className={`rounded-md border border-neutral-300 px-3 py-1 ${
-                  hasNext ? "text-neutral-700 hover:bg-neutral-100" : "pointer-events-none opacity-50"
+                className={`rounded-full border border-slate-200 px-4 py-1.5 ${
+                  hasNext ? "text-slate-600 hover:border-primary-300 hover:text-primary-700" : "pointer-events-none opacity-40"
                 }`}
                 href={hasNext ? buildHref({ search, offset: nextOffset }) : "#"}
               >
