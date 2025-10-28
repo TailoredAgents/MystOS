@@ -285,7 +285,7 @@ async function Quotes() {
   const res = await callAdminApi("/api/quotes");
   if (!res.ok) throw new Error("Failed to load quotes");
   const payload = (await res.json()) as { quotes: QuoteDto[] };
-  return <QuotesList initial={payload.quotes} />;
+  return <QuotesList initial={payload.quotes} sendAction={sendQuoteAction} decisionAction={quoteDecisionAction} />;
 }
 
 async function Payments() {

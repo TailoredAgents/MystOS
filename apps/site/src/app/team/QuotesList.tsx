@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { SubmitButton } from "@/components/SubmitButton";
 
 type Quote = {
   id: string;
@@ -17,7 +18,17 @@ type Quote = {
   property: { addressLine1: string; city: string; state: string; postalCode: string };
 };
 
-export function QuotesList({ initial }: { initial: Quote[] }) {
+type ServerAction = (formData: FormData) => void;
+
+export function QuotesList({
+  initial,
+  sendAction,
+  decisionAction
+}: {
+  initial: Quote[];
+  sendAction: ServerAction;
+  decisionAction: ServerAction;
+}) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
 
@@ -65,6 +76,22 @@ export function QuotesList({ initial }: { initial: Quote[] }) {
               <p className="text-sm font-semibold text-primary-900">{q.total.toLocaleString("en-US", { style: "currency", currency: "USD" })}</p>
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
+              {(q.status === "pending" || q.status === "sent") ? (
+                <form action={sendAction}>
+                  <input type="hidden" name="quoteId" value={q.id} />
+                  <SubmitButton className="rounded-md bg-accent-600 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Sending...">Send</SubmitButton>
+                </form>
+              ) : null}
+              <form action={decisionAction}>
+                <input type="hidden" name="quoteId" value={q.id} />
+                <input type="hidden" name="decision" value="accepted" />
+                <SubmitButton className="rounded-md border border-emerald-400 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700" pendingLabel="Saving...">Mark accepted</SubmitButton>
+              </form>
+              <form action={decisionAction}>
+                <input type="hidden" name="quoteId" value={q.id} />
+                <input type="hidden" name="decision" value="declined" />
+                <SubmitButton className="rounded-md border border-rose-400 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700" pendingLabel="Saving...">Mark declined</SubmitButton>
+              </form>
               {q.shareToken ? (
                 <a href={`/quote/${q.shareToken}`} target="_blank" rel="noreferrer" className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700">Open link</a>
               ) : null}
@@ -75,4 +102,3 @@ export function QuotesList({ initial }: { initial: Quote[] }) {
     </section>
   );
 }
-
