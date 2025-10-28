@@ -41,13 +41,6 @@ export default async function TeamPage({
 
   const flash = cookieStore.get("myst-flash")?.value ?? null;
   const flashError = cookieStore.get("myst-flash-error")?.value ?? null;
-  if (flash) {
-    cookieStore.set({ name: "myst-flash", value: "", path: "/", maxAge: 0 });
-  }
-  if (flashError) {
-    cookieStore.set({ name: "myst-flash-error", value: "", path: "/", maxAge: 0 });
-  }
-
   const tabs: TabNavItem[] = [
     { id: "myday", label: "My Day", href: "/team?tab=myday", requires: "crew" },
     { id: "estimates", label: "Estimates", href: "/team?tab=estimates", requires: "owner" },
