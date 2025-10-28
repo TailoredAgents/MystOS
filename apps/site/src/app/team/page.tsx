@@ -257,7 +257,7 @@ export async function createQuoteAction(formData: FormData) {
   if (typeof depositRate === "string" && depositRate.trim().length > 0) {
     const rate = Number(depositRate);
     if (!Number.isNaN(rate) && rate > 0 && rate <= 1) {
-      payload.depositRate = rate;
+      payload["depositRate"] = rate;
     }
   }
 
