@@ -12,6 +12,7 @@ import { QuotesSection } from "./components/QuotesSection";
 import { PaymentsSection } from "./components/PaymentsSection";
 import { ContactsSection } from "./components/ContactsSection";
 import { PipelineSection } from "./components/PipelineSection";
+import { QuoteBuilderSection } from "./components/QuoteBuilderSection";
 import { TabNav, type TabNavItem } from "./components/TabNav";
 
 const ADMIN_COOKIE = "myst-admin-session";
@@ -45,11 +46,15 @@ export default async function TeamPage({
     { id: "myday", label: "My Day", href: "/team?tab=myday", requires: "crew" },
     { id: "estimates", label: "Estimates", href: "/team?tab=estimates", requires: "owner" },
     { id: "quotes", label: "Quotes", href: "/team?tab=quotes", requires: "owner" },
+    { id: "quote-builder", label: "Quote Builder", href: "/team?tab=quote-builder", requires: "crew" },
     { id: "pipeline", label: "Pipeline", href: "/team?tab=pipeline", requires: "owner" },
     { id: "contacts", label: "Contacts", href: "/team?tab=contacts", requires: "owner" },
     { id: "payments", label: "Payments", href: "/team?tab=payments", requires: "owner" },
     { id: "settings", label: "Settings", href: "/team?tab=settings" }
   ];
+  const activeTab = tabs.find((item) => item.id === tab) ?? tabs[0];
+  const needsCrewLogin = activeTab.requires === "crew" && !hasCrew && !hasOwner;
+  const needsOwnerLogin = activeTab.requires === "owner" && !hasOwner;
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-50">
@@ -99,17 +104,17 @@ export default async function TeamPage({
           </div>
         ) : null}
 
-        {tab === "myday" && !hasCrew ? (
+        {needsCrewLogin ? (
           <section className="max-w-md rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/60">
-            <CrewLoginForm redirectTo="/team?tab=myday" />
+            <CrewLoginForm redirectTo={`/team?tab=${encodeURIComponent(tab)}`} />
           </section>
-        ) : tab !== "myday" && !hasOwner ? (
+        ) : needsOwnerLogin ? (
           <section className="max-w-md rounded-2xl border border-slate-200 bg-white/80 p-6 shadow-lg shadow-slate-200/60">
             <AdminLoginForm redirectTo={`/team?tab=${encodeURIComponent(tab)}`} />
           </section>
         ) : null}
 
-        {tab === "myday" && hasCrew ? (
+        {tab === "myday" && (hasCrew || hasOwner) ? (
           <React.Suspense
             fallback={
               <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
@@ -118,6 +123,18 @@ export default async function TeamPage({
             }
           >
             <MyDaySection />
+          </React.Suspense>
+        ) : null}
+
+        {tab === "quote-builder" && (hasCrew || hasOwner) ? (
+          <React.Suspense
+            fallback={
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
+                Loading Quote Builder
+              </div>
+            }
+          >
+            <QuoteBuilderSection />
           </React.Suspense>
         ) : null}
 

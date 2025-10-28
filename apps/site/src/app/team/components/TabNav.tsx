@@ -34,20 +34,31 @@ interface TabNavProps {
 }
 
 export function TabNav({ items, activeId, hasCrew, hasOwner, "aria-label": ariaLabel }: TabNavProps) {
-  const canAccess = {
-    owner: hasOwner,
-    crew: hasCrew
-  } as const;
+  const resolveAllowed = (requires?: AccessRequirement): boolean => {
+    if (requires === "owner") {
+      return hasOwner;
+    }
+    if (requires === "crew") {
+      return hasCrew || hasOwner;
+    }
+    return true;
+  };
 
   return (
     <nav className={teamTabTokens.container} aria-label={ariaLabel ?? "Team console sections"}>
       {items.map((item) => {
-        const allowed = item.requires ? canAccess[item.requires] : true;
+        const allowed = resolveAllowed(item.requires);
+        const isRestricted =
+          item.requires === "owner"
+            ? !hasOwner
+            : item.requires === "crew"
+              ? !hasCrew && !hasOwner
+              : false;
         const isActive = item.id === activeId;
         const className = cn(
           teamTabTokens.item.base,
           isActive ? teamTabTokens.item.active : teamTabTokens.item.inactive,
-          !allowed && teamTabTokens.item.disabled
+          isRestricted && teamTabTokens.item.disabled
         );
 
         return (
@@ -56,6 +67,7 @@ export function TabNav({ items, activeId, hasCrew, hasOwner, "aria-label": ariaL
             href={item.href}
             className={className}
             aria-current={isActive ? "page" : undefined}
+            aria-disabled={isRestricted ? "true" : undefined}
             data-state={isActive ? "active" : "inactive"}
             data-access={item.requires ?? "all"}
             title={

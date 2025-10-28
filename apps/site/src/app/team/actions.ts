@@ -205,30 +205,55 @@ export async function createQuoteAction(formData: FormData) {
     body: JSON.stringify(payload)
   });
 
+  type CreateQuoteResponse = {
+    quote?: { id: string; shareToken?: string | null };
+    shareUrl?: string;
+    error?: string;
+    details?: unknown;
+  };
+
+  let data: CreateQuoteResponse | null = null;
+  try {
+    data = (await response.json()) as CreateQuoteResponse;
+  } catch {
+    data = null;
+  }
+
   if (!response.ok) {
-    let message = "Unable to create quote";
-    try {
-      const data = (await response.json()) as { error?: string; details?: unknown };
-      if (typeof data.error === "string") {
-        message = data.error;
-      }
-    } catch {
-      // ignore
-    }
+    const message =
+      (data?.error && typeof data.error === "string" ? data.error : null) ?? "Unable to create quote";
     jar.set({ name: "myst-flash-error", value: message, path: "/" });
     revalidatePath("/team");
     return;
   }
 
-  try {
-    const data = (await response.json()) as {
-      quote?: { id: string; shareToken?: string | null };
-      shareUrl?: string;
-    };
-    const link = data.shareUrl ?? (data.quote?.shareToken ? `/quote/${data.quote.shareToken}` : null);
-    jar.set({ name: "myst-flash", value: link ? `Quote created. Share link: ${link}` : "Quote created", path: "/" });
-  } catch {
-    jar.set({ name: "myst-flash", value: "Quote created", path: "/" });
+  const quoteId = data?.quote?.id ?? null;
+  const shareLink = data?.shareUrl ?? (data?.quote?.shareToken ? `/quote/${data.quote.shareToken}` : null);
+  const shouldSend = typeof formData.get("sendQuote") === "string";
+
+  let successMessage = shareLink ? `Quote created. Share link: ${shareLink}` : "Quote created";
+  let sendError: string | null = null;
+
+  if (shouldSend) {
+    if (quoteId) {
+      const sendResponse = await callAdminApi(`/api/quotes/${quoteId}/send`, {
+        method: "POST",
+        body: JSON.stringify({})
+      });
+
+      if (sendResponse.ok) {
+        successMessage = shareLink ? `Quote emailed. Share link: ${shareLink}` : "Quote emailed";
+      } else {
+        sendError = await readErrorMessage(sendResponse, "Quote created, but the email failed to send");
+      }
+    } else {
+      sendError = "Quote created, but no quote ID was returned to send the email.";
+    }
+  }
+
+  jar.set({ name: "myst-flash", value: successMessage, path: "/" });
+  if (sendError) {
+    jar.set({ name: "myst-flash-error", value: sendError, path: "/" });
   }
 
   revalidatePath("/team");
