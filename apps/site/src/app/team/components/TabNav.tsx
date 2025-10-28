@@ -15,14 +15,14 @@ export const teamTabTokens = {
     "grid grid-cols-1 gap-2 rounded-2xl border border-slate-200/80 bg-white/80 p-2 shadow-sm shadow-slate-200/50 backdrop-blur supports-[backdrop-filter]:bg-white/60 sm:auto-cols-fr sm:grid-flow-col sm:grid-cols-none",
   item: {
     base:
-      "group relative isolate flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium leading-tight transition duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+      "relative flex items-center justify-center rounded-xl px-3 py-2 text-sm font-medium leading-tight transition duration-150 ease-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500",
     active:
-      "bg-gradient-to-br from-primary-600 to-primary-500 text-white shadow-lg shadow-primary-400/30",
+      "bg-primary-600 text-white shadow-lg shadow-primary-400/30 focus-visible:ring-offset-2 focus-visible:ring-offset-primary-600",
     inactive:
-      "text-slate-600 hover:bg-white/80 hover:text-primary-700 focus-visible:bg-white focus-visible:text-primary-700",
-    disabled: "cursor-not-allowed opacity-40 focus-visible:ring-0 focus-visible:ring-offset-0"
+      "text-slate-600 hover:bg-white/80 hover:text-primary-700 focus-visible:bg-white focus-visible:text-primary-700 focus-visible:ring-offset-2 focus-visible:ring-offset-white",
+    disabled: "opacity-45"
   },
-  indicator: "pointer-events-none absolute inset-0 rounded-[inherit] ring-1 ring-inset ring-white/20"
+  label: "relative z-10 whitespace-nowrap"
 };
 
 interface TabNavProps {
@@ -50,34 +50,6 @@ export function TabNav({ items, activeId, hasCrew, hasOwner, "aria-label": ariaL
           !allowed && teamTabTokens.item.disabled
         );
 
-        const content = (
-          <>
-            {isActive ? <span className={teamTabTokens.indicator} aria-hidden /> : null}
-            <span className="relative z-10">{item.label}</span>
-          </>
-        );
-
-        if (!allowed) {
-          return (
-            <span
-              key={item.id}
-              role="link"
-              aria-disabled="true"
-              data-requires={item.requires}
-              className={className}
-              title={
-                item.requires === "owner"
-                  ? "Owner access required"
-                  : item.requires === "crew"
-                    ? "Crew access required"
-                    : undefined
-              }
-            >
-              {content}
-            </span>
-          );
-        }
-
         return (
           <a
             key={item.id}
@@ -85,8 +57,16 @@ export function TabNav({ items, activeId, hasCrew, hasOwner, "aria-label": ariaL
             className={className}
             aria-current={isActive ? "page" : undefined}
             data-state={isActive ? "active" : "inactive"}
+            data-access={item.requires ?? "all"}
+            title={
+              !allowed
+                ? item.requires === "owner"
+                  ? "Owner access required"
+                  : "Crew access required"
+                : undefined
+            }
           >
-            {content}
+            <span className={teamTabTokens.label}>{item.label}</span>
           </a>
         );
       })}
