@@ -183,6 +183,9 @@ async function fetchTaskSummary(): Promise<string> {
 async function buildContext(): Promise<{
   systemPrompt: string;
   contacts: ContactSummary[];
+  scheduleText: string;
+  pipelineText: string;
+  tasksText: string;
 }> {
   const [contactsResult, pipeline, schedule, tasks] = await Promise.all([
     fetchContactsSummary(),
@@ -207,6 +210,8 @@ ${schedule}
 Open tasks:
 ${tasks}
 
+Always use the information above. When asked about the schedule or upcoming jobs, summarize using the "Confirmed appointments" section exactly. When asked about tasks, use the "Open tasks" section. Do not tell the user to check another tool unless the data is unavailable.
+
 If you recommend creating a task, use the format:
 [[ACTION:create_task|contactId=<id>|title=<title>]]
 Include ONLY one action block per response, and ensure the contactId is from the list above. Provide a helpful natural-language response before the action block. If you cannot perform the action, explain why.
@@ -214,7 +219,10 @@ Include ONLY one action block per response, and ensure the contactId is from the
 
   return {
     systemPrompt,
-    contacts: contactsResult.contacts
+    contacts: contactsResult.contacts,
+    scheduleText: schedule,
+    pipelineText: pipeline,
+    tasksText: tasks
   };
 }
 
@@ -386,12 +394,26 @@ export async function POST(request: NextRequest): Promise<Response> {
     ...(actionNote ? { actionNote } : {})
   };
 
+  const lowerMessage = userMessage.toLowerCase();
+  const wantsSchedule =
+    /\bschedule\b/.test(lowerMessage) ||
+    /\bappointments?\b/.test(lowerMessage) ||
+    /\bjobs?\b/.test(lowerMessage);
+  const scheduleAvailable =
+    context.scheduleText && !/unavailable/i.test(context.scheduleText) && context.scheduleText.trim().length > 0;
+
+  let finalReply = responseBody.reply;
+  if (actionNote) {
+    finalReply = `${finalReply}\n\n${actionNote}`.trim();
+  }
+  if (wantsSchedule && scheduleAvailable) {
+    finalReply = `${finalReply}\n\nToday's confirmed appointments:\n${context.scheduleText}`.trim();
+  }
+  responseBody.reply = finalReply;
+
   const updatedHistory: ChatHistoryEntry[] = [...history, { role: "user", content: userMessage }];
   if (responseBody.reply) {
-    const combinedReply = actionNote
-      ? `${responseBody.reply}\n\n${actionNote}`
-      : responseBody.reply;
-    updatedHistory.push({ role: "assistant", content: combinedReply });
+    updatedHistory.push({ role: "assistant", content: responseBody.reply });
   }
 
   const response = NextResponse.json(responseBody);
