@@ -91,16 +91,17 @@ export function ChatBot() {
           </div>
           <div className="flex max-h-72 flex-col gap-3 overflow-y-auto px-4 py-3 text-sm" aria-live="polite">
             {messages.map((m) => (
-              <div
-                key={m.id}
-                className={cn(
-                  "rounded-lg px-3 py-2 max-w-[92%] sm:max-w-[75%]",
-                  m.sender === "bot"
-                    ? "bg-neutral-100 text-neutral-700"
-                    : "ml-auto bg-primary-600 text-white shadow-lg shadow-primary-900/20"
-                )}
-              >
-                {m.text}
+              <div key={m.id} className={cn("flex", m.sender === "bot" ? "justify-start" : "justify-end")}>
+                <div
+                  className={cn(
+                    "max-w-[92%] rounded-xl px-3 py-2 sm:max-w-[75%]",
+                    m.sender === "bot"
+                      ? "bg-neutral-100 text-neutral-700"
+                      : "bg-primary-100 text-slate-900 shadow-md shadow-primary-800/20"
+                  )}
+                >
+                  {m.text}
+                </div>
               </div>
             ))}
             <div ref={endRef} />

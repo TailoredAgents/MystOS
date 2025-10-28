@@ -121,14 +121,18 @@ export function TeamChatClient() {
             {messages.map((message) => (
               <div
                 key={message.id}
-                className={cn(
-                  "max-w-[92%] rounded-xl px-3 py-2 leading-relaxed sm:max-w-[75%]",
-                  message.sender === "bot"
-                    ? "bg-slate-100 text-slate-700"
-                    : "ml-auto bg-primary-600 text-white shadow-primary-900/10"
-                )}
+                className={cn("flex", message.sender === "bot" ? "justify-start" : "justify-end")}
               >
-                {message.text}
+                <div
+                  className={cn(
+                    "max-w-[92%] rounded-xl px-3 py-2 leading-relaxed sm:max-w-[75%]",
+                    message.sender === "bot"
+                      ? "bg-slate-100 text-slate-700"
+                      : "bg-primary-100 text-slate-900 shadow-md shadow-primary-900/20"
+                  )}
+                >
+                  {message.text}
+                </div>
               </div>
             ))}
             <div ref={endRef} />
