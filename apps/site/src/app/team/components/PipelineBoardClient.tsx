@@ -8,7 +8,7 @@ import type { PipelineContact, PipelineLane } from "./pipeline.types";
 const STAGE_LABELS: Record<string, string> = {
   new: "New",
   contacted: "Contacted",
-  qualified: "Qualified",
+  qualified: "Scheduled Quote",
   quoted: "Quoted",
   won: "Won",
   lost: "Lost"
