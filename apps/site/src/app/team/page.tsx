@@ -264,12 +264,12 @@ export async function createQuoteAction(formData: FormData) {
   if (typeof expiresInDays === "string" && expiresInDays.trim().length > 0) {
     const days = Number(expiresInDays);
     if (!Number.isNaN(days) && days > 0) {
-      payload.expiresInDays = days;
+      payload["expiresInDays"] = days;
     }
   }
 
   if (typeof notes === "string" && notes.trim().length > 0) {
-    payload.notes = notes.trim();
+    payload["notes"] = notes.trim();
   }
 
   const response = await callAdminApi(`/api/quotes`, {
