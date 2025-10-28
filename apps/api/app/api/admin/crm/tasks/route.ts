@@ -146,6 +146,10 @@ export async function POST(request: NextRequest): Promise<Response> {
       updatedAt: crmTasks.updatedAt
     });
 
+  if (!task) {
+    return NextResponse.json({ error: "task_insert_failed" }, { status: 500 });
+  }
+
   return NextResponse.json({
     task: {
       id: task.id,
