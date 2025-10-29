@@ -242,6 +242,25 @@ async function callOpenAI(
     { role: "user" as const, content: userMessage }
   ];
 
+  const payload = {
+    model: OPENAI_MODEL,
+    input: messages,
+    reasoning: {
+      effort: "low"
+    },
+    text: {
+      verbosity: "medium"
+    },
+    max_completion_tokens: 600
+  } as const;
+
+  console.debug("[chat] openai payload", {
+    model: payload.model,
+    reasoning: payload.reasoning,
+    text: payload.text,
+    max_completion_tokens: payload.max_completion_tokens
+  });
+
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
     headers: {
@@ -249,17 +268,7 @@ async function callOpenAI(
       "Content-Type": "application/json",
       "OpenAI-Beta": "assistants=v2"
     },
-    body: JSON.stringify({
-      model: OPENAI_MODEL,
-      input: messages,
-      reasoning: {
-        effort: "low"
-      },
-      text: {
-        verbosity: "medium"
-      },
-      max_completion_tokens: 600
-    })
+    body: JSON.stringify(payload)
   });
 
   if (!response.ok) {
