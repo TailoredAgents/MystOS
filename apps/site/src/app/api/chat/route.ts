@@ -29,12 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const apiKey = process.env["OPENAI_API_KEY"];
-    const configuredModel = (process.env["OPENAI_MODEL"] ?? "").trim();
-    const candidateModels = Array.from(
-      new Set(
-        [configuredModel, "gpt-5-mini", "gpt-4.1-mini"].filter((model) => model.length > 0)
-      )
-    );
+    const model = (process.env["OPENAI_MODEL"] ?? "gpt-5-mini").trim() || "gpt-5-mini";
 
     if (!apiKey) {
       return NextResponse.json(
@@ -46,64 +41,60 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    async function callOpenAI(targetModel: string) {
-      return fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${apiKey}`
-        },
-        body: JSON.stringify({
-          model: targetModel,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            { role: "user", content: message }
-          ],
-          temperature: 0.4,
-          max_tokens: 500
-        })
-      });
-    }
+    const payload = {
+      model,
+      input: [
+        { role: "system" as const, content: SYSTEM_PROMPT },
+        { role: "user" as const, content: message }
+      ],
+      reasoning: { effort: "low" as const },
+      text: { verbosity: "medium" as const },
+      max_completion_tokens: 500
+    };
 
-    const errors: Array<{ model: string; status: number; body: string }> = [];
-    let reply: string | null = null;
+    const response = await fetch("https://api.openai.com/v1/responses", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "OpenAI-Beta": "assistants=v2"
+      },
+      body: JSON.stringify(payload)
+    });
 
-    for (const candidate of candidateModels) {
-      try {
-        const response = await callOpenAI(candidate);
-        if (!response.ok) {
-          const body = await response.text().catch(() => "");
-          console.error(`[chat] OpenAI error for model '${candidate}' status ${response.status}: ${body.slice(0, 300)}`);
-          errors.push({ model: candidate, status: response.status, body });
-          continue;
-        }
-
-        const payload = (await response.json()) as {
-          choices?: Array<{ message?: { content?: string } }>;
-        };
-        const content = payload?.choices?.[0]?.message?.content?.trim();
-        if (content && content.length > 0) {
-          reply = content;
-          break;
-        }
-
-        console.error(`[chat] OpenAI returned empty content for model '${candidate}'.`);
-        errors.push({ model: candidate, status: response.status, body: JSON.stringify(payload) });
-      } catch (error) {
-        console.error(`[chat] Unexpected error calling model '${candidate}':`, error);
-        errors.push({ model: candidate, status: 500, body: String(error) });
-      }
-    }
-
-    if (!reply) {
-      const first = errors[0];
+    if (!response.ok) {
+      const body = await response.text().catch(() => "");
+      console.error(`[chat] OpenAI error for model '${model}' status ${response.status}: ${body.slice(0, 300)}`);
       return NextResponse.json(
         {
           error: "openai_error",
-          details: errors,
-          hint: first
-            ? `First failure: model '${first.model}' status ${first.status}. Consider using 'gpt-4.1-mini' or check model access.`
-            : "No response from OpenAI"
+          message: "Assistant is unavailable right now."
+        },
+        { status: 502 }
+      );
+    }
+
+    const data = (await response.json()) as {
+      output?: Array<{ content?: Array<{ text?: string }> }>;
+      output_text?: string;
+    };
+
+    let reply =
+      data.output_text?.trim() ??
+      data.output
+        ?.flatMap((item) => item?.content ?? [])
+        ?.map((chunk) => chunk?.text ?? "")
+        ?.filter((chunk) => typeof chunk === "string" && chunk.trim().length > 0)
+        ?.join("\n")
+        ?.trim() ??
+      "";
+
+    if (!reply) {
+      console.error("[chat] OpenAI returned empty output for site chatbot.");
+      return NextResponse.json(
+        {
+          error: "openai_empty",
+          message: "Assistant did not return a response."
         },
         { status: 502 }
       );
