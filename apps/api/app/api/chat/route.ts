@@ -251,14 +251,14 @@ async function callOpenAI(
     text: {
       verbosity: "medium"
     },
-    max_completion_tokens: 600
+    max_output_tokens: 600
   } as const;
 
   console.debug("[chat] openai payload", {
     model: payload.model,
     reasoning: payload.reasoning,
     text: payload.text,
-    max_completion_tokens: payload.max_completion_tokens
+    max_output_tokens: payload.max_output_tokens
   });
 
   const response = await fetch("https://api.openai.com/v1/responses", {

@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
       ],
       reasoning: { effort: "low" as const },
       text: { verbosity: "medium" as const },
-      max_completion_tokens: 500
+      max_output_tokens: 500
     };
 
     const response = await fetch("https://api.openai.com/v1/responses", {
