@@ -405,9 +405,11 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const lowerMessage = userMessage.toLowerCase();
   const wantsSchedule =
-    /\bschedule\b/.test(lowerMessage) ||
-    /\bappointments?\b/.test(lowerMessage) ||
-    /\bjobs?\b/.test(lowerMessage);
+    lowerMessage.includes("schedule") ||
+    lowerMessage.includes("appoint") ||
+    lowerMessage.includes("job") ||
+    lowerMessage.includes("crew visit") ||
+    lowerMessage.includes("run sheet");
   const scheduleAvailable =
     context.scheduleText && !/unavailable/i.test(context.scheduleText) && context.scheduleText.trim().length > 0;
 
