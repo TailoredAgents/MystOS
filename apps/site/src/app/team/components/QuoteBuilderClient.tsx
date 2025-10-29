@@ -79,7 +79,7 @@ export function QuoteBuilderClient({
     }
     return contacts[0]?.properties[0]?.id ?? "";
   });
-  const [zoneId, setZoneId] = React.useState<string>(defaultZoneId ?? zones[0]?.id ?? "");
+  const zoneId = React.useMemo(() => defaultZoneId ?? zones[0]?.id ?? "", [defaultZoneId, zones]);
   const [selectedServices, setSelectedServices] = React.useState<string[]>([]);
   const [sendQuote, setSendQuote] = React.useState<boolean>(() => {
     if (initialContactId) {
@@ -336,6 +336,7 @@ export function QuoteBuilderClient({
           <input type="hidden" name="services" value={JSON.stringify(selectedServices)} />
           <input type="hidden" name="serviceOverrides" value={serializedOverrides} />
           <input type="hidden" name="concreteSurfaces" value={serializedConcreteSurfaces} />
+          <input type="hidden" name="zoneId" value={zoneId} />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -387,36 +388,6 @@ export function QuoteBuilderClient({
                   Save a property for this contact in the Contacts tab to enable quoting.
                 </span>
               ) : null}
-            </label>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-2">
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              <span>Service area</span>
-              <select
-                name="zoneId"
-                value={zoneId}
-                onChange={(event) => setZoneId(event.target.value)}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
-              >
-                {zones.map((zone) => (
-                  <option key={zone.id} value={zone.id}>
-                    {zone.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex flex-col gap-2 text-sm text-slate-600">
-              <span>General surface area (sq ft)</span>
-              <input
-                type="number"
-                name="surfaceArea"
-                min="0"
-                step="1"
-                placeholder={propertyOptions.length > 0 ? "Estimate the treated area" : "Optional"}
-                className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-700 shadow-sm focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
-              />
             </label>
           </div>
 
