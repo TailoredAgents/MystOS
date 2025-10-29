@@ -275,15 +275,15 @@ async function callOpenAI(
     console.error("OpenAI error", await response.text());
     return null;
   }
-  const payload = (await response.json()) as {
+  const responseBody = (await response.json()) as {
     output?: Array<{
       content?: Array<{ text?: string }>;
     }>;
     output_text?: string;
   };
 
-  if (Array.isArray(payload.output)) {
-    const combined = payload.output
+  if (Array.isArray(responseBody.output)) {
+    const combined = responseBody.output
       .flatMap((item) => item?.content ?? [])
       .map((chunk) => chunk?.text ?? "")
       .filter((chunk) => chunk && chunk.trim().length > 0)
@@ -293,8 +293,8 @@ async function callOpenAI(
       return combined;
     }
   }
-  if (typeof payload.output_text === "string" && payload.output_text.trim().length > 0) {
-    return payload.output_text.trim();
+  if (typeof responseBody.output_text === "string" && responseBody.output_text.trim().length > 0) {
+    return responseBody.output_text.trim();
   }
 
   return null;
