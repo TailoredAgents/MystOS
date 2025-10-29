@@ -66,7 +66,7 @@ async function callOpenAI({
   userPrompt: string;
 }): Promise<NotificationCopy | null> {
   async function request(targetModel: string) {
-    return fetch("https://api.openai.com/v1/chat/completions", {
+    return fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -74,16 +74,19 @@ async function callOpenAI({
       },
       body: JSON.stringify({
         model: targetModel,
-        messages: [
+        input: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
         temperature: 0.3,
-        max_tokens: 500,
-        response_format: {
-          type: "json_schema",
-          json_schema: {
+        max_output_tokens: 600,
+        reasoning: { effort: "low" },
+        text: {
+          verbosity: "medium",
+          format: {
+            type: "json_schema",
             name: "notification_copy",
+            strict: true,
             schema: {
               type: "object",
               additionalProperties: false,
@@ -91,7 +94,8 @@ async function callOpenAI({
                 email_subject: { type: "string" },
                 email_body: { type: "string" },
                 sms_body: { type: "string" }
-              }
+              },
+              required: []
             }
           }
         }
@@ -105,8 +109,8 @@ async function callOpenAI({
     const status = response.status;
     const bodyText = await response.text().catch(() => "");
     const isDev = process.env["NODE_ENV"] !== "production";
-    if (isDev && (status === 400 || status === 404)) {
-      response = await request("gpt-4.1");
+    if (isDev && (status === 400 || status === 404) && model !== "gpt-5") {
+      response = await request("gpt-5");
       if (!response.ok) {
         console.warn("[ai] openai.fallback_failed", { model, status, bodyText });
         return null;
@@ -119,9 +123,17 @@ async function callOpenAI({
 
   try {
     const data = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string | null } }>;
+      output?: Array<{
+        type?: string;
+        content?: Array<{ type?: string; text?: string }>;
+      }>;
     };
-    const raw = data.choices?.[0]?.message?.content;
+
+    const raw =
+      data.output
+        ?.flatMap((item) => item.content ?? [])
+        .find((contentItem) => typeof contentItem.text === "string")
+        ?.text ?? null;
     if (!raw) {
       return null;
     }

@@ -101,7 +101,7 @@ Render deployment details are tracked in `DEPLOY-ON-RENDER.md` along with the ge
 - Internal alerts (set `QUOTE_ALERT_EMAIL`) notify your ops/owner inbox whenever a quote is sent or a customer responds.
 
 ### Environment for Chat & Notifications
-- Chat API (in `apps/site`) reads `OPENAI_API_KEY` and optional `OPENAI_MODEL` (defaults to `gpt-4o-mini`).
+- Chat API (in `apps/site`) reads `OPENAI_API_KEY` and optional `OPENAI_MODEL` (defaults to `gpt-5-mini`).
 - For SMS/email provider wiring, add:
   - `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM`
   - Your email SMTP creds as needed
