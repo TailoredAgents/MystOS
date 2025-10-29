@@ -455,7 +455,8 @@ export async function sendQuoteSentNotification(payload: QuoteNotificationPayloa
     `Hi ${payload.contact.name},`,
     "",
     `Your quote for ${payload.services.join(", ") || "exterior cleaning"} is ready.`,
-    `Total: ${formatCurrency(payload.total)} (Deposit: ${formatCurrency(payload.depositDue)}, Balance: ${formatCurrency(payload.balanceDue)}).`,
+    `Total: ${formatCurrency(payload.total)}.`,
+    "No deposit is required; payment is due after the work is complete.",
     `Review and approve: ${payload.shareUrl}`,
     expiresIso ? `Expires: ${expiresIso}` : null,
     "",
@@ -507,14 +508,14 @@ export async function sendQuoteSentNotification(payload: QuoteNotificationPayloa
   const alertRecipients = getQuoteAlertRecipients();
   if (alertRecipients.length) {
     const subject = `Quote sent: ${servicesSummary(payload.services)} for ${payload.contact.name}`;
-    const body = [
-      `Customer: ${payload.contact.name}`,
-      `Services: ${servicesSummary(payload.services)}`,
-      `Total: ${formatCurrency(payload.total)} (Deposit: ${formatCurrency(payload.depositDue)}, Balance: ${formatCurrency(payload.balanceDue)})`,
-      `Share link: ${payload.shareUrl}`,
-      expiresIso ? `Expires: ${expiresIso}` : null,
-      payload.notes ? `Notes: ${payload.notes}` : null
-    ]
+  const body = [
+    `Customer: ${payload.contact.name}`,
+    `Services: ${servicesSummary(payload.services)}`,
+    `Total: ${formatCurrency(payload.total)} (no deposit required)`,
+    `Share link: ${payload.shareUrl}`,
+    expiresIso ? `Expires: ${expiresIso}` : null,
+    payload.notes ? `Notes: ${payload.notes}` : null
+  ]
       .filter((line): line is string => Boolean(line))
       .join("\n");
 
@@ -544,7 +545,8 @@ export async function sendQuoteDecisionNotification(
       ? "Thanks for approving your quote! We'll reach out to lock in the service window."
       : "We've recorded your decision. If you'd like revisions or have questions, we're happy to help.",
     `Services: ${payload.services.join(", ") || "Exterior cleaning"}`,
-    `Total: ${formatCurrency(payload.total)} (Deposit: ${formatCurrency(payload.depositDue)}, Balance: ${formatCurrency(payload.balanceDue)}).`,
+    `Total: ${formatCurrency(payload.total)}.`,
+    "No deposit is required; payment will be collected after service.",
     `Quote link: ${payload.shareUrl}`,
     payload.notes ? `Notes: ${payload.notes}` : null
   ]
@@ -604,14 +606,14 @@ export async function sendQuoteDecisionNotification(
   const alertRecipients = getQuoteAlertRecipients();
   if (alertRecipients.length) {
     const subject = `Quote ${payload.decision}: ${payload.contact.name}`;
-    const body = [
-      `Customer: ${payload.contact.name}`,
-      `Services: ${servicesSummary(payload.services)}`,
-      `Decision: ${payload.decision.toUpperCase()} (source: ${payload.source})`,
-      `Total: ${formatCurrency(payload.total)} (Deposit: ${formatCurrency(payload.depositDue)}, Balance: ${formatCurrency(payload.balanceDue)})`,
-      `Quote link: ${payload.shareUrl}`,
-      payload.notes ? `Notes: ${payload.notes}` : null
-    ]
+  const body = [
+    `Customer: ${payload.contact.name}`,
+    `Services: ${servicesSummary(payload.services)}`,
+    `Decision: ${payload.decision.toUpperCase()} (source: ${payload.source})`,
+    `Total: ${formatCurrency(payload.total)} (no deposit required)`,
+    `Quote link: ${payload.shareUrl}`,
+    payload.notes ? `Notes: ${payload.notes}` : null
+  ]
       .filter((line): line is string => Boolean(line))
       .join("\n");
 

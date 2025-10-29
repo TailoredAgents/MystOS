@@ -216,7 +216,7 @@ Constraints:
 - Tone: confident, courteous, transparent. No emojis.
 - Mention "Myst Pressure Washing" once.
 - Include the share link exactly as provided.
-- Highlight the service mix and total value; reference deposit/balance in a single sentence.
+- Highlight the service mix and total value, and remind customers that no deposit is required.
 - If the quote is accepted, outline next steps briefly. If declined, invite feedback.
 - Keep email body under 600 characters and SMS under 240 characters.
 - Respond ONLY as JSON with keys: email_subject, email_body, sms_body.`;
@@ -225,8 +225,6 @@ Constraints:
     customerName,
     services,
     total,
-    depositDue,
-    balanceDue,
     shareUrl,
     expiresAtIso,
     notes,
@@ -240,10 +238,9 @@ Constraints:
     `Customer: ${customerName}`,
     `Services: ${serviceText}`,
     `Total: $${total.toFixed(2)}`,
-    `Deposit due: $${depositDue.toFixed(2)}`,
-    `Balance due: $${balanceDue.toFixed(2)}`,
     `Share link: ${shareUrl}`,
     expiresText,
+    `Payment terms: No deposit required; payment is due after service.`,
     notes ? `Internal notes: ${notes}` : null,
     `Reason: ${reason}`
   ]
