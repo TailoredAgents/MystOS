@@ -4,6 +4,21 @@ import React from "react";
 import { cn } from "@myst-os/ui";
 import { usePathname, useRouter } from "next/navigation";
 
+function ChevronDown(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" {...props}>
+      <path
+        d="M6.75 9.75 12 15l5.25-5.25"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 type AccessRequirement = "owner" | "crew";
 
 export interface TabNavItem {
@@ -40,6 +55,8 @@ export function TabNav({ items, activeId, hasCrew, hasOwner, "aria-label": ariaL
   const router = useRouter();
   const pathname = usePathname();
   const [isPending, startTransition] = React.useTransition();
+  const [isOpen, setIsOpen] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
 
   const resolveAllowed = (requires?: AccessRequirement): boolean => {
     if (requires === "owner") {
@@ -51,48 +68,85 @@ export function TabNav({ items, activeId, hasCrew, hasOwner, "aria-label": ariaL
     return true;
   };
 
-  const resolvedActiveHref =
-    items.find((item) => item.id === activeId)?.href ??
-    (activeId ? `${pathname}?tab=${activeId}` : items[0]?.href ?? "");
+  const activeItem = items.find((item) => item.id === activeId) ?? null;
+\n
+  const handleNavigate = React.useCallback(
+    (href: string) => {
+      startTransition(() => {
+        router.push(href);
+      });
+    },
+    [router]
+  );
+
+  React.useEffect(() => {
+    setIsOpen(false);
+  }, [activeId]);
+
+  React.useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener("click", handleClickOutside);
+    return () => document.removeEventListener("click", handleClickOutside);
+  }, [isOpen]);
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="sm:hidden">
-        <label className="flex flex-col gap-2 text-sm font-medium text-slate-700">
-          <span>Choose a section</span>
-          <select
-            className="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700 shadow-sm focus:border-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-200"
-            value={resolvedActiveHref}
-            aria-label={ariaLabel ?? "Team console sections"}
-            onChange={(event) => {
-              const nextHref = event.target.value;
-              if (!nextHref) {
-                return;
-              }
-
-              startTransition(() => {
-                router.push(nextHref);
-              });
-            }}
-          >
-            {items.map((item) => {
-              const allowed = resolveAllowed(item.requires);
-              return (
-                <option key={item.id} value={item.href} disabled={!allowed}>
-                  {item.label}
-                  {!allowed
-                    ? item.requires === "owner"
-                      ? " (owner only)"
-                      : " (crew required)"
-                    : ""}
-                </option>
-              );
-            })}
-          </select>
-        </label>
-        {isPending ? (
-          <p className="mt-1 text-xs text-slate-500">Loading section...</p>
-        ) : null}
+      <div className="sm:hidden" ref={containerRef}>
+        <button
+          type="button"
+          className="flex w-full items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3 text-left text-sm font-medium text-slate-700 shadow-sm transition focus:outline-none focus:ring-2 focus:ring-primary-200"
+          onClick={() => setIsOpen((value) => !value)}
+          aria-expanded={isOpen}
+          aria-label={ariaLabel ?? "Team console sections"}
+        >
+          <span>{activeItem?.label ?? "Select section"}</span>
+          <ChevronDown
+            className={cn("h-4 w-4 text-slate-500 transition-transform", isOpen ? "rotate-180" : "rotate-0")}
+          />
+        </button>
+        <div
+          className={cn(
+            "mt-2 space-y-1 rounded-2xl border border-slate-200 bg-white p-2 shadow-lg shadow-slate-200/70",
+            isOpen ? "block" : "hidden"
+          )}
+        >
+          {items.map((item) => {
+            const allowed = resolveAllowed(item.requires);
+            const isActive = item.id === activeId;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                disabled={!allowed}
+                onClick={() => {
+                  if (!allowed) {
+                    return;
+                  }
+                  setIsOpen(false);
+                  handleNavigate(item.href);
+                }}
+                className={cn(
+                  "flex w-full items-center justify-between rounded-xl px-3 py-2 text-sm font-medium transition",
+                  isActive ? "bg-primary-50 text-primary-700" : "text-slate-600 hover:bg-slate-100",
+                  !allowed && "cursor-not-allowed opacity-45"
+                )}
+              >
+                <span>{item.label}</span>
+                {isActive ? <span className="text-[10px] font-semibold uppercase text-primary-600">Active</span> : null}
+              </button>
+            );
+          })}
+        </div>
+        {isPending ? <p className="mt-1 text-xs text-slate-500">Loading section...</p> : null}
       </div>
 
       <nav className={teamTabTokens.container} aria-label={ariaLabel ?? "Team console sections"}>
@@ -136,7 +190,4 @@ export function TabNav({ items, activeId, hasCrew, hasOwner, "aria-label": ariaL
     </div>
   );
 }
-
-
-
 

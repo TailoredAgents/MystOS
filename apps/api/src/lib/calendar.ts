@@ -1,6 +1,6 @@
 import { DateTime } from "luxon";
 
-interface CalendarConfig {
+export interface CalendarConfig {
   clientId: string;
   clientSecret: string;
   refreshToken: string;
@@ -44,7 +44,7 @@ let cachedToken:
     }
   | undefined;
 
-function getCalendarConfig(): CalendarConfig | null {
+export function getCalendarConfig(): CalendarConfig | null {
   const clientId = process.env["GOOGLE_CLIENT_ID"];
   const clientSecret = process.env["GOOGLE_CLIENT_SECRET"];
   const refreshToken = process.env["GOOGLE_REFRESH_TOKEN"];
@@ -62,7 +62,7 @@ function getCalendarConfig(): CalendarConfig | null {
   return { clientId, clientSecret, refreshToken, calendarId, timeZone };
 }
 
-async function getAccessToken(config: CalendarConfig): Promise<string | null> {
+export async function getAccessToken(config: CalendarConfig): Promise<string | null> {
   const cacheKey = `${config.clientId}:${config.calendarId}`;
   const now = Date.now();
 
@@ -117,7 +117,7 @@ async function getAccessToken(config: CalendarConfig): Promise<string | null> {
 function buildEventBody(
   payload: AppointmentCalendarPayload,
   config: CalendarConfig
-): { start: DateTime; end: DateTime; bufferStart: DateTime; description: string } | null {
+): { start: DateTime; end: DateTime; bufferStart: DateTime; description: string; travelBufferMinutes: number; durationMinutes: number } | null {
   if (!payload.startAt) {
     return null;
   }
@@ -152,7 +152,7 @@ function buildEventBody(
 
   const description = lines.join("\n");
 
-  return { start, end, bufferStart, description };
+  return { start, end, bufferStart, description, travelBufferMinutes, durationMinutes };
 }
 
 async function googleRequest(
@@ -222,7 +222,9 @@ export async function createCalendarEvent(
       location: `${payload.property.addressLine1}, ${payload.property.city}, ${payload.property.state} ${payload.property.postalCode}`,
       extendedProperties: {
         private: {
-          appointmentId: payload.appointmentId
+          appointmentId: payload.appointmentId,
+          travelBufferMinutes: String(eventBody.travelBufferMinutes),
+          durationMinutes: String(eventBody.durationMinutes)
         }
       },
       reminders: {
@@ -282,7 +284,14 @@ export async function updateCalendarEvent(
         dateTime: eventBody.end.toISO(),
         timeZone: config.timeZone
       },
-      location: `${payload.property.addressLine1}, ${payload.property.city}, ${payload.property.state} ${payload.property.postalCode}`
+      location: `${payload.property.addressLine1}, ${payload.property.city}, ${payload.property.state} ${payload.property.postalCode}`,
+      extendedProperties: {
+        private: {
+          appointmentId: payload.appointmentId,
+          travelBufferMinutes: String(eventBody.travelBufferMinutes),
+          durationMinutes: String(eventBody.durationMinutes)
+        }
+      }
     })
   });
 
@@ -323,3 +332,9 @@ export async function deleteCalendarEvent(eventId: string): Promise<void> {
     console.warn("[calendar] delete_failed", { status: response.status, text });
   }
 }
+
+
+
+
+
+

@@ -38,6 +38,12 @@
   ```
   The API listens on `http://localhost:3001` (via `apps/api`). The site runs on `http://localhost:3000`.
 
+## Calendar Sync
+- Configure the Google Calendar credentials in `.env` (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_CALENDAR_ID`) and point `GOOGLE_CALENDAR_WEBHOOK_URL` at your deployed API (`https://your-api.example.com/api/calendar/webhook`).
+- The API registers a watch channel and persists metadata in the new `calendar_sync_state` table; fetch `/api/calendar/status` with your `ADMIN_API_KEY` to inspect last sync, webhook activity, and watch expiry.
+- The Team Console header now surfaces a Calendar Sync badge summarizing health (last sync, webhook freshness, upcoming renewals).
+- Optional: set `GOOGLE_CALENDAR_SYNC_LOOKBACK_DAYS` to adjust how far back the sync job replays events when the token is reset (defaults to 45 days).
+
 ## E2E Environment
 - Sync deterministic env files:
   ```bash
@@ -112,3 +118,4 @@ You can place these in the monorepo root `.env` or per-app `.env.local` files. B
 - API: `pnpm --filter api dev`
 - Site: `pnpm --filter site dev`
 - Admin dashboards: visit `/admin/login` and enter the `ADMIN_API_KEY` (stored in 1Password). Successful login drops a session cookie so you can navigate `/admin/*` routes; run `pnpm cleanup:e2e` to purge related test data.
+

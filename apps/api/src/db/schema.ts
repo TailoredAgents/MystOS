@@ -181,6 +181,20 @@ export const outboxEvents = pgTable("outbox_events", {
   processedAt: timestamp("processed_at", { withTimezone: true })
 });
 
+export const calendarSyncState = pgTable("calendar_sync_state", {
+  calendarId: text("calendar_id").primaryKey(),
+  syncToken: text("sync_token"),
+  channelId: text("channel_id"),
+  resourceId: text("resource_id"),
+  channelExpiresAt: timestamp("channel_expires_at", { withTimezone: true }),
+  lastSyncedAt: timestamp("last_synced_at", { withTimezone: true }),
+  lastNotificationAt: timestamp("last_notification_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull()
+    .$onUpdate(() => new Date())
+});
 export const appointments = pgTable(
   "appointments",
   {
@@ -381,4 +395,8 @@ export const payments = pgTable(
     appointmentIdx: index("payments_appointment_idx").on(table.appointmentId)
   })
 );
+
+
+
+
 

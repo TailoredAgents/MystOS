@@ -1,5 +1,6 @@
 import type { AppointmentCalendarPayload } from "./calendar";
 import { createCalendarEvent, updateCalendarEvent } from "./calendar";
+import { ensureCalendarWatch } from "./calendar-sync";
 
 type RetryOptions = {
   attempts?: number;
@@ -69,11 +70,17 @@ export async function createCalendarEventWithRetry(
   payload: AppointmentCalendarPayload,
   options?: RetryOptions
 ): Promise<string | null> {
-  return withRetry(
+  const eventId = await withRetry(
     () => createCalendarEvent(payload),
     (result) => result === null,
     options
   );
+
+  if (eventId) {
+    void ensureCalendarWatch();
+  }
+
+  return eventId;
 }
 
 export async function updateCalendarEventWithRetry(
@@ -81,9 +88,18 @@ export async function updateCalendarEventWithRetry(
   payload: AppointmentCalendarPayload,
   options?: RetryOptions
 ): Promise<boolean> {
-  return withRetry(
+  const updated = await withRetry(
     () => updateCalendarEvent(eventId, payload),
     (result) => result === false,
     options
   );
+
+  if (updated) {
+    void ensureCalendarWatch();
+  }
+
+  return updated;
 }
+
+
+

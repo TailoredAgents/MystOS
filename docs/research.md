@@ -34,3 +34,5 @@
   GA4 docs: https://developers.google.com/analytics/devguides/collection/protocol/ga4
 - **ISR compatibility**: pair Partial Prerendering with variant-aware dynamic segments or `cookies().get` inside Server Components to avoid client-only rendering and maintain SEO.  
   Partial prerendering: https://nextjs.org/docs/app/building-your-application/rendering/partial-prerendering
+
+
