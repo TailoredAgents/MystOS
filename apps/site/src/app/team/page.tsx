@@ -63,7 +63,7 @@ export default async function TeamPage({
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-slate-100 via-white to-slate-50">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(59,130,246,0.12),_transparent_50%)]" />
-      <main className="relative mx-auto max-w-6xl space-y-8 px-4 py-10 sm:px-6 lg:px-8">
+      <main className="relative mx-auto max-w-6xl space-y-6 px-4 py-8 sm:space-y-8 sm:px-6 sm:py-10 lg:px-8">
         <header className="overflow-hidden rounded-3xl border border-white/70 bg-white/80 p-6 shadow-xl shadow-slate-200/60 backdrop-blur sm:p-8">
           <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
             <div>
@@ -75,16 +75,16 @@ export default async function TeamPage({
                 Monitor appointments, quotes, pipeline health, and contacts from a single polished workspace designed for your crew and office team.
               </p>
             </div>
-            <div className="grid gap-3 text-sm text-slate-600">
+            <div className="grid gap-2 text-sm text-slate-600 sm:justify-items-end sm:text-right">
               <span
-                className={`inline-flex items-center justify-center rounded-full px-4 py-2 font-medium ${
+                className={`inline-flex w-full items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium sm:w-auto ${
                   hasCrew ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"
                 }`}
               >
                 Crew {hasCrew ? "signed in" : "login required"}
               </span>
               <span
-                className={`inline-flex items-center justify-center rounded-full px-4 py-2 font-medium ${
+                className={`inline-flex w-full items-center justify-center rounded-full px-3 py-1.5 text-xs font-medium sm:w-auto ${
                   hasOwner ? "bg-primary-100 text-primary-700" : "bg-slate-100 text-slate-500"
                 }`}
               >
@@ -237,5 +237,8 @@ export default async function TeamPage({
     </div>
   );
 }
+
+
+
 
 
