@@ -61,25 +61,27 @@ export default async function TeamPage({
   const needsCrewLogin = activeRequirement === "crew" && !hasCrew && !hasOwner;
   const needsOwnerLogin = activeRequirement === "owner" && !hasOwner;
 
-  let calendarBadge: CalendarSyncBadge = defaultCalendarBadge;
-  try {
-    const response = await callAdminApi("/api/calendar/status");
-    if (response.ok) {
-      const payload = (await response.json()) as CalendarStatusApiResponse;
-      calendarBadge = evaluateCalendarBadge(payload);
-    } else {
+  let calendarBadge: CalendarSyncBadge | null = null;
+  if (tab === "settings" && hasOwner) {
+    try {
+      const response = await callAdminApi("/api/calendar/status");
+      if (response.ok) {
+        const payload = (await response.json()) as CalendarStatusApiResponse;
+        calendarBadge = evaluateCalendarBadge(payload);
+      } else {
+        calendarBadge = {
+          tone: "alert",
+          headline: "Status request failed",
+          detail: `HTTP ${response.status}`
+        };
+      }
+    } catch (error) {
       calendarBadge = {
         tone: "alert",
         headline: "Status request failed",
-        detail: `HTTP ${response.status}`
+        detail: "API unreachable"
       };
     }
-  } catch (error) {
-    calendarBadge = {
-      tone: "alert",
-      headline: "Status request failed",
-      detail: "API unreachable"
-    };
   }
 
   return (
@@ -112,16 +114,6 @@ export default async function TeamPage({
               >
                 Owner {hasOwner ? "access granted" : "login required"}
               </span>
-              <div
-                className={`rounded-xl border px-3 py-2 text-xs sm:w-56 ${calendarBadgeToneClasses[calendarBadge.tone]}`}
-                title={calendarBadge.detail ?? undefined}
-              >
-                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-current/70">Calendar Sync</span>
-                <span className="mt-1 text-sm font-medium text-current">{calendarBadge.headline}</span>
-                {calendarBadge.detail ? (
-                  <span className="text-[11px] text-current/80">{calendarBadge.detail}</span>
-                ) : null}
-              </div>
             </div>
           </div>
           <div className="mt-6">
@@ -247,7 +239,7 @@ export default async function TeamPage({
         ) : null}
 
         {tab === "settings" ? (
-          <section className="rounded-2xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-600 shadow-lg shadow-slate-200/60">
+          <section className="space-y-4 rounded-2xl border border-slate-200 bg-white/80 p-6 text-sm text-slate-600 shadow-lg shadow-slate-200/60">
             <div className="space-y-4">
               <h2 className="text-base font-semibold text-slate-900">Sessions</h2>
               <div className="flex flex-wrap gap-3">
@@ -263,6 +255,19 @@ export default async function TeamPage({
                 </form>
               </div>
             </div>
+
+            {hasOwner && calendarBadge ? (
+              <div
+                className={`rounded-xl border px-4 py-3 text-xs ${calendarBadgeToneClasses[calendarBadge.tone]}`}
+                title={calendarBadge.detail ?? undefined}
+              >
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-current/70">Calendar Sync</span>
+                <span className="mt-1 block text-sm font-medium text-current">{calendarBadge.headline}</span>
+                {calendarBadge.detail ? (
+                  <span className="block text-[11px] text-current/80">{calendarBadge.detail}</span>
+                ) : null}
+              </div>
+            ) : null}
           </section>
         ) : null}
       </main>
