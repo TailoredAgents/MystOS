@@ -2,7 +2,8 @@
 
 import React from "react";
 import { cn } from "@myst-os/ui";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import type { Route } from "next";
 
 function ChevronDown(props: React.SVGProps<SVGSVGElement>) {
   return (
@@ -53,7 +54,6 @@ interface TabNavProps {
 
 export function TabNav({ items, activeId, hasCrew, hasOwner, "aria-label": ariaLabel }: TabNavProps) {
   const router = useRouter();
-  const pathname = usePathname();
   const [isPending, startTransition] = React.useTransition();
   const [isOpen, setIsOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
@@ -69,11 +69,11 @@ export function TabNav({ items, activeId, hasCrew, hasOwner, "aria-label": ariaL
   };
 
   const activeItem = items.find((item) => item.id === activeId) ?? null;
-\n
+
   const handleNavigate = React.useCallback(
     (href: string) => {
       startTransition(() => {
-        router.push(href);
+        router.push(href as Route);
       });
     },
     [router]
