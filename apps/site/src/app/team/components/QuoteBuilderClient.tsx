@@ -92,6 +92,8 @@ export function QuoteBuilderClient({
   });
   const [servicePrices, setServicePrices] = React.useState<Record<string, string>>({});
   const [concreteSurfaces, setConcreteSurfaces] = React.useState<ConcreteSurfaceFormEntry[]>([]);
+  const [discountType, setDiscountType] = React.useState<"none" | "percent" | "amount">("none");
+  const [discountValue, setDiscountValue] = React.useState<string>("");
 
   const createConcreteSurfaceEntry = React.useCallback((): ConcreteSurfaceFormEntry => {
     return {
@@ -337,6 +339,8 @@ export function QuoteBuilderClient({
           <input type="hidden" name="serviceOverrides" value={serializedOverrides} />
           <input type="hidden" name="concreteSurfaces" value={serializedConcreteSurfaces} />
           <input type="hidden" name="zoneId" value={zoneId} />
+          <input type="hidden" name="discountType" value={discountType === "none" ? "" : discountType} />
+          <input type="hidden" name="discountValue" value={discountType === "none" ? "" : discountValue} />
 
           <div className="grid gap-4 lg:grid-cols-2">
             <label className="flex flex-col gap-2 text-sm text-slate-600">
@@ -546,15 +550,61 @@ export function QuoteBuilderClient({
           </fieldset>
 
           <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-slate-50/70 p-4 text-sm text-slate-600">
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="checkbox"
-                name="applyBundles"
-                defaultChecked
-                className="rounded border-slate-300 text-primary-600 focus:ring-primary-400"
-              />
-              Apply bundle discounts automatically
-            </label>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-sm font-semibold text-slate-700">Discount</span>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="discount-mode"
+                  checked={discountType === "none"}
+                  onChange={() => {
+                    setDiscountType("none");
+                    setDiscountValue("");
+                  }}
+                  className="rounded border-slate-300 text-primary-600 focus:ring-primary-400"
+                />
+                None
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="discount-mode"
+                  checked={discountType === "percent"}
+                  onChange={() => setDiscountType("percent")}
+                  className="rounded border-slate-300 text-primary-600 focus:ring-primary-400"
+                />
+                Percent
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  name="discount-mode"
+                  checked={discountType === "amount"}
+                  onChange={() => setDiscountType("amount")}
+                  className="rounded border-slate-300 text-primary-600 focus:ring-primary-400"
+                />
+                Dollar amount
+              </label>
+            </div>
+            {discountType !== "none" ? (
+              <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
+                <label className="flex items-center gap-2 text-xs text-slate-600">
+                  <span>{discountType === "percent" ? "Percent" : "Amount"}</span>
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    step={discountType === "percent" ? "1" : "0.01"}
+                    value={discountValue}
+                    onChange={(e) => setDiscountValue(e.target.value)}
+                    placeholder={discountType === "percent" ? "e.g. 10 (for 10%)" : "e.g. 50.00"}
+                    className="w-40 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                  />
+                  {discountType === "percent" ? <span className="text-xs text-slate-500">%</span> : null}
+                </div>
+              </div>
+            ) : null}
             <label className="inline-flex items-center gap-2">
               <input
                 type="checkbox"
@@ -622,7 +672,7 @@ export function QuoteBuilderClient({
         <ul className="mt-2 list-disc space-y-1 pl-5">
           <li>Need a new contact? Add them in the Contacts tab first so their property details are available here.</li>
           <li>You can uncheck the email option to copy the share link and send it manually via SMS or chat.</li>
-          <li>Bundle discounts apply automatically when qualifying services are selected together.</li>
+          <li>Add either a percent or dollar discount if needed; totals update accordingly.</li>
         </ul>
       </div>
     </section>

@@ -63,7 +63,8 @@ export interface QuoteRequestInput {
     surfaceArea?: number;
     selectedServices: ServiceCategory[];
     selectedAddOns?: string[];
-    applyBundles?: boolean;
+    discountType?: 'percent' | 'amount';
+    discountValue?: number;
     depositRate?: number;
     serviceOverrides?: Partial<Record<ServiceCategory, number>>;
     concreteSurfaces?: ConcreteSurfaceInput[];

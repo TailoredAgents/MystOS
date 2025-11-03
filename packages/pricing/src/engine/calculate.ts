@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { addOns, bundles, defaultPricingContext, serviceRates, zones } from "../config/defaults";
+import { addOns, defaultPricingContext, serviceRates, zones } from "../config/defaults";
 import type {
   QuoteBreakdown,
   QuoteRequestInput,
@@ -15,7 +15,8 @@ const quoteInputSchema = z.object({
   surfaceArea: z.number().positive().optional(),
   selectedServices: z.array(z.string()).min(1),
   selectedAddOns: z.array(z.string()).optional(),
-  applyBundles: z.boolean().optional(),
+  discountType: z.enum(["percent", "amount"]).optional(),
+  discountValue: z.number().nonnegative().optional(),
   depositRate: z.number().positive().max(1).optional(),
   serviceOverrides: z.record(z.string(), z.number().positive()).optional(),
   concreteSurfaces: z
@@ -50,32 +51,22 @@ function computeServiceAmount(rate: ServiceBaseRate, surfaceArea?: number): numb
   return Math.max(base, base + variable);
 }
 
-function computeBundleDiscount(serviceIds: string[], applyBundles: boolean | undefined): number {
-  if (!applyBundles) {
+// Manual discount is applied to subtotal (services + add-ons + travel)
+function computeManualDiscount(
+  subtotal: number,
+  type: "percent" | "amount" | undefined,
+  value: number | undefined
+): number {
+  if (!type || value === undefined || !Number.isFinite(value) || value <= 0) {
     return 0;
   }
-
-  const eligibleBundles = bundles.filter((bundle) =>
-    bundle.services.every((service) => serviceIds.includes(service))
-  );
-
-  if (!eligibleBundles.length) {
-    return 0;
+  if (type === "percent") {
+    const pct = Math.max(0, Math.min(100, value));
+    return Math.min(subtotal, Math.round(subtotal * (pct / 100) * 100) / 100);
   }
-
-  const discount = eligibleBundles.reduce((acc, bundle) => {
-    const bundleTotal = bundle.services.reduce((total, serviceId) => {
-      const rate = resolveServiceRate(serviceId);
-      if (!rate) {
-        return total;
-      }
-      return total + computeServiceAmount(rate);
-    }, 0);
-
-    return acc + (bundleTotal * bundle.discountPercentage) / 100;
-  }, 0);
-
-  return discount;
+  // amount
+  const amount = Math.round(Math.max(0, value) * 100) / 100;
+  return Math.min(subtotal, amount);
 }
 
 export function calculateQuoteBreakdown(
@@ -92,7 +83,8 @@ export function calculateQuoteBreakdown(
     surfaceArea,
     selectedServices,
     selectedAddOns,
-    applyBundles,
+    discountType,
+    discountValue,
     depositRate,
     serviceOverrides,
     concreteSurfaces
@@ -190,14 +182,13 @@ export function calculateQuoteBreakdown(
   }
 
   const subtotal = servicesSubtotal + addOnsTotal + travelFee;
-  const allowBundleDiscounts = applyBundles && Object.keys(overrides).length === 0;
-  const discounts = computeBundleDiscount(selectedServices, allowBundleDiscounts);
+  const discounts = computeManualDiscount(subtotal, discountType, discountValue);
   const total = subtotal - discounts;
 
   if (discounts > 0) {
     lineItems.push({
-      id: "bundle-discount",
-      label: "Bundle Savings",
+      id: "manual-discount",
+      label: "Manual Discount",
       amount: -discounts,
       category: "discount"
     });

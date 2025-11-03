@@ -140,7 +140,8 @@ export async function createQuoteAction(formData: FormData) {
   const surfaceArea = formData.get("surfaceArea");
   const depositRate = formData.get("depositRate");
   const expiresInDays = formData.get("expiresInDays");
-  const applyBundles = formData.get("applyBundles");
+  const discountType = formData.get("discountType");
+  const discountValue = formData.get("discountValue");
   const notes = formData.get("notes");
   const concreteSurfacesRaw = formData.get("concreteSurfaces");
   const serviceOverridesRaw = formData.get("serviceOverrides");
@@ -173,8 +174,7 @@ export async function createQuoteAction(formData: FormData) {
     contactId,
     propertyId,
     zoneId,
-    selectedServices: services,
-    applyBundles: typeof applyBundles === "string"
+    selectedServices: services
   };
 
   if (typeof surfaceArea === "string" && surfaceArea.trim().length > 0) {
@@ -200,6 +200,21 @@ export async function createQuoteAction(formData: FormData) {
 
   if (typeof notes === "string" && notes.trim().length > 0) {
     payload["notes"] = notes.trim();
+  }
+
+  // Manual discount (percent or amount)
+  if (typeof discountType === "string" && discountType.trim().length > 0) {
+    const type = discountType.trim();
+    if (type === "percent" || type === "amount") {
+      const raw = typeof discountValue === "string" ? discountValue.trim() : "";
+      if (raw.length > 0) {
+        const numeric = Number(raw);
+        if (Number.isFinite(numeric) && numeric >= 0) {
+          payload["discountType"] = type;
+          payload["discountValue"] = numeric;
+        }
+      }
+    }
   }
 
   if (typeof serviceOverridesRaw === "string" && serviceOverridesRaw.trim().length > 0) {
