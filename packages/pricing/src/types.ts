@@ -4,7 +4,9 @@ export type ServiceCategory =
   | "roof"
   | "deck"
   | "gutter"
-  | "commercial";
+  | "commercial"
+  | "windows"
+  | "other";
 
 export type ZoneTier = "core" | "extended" | "premium";
 

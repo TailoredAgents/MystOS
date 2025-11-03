@@ -79,6 +79,18 @@ export const serviceRates: ServiceBaseRate[] = [
     basePrice: 499,
     pricePerSquareFoot: 0.25,
     includesTravel: true
+  },
+  {
+    service: "windows",
+    label: "Window Cleaning",
+    description: "Exterior window cleaning. Priced per job.",
+    basePrice: 0
+  },
+  {
+    service: "other",
+    label: "Other",
+    description: "Custom line item not covered above.",
+    basePrice: 0
   }
 ];
 
