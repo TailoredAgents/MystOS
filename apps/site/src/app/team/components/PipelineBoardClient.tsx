@@ -222,8 +222,8 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
   }
 
   return (
-    <div className="overflow-x-auto pb-6">
-      <div className="grid auto-cols-[minmax(280px,320px)] grid-flow-col gap-5">
+    <div className="w-full overflow-x-auto pb-6">
+      <div className="grid min-w-full auto-cols-[minmax(280px,320px)] grid-flow-col gap-5">
         {stages.map((stage) => {
           const lane = board.find((item) => item.stage === stage) ?? { stage, contacts: [] };
           const isHover = hoverStage === stage;
@@ -251,7 +251,7 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
                   {lane.contacts.length}
                 </span>
               </header>
-              <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-4">
+              <div className="flex min-h-[420px] flex-1 flex-col gap-3 px-5 py-4">
                 {lane.contacts.length === 0 ? (
                   <p className="rounded-2xl border border-dashed border-slate-200 bg-white/85 px-4 py-8 text-center text-xs text-slate-400">
                     Drop a contact here or use the stage picker.
