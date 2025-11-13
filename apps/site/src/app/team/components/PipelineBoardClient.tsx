@@ -238,7 +238,7 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
                   setHoverStage(null);
                 }
               }}
-              className={`group flex min-h-[360px] flex-col rounded-3xl border border-slate-200 bg-white/80 shadow-xl shadow-slate-200/60 transition ${
+              className={`group flex h-[70vh] min-h-[420px] flex-col rounded-3xl border border-slate-200 bg-white/80 shadow-xl shadow-slate-200/60 transition ${
                 isHover ? "border-primary-400 ring-2 ring-primary-200/60" : ""
               }`}
             >
@@ -251,7 +251,7 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
                   {lane.contacts.length}
                 </span>
               </header>
-              <div className="flex min-h-[420px] flex-1 flex-col gap-3 px-5 py-4">
+              <div className="flex flex-1 flex-col gap-3 overflow-y-auto px-5 py-4">
                 {lane.contacts.length === 0 ? (
                   <p className="rounded-2xl border border-dashed border-slate-200 bg-white/85 px-4 py-8 text-center text-xs text-slate-400">
                     Drop a contact here or use the stage picker.
