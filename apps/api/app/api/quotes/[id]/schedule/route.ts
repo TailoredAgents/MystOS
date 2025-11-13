@@ -17,7 +17,10 @@ import {
   DEFAULT_APPOINTMENT_DURATION_MIN,
   DEFAULT_TRAVEL_BUFFER_MIN
 } from "../../../web/scheduling";
-import { ensureJobAppointmentSupport } from "@/lib/ensure-job-appointment-column";
+import {
+  ensureJobAppointmentSupport,
+  isMissingJobAppointmentColumnError
+} from "@/lib/ensure-job-appointment-column";
 
 const ScheduleQuoteSchema = z.object({
   startAt: z.string().min(1),
@@ -73,6 +76,18 @@ type ScheduleSuccess = {
   };
 
   try {
+    const withJobColumnRetry = async <T>(operation: () => Promise<T>): Promise<T> => {
+      try {
+        return await operation();
+      } catch (error) {
+        if (isMissingJobAppointmentColumnError(error)) {
+          await ensureJobAppointmentSupport(db, { force: true });
+          return operation();
+        }
+        throw error;
+      }
+    };
+
     const result: ScheduleSuccess | ScheduleError = await db.transaction(async (tx) => {
       const [quote] = await tx
         .select({
@@ -85,7 +100,25 @@ type ScheduleSuccess = {
         })
         .from(quotes)
         .where(eq(quotes.id, quoteId))
-        .limit(1);
+        .limit(1)
+        .catch(async (error) => {
+          if (isMissingJobAppointmentColumnError(error)) {
+            await ensureJobAppointmentSupport(db, { force: true });
+            return tx
+              .select({
+                id: quotes.id,
+                status: quotes.status,
+                contactId: quotes.contactId,
+                propertyId: quotes.propertyId,
+                services: quotes.services,
+                jobAppointmentId: quotes.jobAppointmentId
+              })
+              .from(quotes)
+              .where(eq(quotes.id, quoteId))
+              .limit(1);
+          }
+          throw error;
+        });
 
       if (!quote) {
         return { success: false, status: 404, message: "quote_not_found" };
@@ -123,10 +156,12 @@ type ScheduleSuccess = {
           .limit(1);
 
         if (!existingAppointment) {
-          await tx
-            .update(quotes)
-            .set({ jobAppointmentId: null })
-            .where(eq(quotes.id, quote.id));
+          await withJobColumnRetry(() =>
+            tx
+              .update(quotes)
+              .set({ jobAppointmentId: null })
+              .where(eq(quotes.id, quote.id))
+          );
         } else {
           await tx
             .update(appointments)
@@ -171,10 +206,12 @@ type ScheduleSuccess = {
               }
             });
 
-          await tx
-            .update(quotes)
-            .set({ updatedAt: now })
-            .where(eq(quotes.id, quote.id));
+          await withJobColumnRetry(() =>
+            tx
+              .update(quotes)
+              .set({ updatedAt: now })
+              .where(eq(quotes.id, quote.id))
+          );
 
           await tx.insert(outboxEvents).values({
             type: "estimate.rescheduled",
@@ -219,10 +256,12 @@ type ScheduleSuccess = {
         return { success: false, status: 500, message: "appointment_insert_failed" };
       }
 
-      await tx
-        .update(quotes)
-        .set({ jobAppointmentId: appointment.id, updatedAt: now })
-        .where(eq(quotes.id, quote.id));
+      await withJobColumnRetry(() =>
+        tx
+          .update(quotes)
+          .set({ jobAppointmentId: appointment.id, updatedAt: now })
+          .where(eq(quotes.id, quote.id))
+      );
 
       const summaryLines = [
         "Scheduled from accepted quote.",

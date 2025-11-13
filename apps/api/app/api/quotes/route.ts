@@ -11,7 +11,10 @@ import type {
 import { getDb, quotes, contacts, properties, appointments } from "@/db";
 import { isAdminRequest } from "../web/admin";
 import { eq, desc } from "drizzle-orm";
-import { ensureJobAppointmentSupport } from "@/lib/ensure-job-appointment-column";
+import {
+  ensureJobAppointmentSupport,
+  isMissingJobAppointmentColumnError
+} from "@/lib/ensure-job-appointment-column";
 
 const STATUS_FILTERS = ["pending", "sent", "accepted", "declined"] as const;
 type QuoteStatusFilter = (typeof STATUS_FILTERS)[number];
@@ -139,38 +142,46 @@ export async function GET(request: NextRequest): Promise<Response> {
 
   const db = getDb();
   await ensureJobAppointmentSupport(db);
-  const baseQuery = db
-    .select({
-      id: quotes.id,
-      status: quotes.status,
-      services: quotes.services,
-      addOns: quotes.addOns,
-      total: quotes.total,
-      createdAt: quotes.createdAt,
-      updatedAt: quotes.updatedAt,
-      sentAt: quotes.sentAt,
-      expiresAt: quotes.expiresAt,
-      shareToken: quotes.shareToken,
-      contactName: contacts.firstName,
-      contactEmail: contacts.email,
-      propertyAddressLine1: properties.addressLine1,
-      propertyCity: properties.city,
-      propertyState: properties.state,
-      propertyPostalCode: properties.postalCode,
-      jobAppointmentId: quotes.jobAppointmentId,
-      jobAppointmentStatus: appointments.status,
-      jobAppointmentStartAt: appointments.startAt
-    })
-    .from(quotes)
-    .leftJoin(contacts, eq(quotes.contactId, contacts.id))
-    .leftJoin(properties, eq(quotes.propertyId, properties.id))
-    .leftJoin(appointments, eq(quotes.jobAppointmentId, appointments.id));
+  const baseQuery = () =>
+    db
+      .select({
+        id: quotes.id,
+        status: quotes.status,
+        services: quotes.services,
+        addOns: quotes.addOns,
+        total: quotes.total,
+        createdAt: quotes.createdAt,
+        updatedAt: quotes.updatedAt,
+        sentAt: quotes.sentAt,
+        expiresAt: quotes.expiresAt,
+        shareToken: quotes.shareToken,
+        contactName: contacts.firstName,
+        contactEmail: contacts.email,
+        propertyAddressLine1: properties.addressLine1,
+        propertyCity: properties.city,
+        propertyState: properties.state,
+        propertyPostalCode: properties.postalCode,
+        jobAppointmentId: quotes.jobAppointmentId,
+        jobAppointmentStatus: appointments.status,
+        jobAppointmentStartAt: appointments.startAt
+      })
+      .from(quotes)
+      .leftJoin(contacts, eq(quotes.contactId, contacts.id))
+      .leftJoin(properties, eq(quotes.propertyId, properties.id))
+      .leftJoin(appointments, eq(quotes.jobAppointmentId, appointments.id));
 
-  const filteredQuery = statusFilter
-    ? baseQuery.where(eq(quotes.status, statusFilter))
-    : baseQuery;
+  const runQuery = async () => {
+    const query = statusFilter ? baseQuery().where(eq(quotes.status, statusFilter)) : baseQuery();
+    return query.orderBy(desc(quotes.updatedAt));
+  };
 
-  const rows = await filteredQuery.orderBy(desc(quotes.updatedAt));
+  let rows = await runQuery().catch(async (error) => {
+    if (isMissingJobAppointmentColumnError(error)) {
+      await ensureJobAppointmentSupport(db, { force: true });
+      return runQuery();
+    }
+    throw error;
+  });
 
   return NextResponse.json({
     quotes: rows.map(formatQuoteResponse)

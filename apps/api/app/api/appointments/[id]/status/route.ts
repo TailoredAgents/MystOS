@@ -5,7 +5,10 @@ import { eq } from "drizzle-orm";
 import { getDb, appointments, leads, outboxEvents, quotes } from "@/db";
 import { isAdminRequest } from "../../../web/admin";
 import { deleteCalendarEvent } from "@/lib/calendar";
-import { ensureJobAppointmentSupport } from "@/lib/ensure-job-appointment-column";
+import {
+  ensureJobAppointmentSupport,
+  isMissingJobAppointmentColumnError
+} from "@/lib/ensure-job-appointment-column";
 
 const StatusSchema = z.object({
   status: z.enum(["requested", "confirmed", "completed", "no_show", "canceled"])
@@ -63,10 +66,22 @@ export async function POST(
   }
 
   if (status === "canceled") {
-    await db
-      .update(quotes)
-      .set({ jobAppointmentId: null })
-      .where(eq(quotes.jobAppointmentId, updated.id));
+    const clearJob = async () =>
+      db
+        .update(quotes)
+        .set({ jobAppointmentId: null })
+        .where(eq(quotes.jobAppointmentId, updated.id));
+
+    try {
+      await clearJob();
+    } catch (error) {
+      if (isMissingJobAppointmentColumnError(error)) {
+        await ensureJobAppointmentSupport(db, { force: true });
+        await clearJob();
+      } else {
+        throw error;
+      }
+    }
   }
 
   if (updated.leadId && status === "confirmed") {
