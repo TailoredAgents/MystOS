@@ -469,16 +469,23 @@ export function QuoteBuilderClient({
       next[index] = value;
 
       let adjusted = next.slice(0, MAX_SERVICE_DETAILS);
-      const last = adjusted[adjusted.length - 1];
-      if (last && last.trim().length > 0 && adjusted.length < MAX_SERVICE_DETAILS) {
+      const last = adjusted.at(-1);
+      if (typeof last === "string" && last.trim().length > 0 && adjusted.length < MAX_SERVICE_DETAILS) {
         adjusted = [...adjusted, ""];
       } else {
-        while (
-          adjusted.length > 1 &&
-          adjusted[adjusted.length - 1].trim().length === 0 &&
-          adjusted[adjusted.length - 2].trim().length === 0
-        ) {
-          adjusted = adjusted.slice(0, -1);
+        while (adjusted.length > 1) {
+          const tail = adjusted.at(-1);
+          const prev = adjusted.at(-2);
+          if (
+            typeof tail === "string" &&
+            tail.trim().length === 0 &&
+            typeof prev === "string" &&
+            prev.trim().length === 0
+          ) {
+            adjusted = adjusted.slice(0, -1);
+          } else {
+            break;
+          }
         }
       }
 
