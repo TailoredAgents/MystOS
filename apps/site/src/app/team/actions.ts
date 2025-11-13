@@ -130,7 +130,16 @@ export async function scheduleQuoteAction(formData: FormData) {
     }
     jar.set({ name: "myst-flash-error", value: message, path: "/" });
   } else {
-    jar.set({ name: "myst-flash", value: "Job scheduled", path: "/" });
+    let successMessage = "Job scheduled";
+    try {
+      const data = (await response.json()) as { rescheduled?: boolean };
+      if (data?.rescheduled) {
+        successMessage = "Job updated";
+      }
+    } catch {
+      // ignore body parsing
+    }
+    jar.set({ name: "myst-flash", value: successMessage, path: "/" });
   }
 
   revalidatePath("/team");

@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { getDb, appointments, leads, outboxEvents } from "@/db";
+import { getDb, appointments, leads, outboxEvents, quotes } from "@/db";
 import { isAdminRequest } from "../../../web/admin";
 import { deleteCalendarEvent } from "@/lib/calendar";
 
@@ -58,6 +58,13 @@ export async function POST(
       .update(appointments)
       .set({ calendarEventId: null })
       .where(eq(appointments.id, updated.id));
+  }
+
+  if (status === "canceled") {
+    await db
+      .update(quotes)
+      .set({ jobAppointmentId: null })
+      .where(eq(quotes.jobAppointmentId, updated.id));
   }
 
   if (updated.leadId && status === "confirmed") {

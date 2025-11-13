@@ -57,11 +57,12 @@ export async function POST(
   const db = getDb();
   const now = new Date();
 
-  type ScheduleSuccess = {
-    success: true;
-    appointmentId: string;
-    rescheduleToken: string;
-  };
+type ScheduleSuccess = {
+  success: true;
+  appointmentId: string;
+  rescheduleToken: string;
+  rescheduled?: boolean;
+};
 
   type ScheduleError = {
     success: false;
@@ -77,7 +78,8 @@ export async function POST(
           status: quotes.status,
           contactId: quotes.contactId,
           propertyId: quotes.propertyId,
-          services: quotes.services
+          services: quotes.services,
+          jobAppointmentId: quotes.jobAppointmentId
         })
         .from(quotes)
         .where(eq(quotes.id, quoteId))
@@ -108,6 +110,89 @@ export async function POST(
         leadRecord = leadByContact ?? null;
       }
 
+      if (quote.jobAppointmentId) {
+        const [existingAppointment] = await tx
+          .select({
+            id: appointments.id,
+            rescheduleToken: appointments.rescheduleToken
+          })
+          .from(appointments)
+          .where(eq(appointments.id, quote.jobAppointmentId))
+          .limit(1);
+
+        if (!existingAppointment) {
+          await tx
+            .update(quotes)
+            .set({ jobAppointmentId: null })
+            .where(eq(quotes.id, quote.id));
+        } else {
+          await tx
+            .update(appointments)
+            .set({
+              startAt,
+              durationMinutes,
+              travelBufferMinutes,
+              status: "confirmed",
+              updatedAt: now
+            })
+            .where(eq(appointments.id, existingAppointment.id));
+
+          if (body.notes) {
+            await tx.insert(appointmentNotes).values({
+              appointmentId: existingAppointment.id,
+              body: `Schedule updated from quote: ${body.notes}`
+            });
+          }
+
+          if (leadRecord) {
+            await tx
+              .update(leads)
+              .set({ status: "scheduled", quoteId: quote.id, updatedAt: now })
+              .where(eq(leads.id, leadRecord.id));
+          }
+
+          await tx
+            .insert(crmPipeline)
+            .values({
+              contactId: quote.contactId,
+              stage: "won",
+              notes: body.notes ?? null,
+              createdAt: now,
+              updatedAt: now
+            })
+            .onConflictDoUpdate({
+              target: crmPipeline.contactId,
+              set: {
+                stage: "won",
+                notes: body.notes ?? null,
+                updatedAt: now
+              }
+            });
+
+          await tx
+            .update(quotes)
+            .set({ updatedAt: now })
+            .where(eq(quotes.id, quote.id));
+
+          await tx.insert(outboxEvents).values({
+            type: "estimate.rescheduled",
+            payload: {
+              appointmentId: existingAppointment.id,
+              leadId: leadRecord?.id ?? null,
+              services: quote.services,
+              notes: body.notes ?? null
+            }
+          });
+
+          return {
+            success: true,
+            appointmentId: existingAppointment.id,
+            rescheduleToken: existingAppointment.rescheduleToken,
+            rescheduled: true
+          };
+        }
+      }
+
       const [appointment] = await tx
         .insert(appointments)
         .values({
@@ -131,6 +216,11 @@ export async function POST(
       if (!appointment) {
         return { success: false, status: 500, message: "appointment_insert_failed" };
       }
+
+      await tx
+        .update(quotes)
+        .set({ jobAppointmentId: appointment.id, updatedAt: now })
+        .where(eq(quotes.id, quote.id));
 
       const summaryLines = [
         "Scheduled from accepted quote.",
@@ -185,7 +275,8 @@ export async function POST(
       return {
         success: true,
         appointmentId: appointment.id,
-        rescheduleToken: appointment.rescheduleToken
+        rescheduleToken: appointment.rescheduleToken,
+        rescheduled: false
       };
     });
 
@@ -193,10 +284,13 @@ export async function POST(
       return NextResponse.json({ error: result.message }, { status: result.status });
     }
 
+    const wasRescheduled = "rescheduled" in result ? Boolean(result.rescheduled) : false;
+
     return NextResponse.json({
       ok: true,
       appointmentId: result.appointmentId,
-      rescheduleToken: result.rescheduleToken
+      rescheduleToken: result.rescheduleToken,
+      rescheduled: wasRescheduled
     });
   } catch (error) {
     console.error("[quotes.schedule] unexpected_error", { error });

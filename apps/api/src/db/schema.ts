@@ -273,6 +273,7 @@ export const quotes = pgTable(
     expiresAt: timestamp("expires_at", { withTimezone: true }),
     decisionAt: timestamp("decision_at", { withTimezone: true }),
     decisionNotes: text("decision_notes"),
+    jobAppointmentId: uuid("job_appointment_id").references(() => appointments.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()
@@ -282,7 +283,8 @@ export const quotes = pgTable(
   (table) => ({
     contactIdx: index("quotes_contact_idx").on(table.contactId),
     propertyIdx: index("quotes_property_idx").on(table.propertyId),
-    shareTokenIdx: uniqueIndex("quotes_share_token_key").on(table.shareToken)
+    shareTokenIdx: uniqueIndex("quotes_share_token_key").on(table.shareToken),
+    jobAppointmentIdx: index("quotes_job_appointment_idx").on(table.jobAppointmentId)
   })
 );
 
@@ -294,6 +296,10 @@ export const quoteRelations = relations(quotes, ({ one }) => ({
   property: one(properties, {
     fields: [quotes.propertyId],
     references: [properties.id]
+  }),
+  jobAppointment: one(appointments, {
+    fields: [quotes.jobAppointmentId],
+    references: [appointments.id]
   })
 }));
 

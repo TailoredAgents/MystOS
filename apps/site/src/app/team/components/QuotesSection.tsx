@@ -1,7 +1,7 @@
 import React, { type ReactElement } from "react";
 import { QuotesList } from "../QuotesList";
 import { callAdminApi } from "../lib/api";
-import { quoteDecisionAction, scheduleQuoteAction, sendQuoteAction } from "../actions";
+import { quoteDecisionAction, scheduleQuoteAction, sendQuoteAction, updateApptStatus } from "../actions";
 
 interface QuoteDto {
   id: string;
@@ -16,6 +16,7 @@ interface QuoteDto {
   shareToken: string | null;
   contact: { name: string; email: string | null };
   property: { addressLine1: string; city: string; state: string; postalCode: string };
+  appointment: { id: string; status: string; startAt: string | null } | null;
 }
 
 export async function QuotesSection(): Promise<ReactElement> {
@@ -29,6 +30,7 @@ export async function QuotesSection(): Promise<ReactElement> {
       sendAction={sendQuoteAction}
       decisionAction={quoteDecisionAction}
       scheduleAction={scheduleQuoteAction}
+      updateStatusAction={updateApptStatus}
     />
   );
 }

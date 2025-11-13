@@ -8,7 +8,7 @@ import type {
   ManualConcreteSurfaceInput,
   ServiceCategory
 } from "@myst-os/pricing/src/types";
-import { getDb, quotes, contacts, properties } from "@/db";
+import { getDb, quotes, contacts, properties, appointments } from "@/db";
 import { isAdminRequest } from "../web/admin";
 import { eq, desc } from "drizzle-orm";
 
@@ -82,6 +82,9 @@ function formatQuoteResponse(row: {
   propertyCity: string | null;
   propertyState: string | null;
   propertyPostalCode: string | null;
+  jobAppointmentId: string | null;
+  jobAppointmentStatus: string | null;
+  jobAppointmentStartAt: Date | null;
 }) {
   const contactName = row.contactName?.trim();
   const addressLine1 = row.propertyAddressLine1?.trim();
@@ -109,7 +112,15 @@ function formatQuoteResponse(row: {
       city: city ?? "",
       state: state ?? "",
       postalCode: postalCode ?? ""
-    }
+    },
+    appointment:
+      row.jobAppointmentId && row.jobAppointmentStatus
+        ? {
+            id: row.jobAppointmentId,
+            status: row.jobAppointmentStatus,
+            startAt: row.jobAppointmentStartAt ? row.jobAppointmentStartAt.toISOString() : null
+          }
+        : null
   };
 }
 
@@ -143,11 +154,15 @@ export async function GET(request: NextRequest): Promise<Response> {
       propertyAddressLine1: properties.addressLine1,
       propertyCity: properties.city,
       propertyState: properties.state,
-      propertyPostalCode: properties.postalCode
+      propertyPostalCode: properties.postalCode,
+      jobAppointmentId: quotes.jobAppointmentId,
+      jobAppointmentStatus: appointments.status,
+      jobAppointmentStartAt: appointments.startAt
     })
     .from(quotes)
     .leftJoin(contacts, eq(quotes.contactId, contacts.id))
-    .leftJoin(properties, eq(quotes.propertyId, properties.id));
+    .leftJoin(properties, eq(quotes.propertyId, properties.id))
+    .leftJoin(appointments, eq(quotes.jobAppointmentId, appointments.id));
 
   const filteredQuery = statusFilter
     ? baseQuery.where(eq(quotes.status, statusFilter))
