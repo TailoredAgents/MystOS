@@ -5,6 +5,7 @@ import { eq } from "drizzle-orm";
 import { getDb, appointments, leads, outboxEvents, quotes } from "@/db";
 import { isAdminRequest } from "../../../web/admin";
 import { deleteCalendarEvent } from "@/lib/calendar";
+import { ensureJobAppointmentSupport } from "@/lib/ensure-job-appointment-column";
 
 const StatusSchema = z.object({
   status: z.enum(["requested", "confirmed", "completed", "no_show", "canceled"])
@@ -33,6 +34,7 @@ export async function POST(
   }
 
   const db = getDb();
+  await ensureJobAppointmentSupport(db);
   const status = parsed.data.status;
 
   const [updated] = await db

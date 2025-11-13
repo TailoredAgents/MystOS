@@ -11,6 +11,7 @@ import type {
 import { getDb, quotes, contacts, properties, appointments } from "@/db";
 import { isAdminRequest } from "../web/admin";
 import { eq, desc } from "drizzle-orm";
+import { ensureJobAppointmentSupport } from "@/lib/ensure-job-appointment-column";
 
 const STATUS_FILTERS = ["pending", "sent", "accepted", "declined"] as const;
 type QuoteStatusFilter = (typeof STATUS_FILTERS)[number];
@@ -137,6 +138,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     : null;
 
   const db = getDb();
+  await ensureJobAppointmentSupport(db);
   const baseQuery = db
     .select({
       id: quotes.id,

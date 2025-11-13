@@ -17,6 +17,7 @@ import {
   DEFAULT_APPOINTMENT_DURATION_MIN,
   DEFAULT_TRAVEL_BUFFER_MIN
 } from "../../../web/scheduling";
+import { ensureJobAppointmentSupport } from "@/lib/ensure-job-appointment-column";
 
 const ScheduleQuoteSchema = z.object({
   startAt: z.string().min(1),
@@ -56,6 +57,7 @@ export async function POST(
   const travelBufferMinutes = body.travelBufferMinutes ?? DEFAULT_TRAVEL_BUFFER_MIN;
   const db = getDb();
   const now = new Date();
+  await ensureJobAppointmentSupport(db);
 
 type ScheduleSuccess = {
   success: true;
