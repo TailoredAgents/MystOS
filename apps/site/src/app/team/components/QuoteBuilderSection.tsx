@@ -32,7 +32,7 @@ export async function QuoteBuilderSection({ initialContactId }: { initialContact
 
   const serviceOptions: QuoteBuilderServiceOption[] = serviceRates.map((service) => ({
     id: service.service,
-    label: service.label,
+    label: service.service === "driveway" ? "Driveway cleaning" : service.label,
     description: service.description ?? null,
     allowCustomPrice: service.service !== "driveway",
     autoPricingNote:

@@ -132,10 +132,27 @@ export function QuoteBuilderClient({
 
   const canSendEmail = Boolean(selectedContact?.email);
   const serviceLookup = React.useMemo(() => new Map(services.map((service) => [service.id, service])), [services]);
-  const selectableServices = React.useMemo(
-    () => services.filter((service) => service.id !== "driveway"),
-    [services]
-  );
+  const selectableServices = React.useMemo(() => {
+    const driveway = services.find((service) => service.id === "driveway") ?? null;
+    const others = services.filter((service) => service.id !== "driveway");
+    if (!driveway) {
+      return others;
+    }
+
+    const ordered: QuoteBuilderServiceOption[] = [];
+    let inserted = false;
+    for (const option of others) {
+      if (!inserted && option.id === "other") {
+        ordered.push(driveway);
+        inserted = true;
+      }
+      ordered.push(option);
+    }
+    if (!inserted) {
+      ordered.push(driveway);
+    }
+    return ordered;
+  }, [services]);
   const normalizedConcreteSurfaces = React.useMemo(() => {
     return concreteSurfaces
       .map((surface) => {
