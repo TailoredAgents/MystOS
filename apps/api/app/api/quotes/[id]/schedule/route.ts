@@ -57,8 +57,20 @@ export async function POST(
   const db = getDb();
   const now = new Date();
 
+  type ScheduleSuccess = {
+    success: true;
+    appointmentId: string;
+    rescheduleToken: string;
+  };
+
+  type ScheduleError = {
+    success: false;
+    status: number;
+    message: string;
+  };
+
   try {
-    const result = await db.transaction(async (tx) => {
+    const result: ScheduleSuccess | ScheduleError = await db.transaction(async (tx) => {
       const [quote] = await tx
         .select({
           id: quotes.id,
@@ -72,11 +84,11 @@ export async function POST(
         .limit(1);
 
       if (!quote) {
-        return { error: { status: 404, message: "quote_not_found" } };
+        return { success: false, status: 404, message: "quote_not_found" };
       }
 
       if (quote.status !== "accepted") {
-        return { error: { status: 400, message: "quote_not_accepted" } };
+        return { success: false, status: 400, message: "quote_not_accepted" };
       }
 
       const [leadByQuote] = await tx
@@ -117,7 +129,7 @@ export async function POST(
         });
 
       if (!appointment) {
-        return { error: { status: 500, message: "appointment_insert_failed" } };
+        return { success: false, status: 500, message: "appointment_insert_failed" };
       }
 
       const summaryLines = [
@@ -171,13 +183,14 @@ export async function POST(
       });
 
       return {
+        success: true,
         appointmentId: appointment.id,
         rescheduleToken: appointment.rescheduleToken
       };
     });
 
-    if ("error" in result) {
-      return NextResponse.json({ error: result.error.message }, { status: result.error.status });
+    if (!result.success) {
+      return NextResponse.json({ error: result.message }, { status: result.status });
     }
 
     return NextResponse.json({
