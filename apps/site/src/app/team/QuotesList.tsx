@@ -23,14 +23,22 @@ type ServerAction = (formData: FormData) => void;
 export function QuotesList({
   initial,
   sendAction,
-  decisionAction
+  decisionAction,
+  scheduleAction
 }: {
   initial: Quote[];
   sendAction: ServerAction;
   decisionAction: ServerAction;
+  scheduleAction?: ServerAction;
 }) {
   const [q, setQ] = useState("");
   const [status, setStatus] = useState<string>("all");
+  const defaultScheduleStart = useMemo(() => {
+    const dt = new Date();
+    dt.setHours(dt.getHours() + 24);
+    return dt.toISOString().slice(0, 16);
+  }, []);
+  const minScheduleValue = useMemo(() => new Date().toISOString().slice(0, 16), []);
 
   const filtered = useMemo(() => {
     const hay = q.trim().toLowerCase();
@@ -96,6 +104,64 @@ export function QuotesList({
                 <a href={`/quote/${q.shareToken}`} target="_blank" rel="noreferrer" className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700">Open link</a>
               ) : null}
             </div>
+            {scheduleAction && q.status === "accepted" ? (
+              <details className="mt-4 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 text-xs text-neutral-700">
+                <summary className="cursor-pointer text-sm font-semibold text-emerald-800">Schedule job</summary>
+                <form action={scheduleAction} className="mt-3 space-y-3">
+                  <input type="hidden" name="quoteId" value={q.id} />
+                  <label className="flex flex-col gap-1 text-xs text-neutral-600">
+                    <span>Start date & time</span>
+                    <input
+                      type="datetime-local"
+                      name="startAt"
+                      required
+                      defaultValue={defaultScheduleStart}
+                      min={minScheduleValue}
+                      className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                    />
+                  </label>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <label className="flex flex-col gap-1 text-xs text-neutral-600">
+                      <span>Duration (minutes)</span>
+                      <input
+                        type="number"
+                        name="durationMinutes"
+                        min={15}
+                        step={15}
+                        defaultValue={90}
+                        className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-xs text-neutral-600">
+                      <span>Travel buffer (minutes)</span>
+                      <input
+                        type="number"
+                        name="travelBufferMinutes"
+                        min={0}
+                        step={5}
+                        defaultValue={30}
+                        className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                      />
+                    </label>
+                  </div>
+                  <label className="flex flex-col gap-1 text-xs text-neutral-600">
+                    <span>Internal notes (optional)</span>
+                    <textarea
+                      name="notes"
+                      rows={3}
+                      placeholder="Crew instructions or customer preferences"
+                      className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                    />
+                  </label>
+                  <div className="flex items-center justify-between text-[11px] text-neutral-500">
+                    <span>Creates a confirmed appointment and adds it to My Day & Google Calendar.</span>
+                    <SubmitButton className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Scheduling...">
+                      Schedule job
+                    </SubmitButton>
+                  </div>
+                </form>
+              </details>
+            ) : null}
           </article>
         ))
       )}

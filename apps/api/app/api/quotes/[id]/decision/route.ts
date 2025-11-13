@@ -1,7 +1,7 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getDb, quotes, outboxEvents } from "@/db";
+import { getDb, quotes, outboxEvents, crmPipeline } from "@/db";
 import { isAdminRequest } from "../../../web/admin";
 import { eq } from "drizzle-orm";
 
@@ -35,7 +35,8 @@ export async function POST(
   const rows = await db
     .select({
       id: quotes.id,
-      status: quotes.status
+      status: quotes.status,
+      contactId: quotes.contactId
     })
     .from(quotes)
     .where(eq(quotes.id, id))
@@ -56,6 +57,7 @@ export async function POST(
   }
 
   const decisionAt = new Date();
+  const targetStage = parsedBody.data.decision === "accepted" ? "won" : "lost";
   const [updated] = await db
     .update(quotes)
     .set({
@@ -73,6 +75,26 @@ export async function POST(
     });
   if (!updated) {
     return NextResponse.json({ error: "update_failed" }, { status: 500 });
+  }
+
+  if (existing.contactId) {
+    await db
+      .insert(crmPipeline)
+      .values({
+        contactId: existing.contactId,
+        stage: targetStage,
+        notes: parsedBody.data.notes ?? null,
+        createdAt: decisionAt,
+        updatedAt: decisionAt
+      })
+      .onConflictDoUpdate({
+        target: crmPipeline.contactId,
+        set: {
+          stage: targetStage,
+          notes: parsedBody.data.notes ?? null,
+          updatedAt: decisionAt
+        }
+      });
   }
 
   await db.insert(outboxEvents).values({

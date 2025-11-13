@@ -60,6 +60,82 @@ export async function quoteDecisionAction(formData: FormData) {
   revalidatePath("/team");
 }
 
+export async function scheduleQuoteAction(formData: FormData) {
+  const jar = await cookies();
+  const quoteId = formData.get("quoteId");
+  const startAt = formData.get("startAt");
+  const duration = formData.get("durationMinutes");
+  const travel = formData.get("travelBufferMinutes");
+  const notes = formData.get("notes");
+
+  if (typeof quoteId !== "string" || quoteId.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Missing quote", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  if (typeof startAt !== "string" || startAt.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Start time required", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const durationMinutes =
+    typeof duration === "string" && duration.trim().length > 0 ? Number(duration) : null;
+  const travelBufferMinutes =
+    typeof travel === "string" && travel.trim().length > 0 ? Number(travel) : null;
+
+  if (durationMinutes !== null && (!Number.isFinite(durationMinutes) || durationMinutes <= 0)) {
+    jar.set({ name: "myst-flash-error", value: "Duration must be positive", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  if (
+    travelBufferMinutes !== null &&
+    (!Number.isFinite(travelBufferMinutes) || travelBufferMinutes < 0)
+  ) {
+    jar.set({ name: "myst-flash-error", value: "Travel buffer must be zero or greater", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const payload: Record<string, unknown> = {
+    startAt: startAt.trim()
+  };
+  if (durationMinutes !== null) {
+    payload["durationMinutes"] = durationMinutes;
+  }
+  if (travelBufferMinutes !== null) {
+    payload["travelBufferMinutes"] = travelBufferMinutes;
+  }
+  if (typeof notes === "string" && notes.trim().length > 0) {
+    payload["notes"] = notes.trim();
+  }
+
+  const response = await callAdminApi(`/api/quotes/${quoteId}/schedule`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    let message = "Unable to schedule job";
+    try {
+      const data = (await response.json()) as { error?: string };
+      if (data.error) {
+        message = data.error.replace(/_/g, " ");
+      }
+    } catch {
+      // ignore
+    }
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+  } else {
+    jar.set({ name: "myst-flash", value: "Job scheduled", path: "/" });
+  }
+
+  revalidatePath("/team");
+}
+
 export async function attachPaymentAction(formData: FormData) {
   const id = formData.get("paymentId");
   const appt = formData.get("appointmentId");
