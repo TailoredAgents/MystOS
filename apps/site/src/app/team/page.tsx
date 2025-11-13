@@ -7,6 +7,7 @@ import {
   logoutOwner
 } from "./actions";
 import { MyDaySection } from "./components/MyDaySection";
+import { MyDayAutoRefresh } from "./components/MyDayAutoRefresh";
 import { EstimatesSection } from "./components/EstimatesSection";
 import { QuotesSection } from "./components/QuotesSection";
 import { PaymentsSection } from "./components/PaymentsSection";
@@ -32,7 +33,7 @@ export default async function TeamPage({
   const hasOwner = cookieStore.get(ADMIN_COOKIE)?.value ? true : false;
   const hasCrew = cookieStore.get(CREW_COOKIE)?.value ? true : false;
 
-  const tab = params?.tab || (hasCrew && !hasOwner ? "myday" : "estimates");
+  const tab = params?.tab || (hasCrew || hasOwner ? "myday" : "estimates");
   const contactsQuery = typeof params?.q === "string" ? params.q : undefined;
   let contactsOffset: number | undefined;
   if (typeof params?.offset === "string") {
@@ -46,7 +47,7 @@ export default async function TeamPage({
   const flash = cookieStore.get("myst-flash")?.value ?? null;
   const flashError = cookieStore.get("myst-flash-error")?.value ?? null;
   const tabs: TabNavItem[] = [
-    { id: "myday", label: "My Day", href: "/team?tab=myday", requires: "crew" },
+    { id: "myday", label: "My Day", href: "/team?tab=myday" },
     { id: "estimates", label: "Estimates", href: "/team?tab=estimates", requires: "owner" },
     { id: "quotes", label: "Quotes", href: "/team?tab=quotes", requires: "owner" },
     { id: "quote-builder", label: "Quote Builder", href: "/team?tab=quote-builder", requires: "crew" },
@@ -150,7 +151,9 @@ export default async function TeamPage({
               </div>
             }
           >
-            <MyDaySection />
+            <MyDayAutoRefresh>
+              <MyDaySection />
+            </MyDayAutoRefresh>
           </React.Suspense>
         ) : null}
 
