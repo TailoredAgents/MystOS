@@ -191,22 +191,30 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   const selectedServices = body.selectedServices as ServiceCategory[];
+  const concreteSurfaces = (body.concreteSurfaces ?? []) as ConcreteSurfaceInput[];
+  const hasConcreteSurfaces = concreteSurfaces.length > 0;
   const sanitizedOverrides: Partial<Record<ServiceCategory, number>> = {};
   if (body.serviceOverrides) {
     for (const [serviceId, amount] of Object.entries(body.serviceOverrides)) {
       if (
-        SERVICE_ID_SET.has(serviceId as ServiceCategory) &&
-        serviceId !== "driveway" &&
-        selectedServices.includes(serviceId as ServiceCategory) &&
-        typeof amount === "number" &&
-        amount > 0
+        !SERVICE_ID_SET.has(serviceId as ServiceCategory) ||
+        typeof amount !== "number" ||
+        amount <= 0 ||
+        !selectedServices.includes(serviceId as ServiceCategory)
       ) {
-        sanitizedOverrides[serviceId as ServiceCategory] = amount;
+        continue;
       }
+
+      if (serviceId === "driveway") {
+        if (!hasConcreteSurfaces) {
+          sanitizedOverrides[serviceId as ServiceCategory] = amount;
+        }
+        continue;
+      }
+
+      sanitizedOverrides[serviceId as ServiceCategory] = amount;
     }
   }
-
-  const concreteSurfaces = (body.concreteSurfaces ?? []) as ConcreteSurfaceInput[];
 
   const breakdown = calculateQuoteBreakdown({
     zoneId: body.zoneId,

@@ -129,12 +129,24 @@ export function calculateQuoteBreakdown(
       return sum;
     }
 
-    if (serviceId === "driveway" && concreteLineItems.length > 0) {
-      lineItems.push(...concreteLineItems);
-      return sum + concreteTotal;
+    const overrideAmount = overrides[serviceId];
+
+    if (serviceId === "driveway") {
+      if (concreteLineItems.length > 0) {
+        lineItems.push(...concreteLineItems);
+        return sum + concreteTotal;
+      }
+      if (typeof overrideAmount === "number") {
+        lineItems.push({
+          id: `service-${serviceId}`,
+          label: rate.label,
+          amount: overrideAmount,
+          category: "service"
+        });
+        return sum + overrideAmount;
+      }
     }
 
-    const overrideAmount = overrides[serviceId];
     const amount =
       typeof overrideAmount === "number" && serviceId !== "driveway"
         ? overrideAmount
