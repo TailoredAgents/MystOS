@@ -84,6 +84,11 @@ export interface ConcreteSurfaceInput {
   squareFeet: number;
 }
 
+export interface ManualConcreteSurfaceInput {
+  kind: ConcreteSurfaceKind;
+  amount: number;
+}
+
 export type LineItemCategory =
   | "service"
   | "add-on"
@@ -103,6 +108,7 @@ export interface QuoteRequestInput {
   depositRate?: number;
   serviceOverrides?: Partial<Record<ServiceCategory, number>>;
   concreteSurfaces?: ConcreteSurfaceInput[];
+  manualConcreteSurfaces?: ManualConcreteSurfaceInput[];
 }
 
 export interface LineItem {
@@ -110,6 +116,7 @@ export interface LineItem {
   label: string;
   amount: number;
   category?: LineItemCategory;
+  details?: string[];
 }
 
 export interface QuoteBreakdown {

@@ -14,6 +14,7 @@ interface LineItem {
   label: string;
   amount: number;
   category?: string | null;
+  details?: string[] | null;
 }
 
 interface PublicQuoteResponse {
@@ -224,6 +225,13 @@ export default async function PublicQuotePage({
                     <div className="font-medium text-primary-900">{item.label}</div>
                     {item.category ? (
                       <div className="text-xs uppercase tracking-[0.12em] text-neutral-500">{item.category}</div>
+                    ) : null}
+                    {item.details && item.details.length > 0 ? (
+                      <ul className="mt-2 list-disc space-y-1 pl-5 text-xs text-neutral-600">
+                        {item.details.map((detail, index) => (
+                          <li key={`${item.id}-detail-${index}`}>{detail}</li>
+                        ))}
+                      </ul>
                     ) : null}
                   </td>
                   <td className="whitespace-nowrap px-4 py-3 text-right font-medium">

@@ -27,6 +27,15 @@ const quoteInputSchema = z.object({
       })
     )
     .max(3)
+    .optional(),
+  manualConcreteSurfaces: z
+    .array(
+      z.object({
+        kind: z.enum(["driveway", "deck", "other"]),
+        amount: z.number().positive()
+      })
+    )
+    .max(3)
     .optional()
 });
 
@@ -87,13 +96,18 @@ export function calculateQuoteBreakdown(
     discountValue,
     depositRate,
     serviceOverrides,
-    concreteSurfaces
+    concreteSurfaces,
+    manualConcreteSurfaces
   } = parsed.data;
   const zone = resolveZone(zoneId);
   const overrides = (serviceOverrides ?? {}) as Record<string, number>;
   const normalizedConcreteSurfaces = (concreteSurfaces ?? []).map((surface) => ({
     kind: surface.kind as ConcreteSurfaceKind,
     squareFeet: surface.squareFeet
+  }));
+  const normalizedManualConcreteSurfaces = (manualConcreteSurfaces ?? []).map((surface) => ({
+    kind: surface.kind as ConcreteSurfaceKind,
+    amount: surface.amount
   }));
 
   const concreteLineItems: QuoteBreakdown["lineItems"] = [];
@@ -120,6 +134,31 @@ export function calculateQuoteBreakdown(
     overrides["driveway"] = Math.round(concreteTotal * 100) / 100;
   }
 
+  const manualConcreteLineItems: QuoteBreakdown["lineItems"] = [];
+  let manualConcreteTotal = 0;
+
+  if (normalizedManualConcreteSurfaces.length > 0) {
+    normalizedManualConcreteSurfaces.forEach((surface, index) => {
+      const labelBase =
+        surface.kind === "driveway"
+          ? "Driveway"
+          : surface.kind === "deck"
+            ? "Deck/Patio"
+            : "Concrete Surface";
+      manualConcreteTotal += surface.amount;
+      manualConcreteLineItems.push({
+        id: `manual-concrete-${index}`,
+        label: `${labelBase} (manual ${index + 1})`,
+        amount: surface.amount,
+        category: "service"
+      });
+    });
+
+    if (normalizedConcreteSurfaces.length === 0) {
+      overrides["driveway"] = Math.round(manualConcreteTotal * 100) / 100;
+    }
+  }
+
   const lineItems: QuoteBreakdown["lineItems"] = [];
 
   const servicesSubtotal = selectedServices.reduce((sum, serviceId) => {
@@ -135,6 +174,10 @@ export function calculateQuoteBreakdown(
       if (concreteLineItems.length > 0) {
         lineItems.push(...concreteLineItems);
         return sum + concreteTotal;
+      }
+      if (manualConcreteLineItems.length > 0) {
+        lineItems.push(...manualConcreteLineItems);
+        return sum + manualConcreteTotal;
       }
       if (typeof overrideAmount === "number") {
         lineItems.push({

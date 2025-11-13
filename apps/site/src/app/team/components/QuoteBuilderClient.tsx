@@ -33,6 +33,7 @@ export type QuoteBuilderZoneOption = {
 };
 
 const MAX_CONCRETE_SURFACES = 3;
+const MAX_SERVICE_DETAILS = 5;
 const CONCRETE_RATE = 0.14;
 const concreteSurfaceOptions: Array<{ value: ConcreteSurfaceKind; label: string }> = [
   { value: "driveway", label: "Driveway" },
@@ -44,6 +45,12 @@ type ConcreteSurfaceFormEntry = {
   id: string;
   kind: ConcreteSurfaceKind;
   squareFeet: string;
+};
+
+type ManualConcreteSurfaceEntry = {
+  id: string;
+  kind: ConcreteSurfaceKind;
+  amount: string;
 };
 
 interface QuoteBuilderClientProps {
@@ -95,7 +102,42 @@ export function QuoteBuilderClient({
   const [discountType, setDiscountType] = React.useState<"none" | "percent" | "amount">("none");
   const [discountValue, setDiscountValue] = React.useState<string>("");
   const [drivewayPricingMode, setDrivewayPricingMode] = React.useState<"sqft" | "manual">("sqft");
-  const [manualDrivewayPrice, setManualDrivewayPrice] = React.useState<string>("");
+  const [manualConcreteSurfaces, setManualConcreteSurfaces] = React.useState<ManualConcreteSurfaceEntry[]>([]);
+  const [serviceDetails, setServiceDetails] = React.useState<Record<string, string[]>>({});
+
+  React.useEffect(() => {
+    setServiceDetails((prev) => {
+      const next: Record<string, string[]> = {};
+      let changed = false;
+
+      for (const serviceId of selectedServices) {
+        const existing = prev[serviceId];
+        if (existing && existing.length > 0) {
+          next[serviceId] = existing;
+        } else {
+          next[serviceId] = [""];
+          changed = true;
+        }
+      }
+
+      if (!changed) {
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(next);
+        if (prevKeys.length !== nextKeys.length) {
+          changed = true;
+        } else {
+          for (const key of prevKeys) {
+            if (prev[key] !== next[key]) {
+              changed = true;
+              break;
+            }
+          }
+        }
+      }
+
+      return changed ? next : prev;
+    });
+  }, [selectedServices]);
 
   const createConcreteSurfaceEntry = React.useCallback((): ConcreteSurfaceFormEntry => {
     return {
@@ -105,6 +147,20 @@ export function QuoteBuilderClient({
     };
   }, []);
 
+  const createManualConcreteSurfaceEntry = React.useCallback((): ManualConcreteSurfaceEntry => {
+    return {
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      kind: "driveway",
+      amount: ""
+    };
+  }, []);
+
+  React.useEffect(() => {
+    if (drivewayPricingMode === "manual" && manualConcreteSurfaces.length === 0) {
+      setManualConcreteSurfaces([createManualConcreteSurfaceEntry()]);
+    }
+  }, [createManualConcreteSurfaceEntry, drivewayPricingMode, manualConcreteSurfaces.length]);
+
   const addConcreteSurface = React.useCallback(() => {
     setConcreteSurfaces((prev) => {
       if (prev.length >= MAX_CONCRETE_SURFACES) {
@@ -113,6 +169,15 @@ export function QuoteBuilderClient({
       return [...prev, createConcreteSurfaceEntry()];
     });
   }, [createConcreteSurfaceEntry]);
+
+  const addManualConcreteSurface = React.useCallback(() => {
+    setManualConcreteSurfaces((prev) => {
+      if (prev.length >= MAX_CONCRETE_SURFACES) {
+        return prev;
+      }
+      return [...prev, createManualConcreteSurfaceEntry()];
+    });
+  }, [createManualConcreteSurfaceEntry]);
 
   const updateConcreteSurface = React.useCallback(
     (id: string, updates: Partial<ConcreteSurfaceFormEntry>) => {
@@ -125,6 +190,19 @@ export function QuoteBuilderClient({
 
   const removeConcreteSurface = React.useCallback((id: string) => {
     setConcreteSurfaces((prev) => prev.filter((surface) => surface.id !== id));
+  }, []);
+
+  const updateManualConcreteSurface = React.useCallback(
+    (id: string, updates: Partial<ManualConcreteSurfaceEntry>) => {
+      setManualConcreteSurfaces((prev) =>
+        prev.map((surface) => (surface.id === id ? { ...surface, ...updates } : surface))
+      );
+    },
+    []
+  );
+
+  const removeManualConcreteSurface = React.useCallback((id: string) => {
+    setManualConcreteSurfaces((prev) => prev.filter((surface) => surface.id !== id));
   }, []);
 
   const selectedContact = React.useMemo(
@@ -182,29 +260,72 @@ export function QuoteBuilderClient({
           ),
     [drivewayPricingMode, normalizedConcreteSurfaces]
   );
-  const manualDrivewayAmount = React.useMemo(() => {
+  const normalizedManualConcreteSurfaces = React.useMemo(() => {
     if (drivewayPricingMode !== "manual") {
-      return null;
+      return [];
     }
-    const trimmed = manualDrivewayPrice.trim();
-    if (trimmed.length === 0) {
-      return null;
+    return manualConcreteSurfaces
+      .map((surface) => {
+        const trimmed = surface.amount.trim();
+        if (trimmed.length === 0) {
+          return null;
+        }
+        const value = Number(trimmed);
+        if (!Number.isFinite(value) || value <= 0) {
+          return null;
+        }
+        return {
+          kind: surface.kind,
+          amount: Math.round(value * 100) / 100
+        };
+      })
+      .filter((entry): entry is { kind: ConcreteSurfaceKind; amount: number } => entry !== null);
+  }, [drivewayPricingMode, manualConcreteSurfaces]);
+  const manualConcreteTotal = React.useMemo(
+    () => normalizedManualConcreteSurfaces.reduce((sum, surface) => sum + surface.amount, 0),
+    [normalizedManualConcreteSurfaces]
+  );
+  const manualConcreteValid =
+    drivewayPricingMode !== "manual" ||
+    (manualConcreteSurfaces.length > 0 &&
+      normalizedManualConcreteSurfaces.length === manualConcreteSurfaces.length);
+  const serializedManualConcreteSurfaces = React.useMemo(
+    () =>
+      drivewayPricingMode !== "manual"
+        ? "[]"
+        : JSON.stringify(
+            normalizedManualConcreteSurfaces.map(({ kind, amount }) => ({
+              kind,
+              amount
+            }))
+          ),
+    [drivewayPricingMode, normalizedManualConcreteSurfaces]
+  );
+  const canAddManualConcreteSurface =
+    drivewayPricingMode === "manual" && manualConcreteSurfaces.length < MAX_CONCRETE_SURFACES;
+  const normalizedServiceDetails = React.useMemo(() => {
+    const result: Record<string, string[]> = {};
+    for (const serviceId of selectedServices) {
+      const entries = serviceDetails[serviceId] ?? [];
+      const cleaned = entries
+        .map((entry) => entry.trim())
+        .filter((entry) => entry.length > 0)
+        .slice(0, MAX_SERVICE_DETAILS);
+      if (cleaned.length) {
+        result[serviceId] = cleaned;
+      }
     }
-    const value = Number(trimmed);
-    if (!Number.isFinite(value) || value <= 0) {
-      return null;
-    }
-    return Math.round(value * 100) / 100;
-  }, [drivewayPricingMode, manualDrivewayPrice]);
-  const manualDrivewayError =
-    drivewayPricingMode === "manual" &&
-    manualDrivewayPrice.trim().length > 0 &&
-    manualDrivewayAmount === null;
+    return result;
+  }, [selectedServices, serviceDetails]);
+  const serializedServiceDetails = React.useMemo(
+    () => JSON.stringify(normalizedServiceDetails),
+    [normalizedServiceDetails]
+  );
 
   React.useEffect(() => {
     const shouldIncludeDriveway =
       (drivewayPricingMode === "sqft" && normalizedConcreteSurfaces.length > 0) ||
-      (drivewayPricingMode === "manual" && manualDrivewayAmount !== null);
+      (drivewayPricingMode === "manual" && normalizedManualConcreteSurfaces.length > 0);
 
     setSelectedServices((prev) => {
       const hasDriveway = prev.includes("driveway");
@@ -216,10 +337,10 @@ export function QuoteBuilderClient({
       }
       return prev;
     });
-  }, [drivewayPricingMode, normalizedConcreteSurfaces.length, manualDrivewayAmount]);
+  }, [drivewayPricingMode, normalizedConcreteSurfaces.length, normalizedManualConcreteSurfaces.length]);
 
   React.useEffect(() => {
-    if (drivewayPricingMode !== "sqft" || normalizedConcreteSurfaces.length !== 0) {
+    if (drivewayPricingMode === "sqft" && normalizedConcreteSurfaces.length > 0) {
       return;
     }
     setServicePrices((prev) => {
@@ -245,15 +366,16 @@ export function QuoteBuilderClient({
         overrides[serviceId] = value;
       }
     }
-    if (drivewayPricingMode === "manual" && manualDrivewayAmount !== null) {
-      overrides["driveway"] = manualDrivewayAmount;
+    if (drivewayPricingMode === "manual" && normalizedManualConcreteSurfaces.length > 0) {
+      overrides["driveway"] = manualConcreteTotal;
     } else if (normalizedConcreteSurfaces.length > 0) {
       overrides["driveway"] = roundedConcreteTotal;
     }
     return overrides;
   }, [
     drivewayPricingMode,
-    manualDrivewayAmount,
+    manualConcreteTotal,
+    normalizedManualConcreteSurfaces.length,
     normalizedConcreteSurfaces.length,
     roundedConcreteTotal,
     selectedServices,
@@ -337,8 +459,38 @@ export function QuoteBuilderClient({
     [setServicePrices]
   );
 
+  const handleServiceDetailChange = React.useCallback((serviceId: string, index: number, value: string) => {
+    setServiceDetails((prev) => {
+      const current = prev[serviceId] ?? [""];
+      const next = [...current];
+      if (index >= next.length) {
+        next[index] = "";
+      }
+      next[index] = value;
+
+      let adjusted = next.slice(0, MAX_SERVICE_DETAILS);
+      const last = adjusted[adjusted.length - 1];
+      if (last && last.trim().length > 0 && adjusted.length < MAX_SERVICE_DETAILS) {
+        adjusted = [...adjusted, ""];
+      } else {
+        while (
+          adjusted.length > 1 &&
+          adjusted[adjusted.length - 1].trim().length === 0 &&
+          adjusted[adjusted.length - 2].trim().length === 0
+        ) {
+          adjusted = adjusted.slice(0, -1);
+        }
+      }
+
+      return {
+        ...prev,
+        [serviceId]: adjusted
+      };
+    });
+  }, []);
+
   const drivewayPricingReady =
-    drivewayPricingMode === "manual" ? manualDrivewayAmount !== null : concreteValid;
+    drivewayPricingMode === "manual" ? manualConcreteValid : concreteValid;
   const canSubmit =
     selectedContact !== null &&
     propertyId.length > 0 &&
@@ -376,7 +528,9 @@ export function QuoteBuilderClient({
         <form action={createQuoteAction} className="mt-5 space-y-6">
           <input type="hidden" name="services" value={JSON.stringify(selectedServices)} />
           <input type="hidden" name="serviceOverrides" value={serializedOverrides} />
+          <input type="hidden" name="serviceDetails" value={serializedServiceDetails} />
           <input type="hidden" name="concreteSurfaces" value={serializedConcreteSurfaces} />
+          <input type="hidden" name="manualConcreteSurfaces" value={serializedManualConcreteSurfaces} />
           <input type="hidden" name="zoneId" value={zoneId} />
           <input type="hidden" name="discountType" value={discountType === "none" ? "" : discountType} />
           <input type="hidden" name="discountValue" value={discountType === "none" ? "" : discountValue} />
@@ -442,14 +596,25 @@ export function QuoteBuilderClient({
                   Automatically priced at ${CONCRETE_RATE.toFixed(2)} per sq ft. Add up to three areas.
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={addConcreteSurface}
-                disabled={!canAddConcreteSurface}
-                className="inline-flex items-center justify-center rounded-full border border-primary-200 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:border-primary-300 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Add surface
-              </button>
+              {drivewayPricingMode === "sqft" ? (
+                <button
+                  type="button"
+                  onClick={addConcreteSurface}
+                  disabled={!canAddConcreteSurface}
+                  className="inline-flex items-center justify-center rounded-full border border-primary-200 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:border-primary-300 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Add surface
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={addManualConcreteSurface}
+                  disabled={!canAddManualConcreteSurface}
+                  className="inline-flex items-center justify-center rounded-full border border-primary-200 px-3 py-1 text-xs font-semibold text-primary-600 transition hover:border-primary-300 hover:text-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Add manual line
+                </button>
+              )}
             </div>
             <div className="flex flex-wrap gap-3 text-xs text-slate-600">
               <label className="inline-flex items-center gap-2">
@@ -476,24 +641,70 @@ export function QuoteBuilderClient({
               </label>
             </div>
             {drivewayPricingMode === "manual" ? (
-              <div className="space-y-2 rounded-xl border border-slate-200 bg-white/85 p-3">
-                <label className="flex flex-col gap-1 text-xs text-slate-600">
-                  <span className="font-medium text-slate-700">Custom price (total)</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={manualDrivewayPrice}
-                    onChange={(event) => setManualDrivewayPrice(event.target.value)}
-                    placeholder="Enter total price"
-                    className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
-                  />
-                </label>
-                <p className="text-[11px] text-slate-500">Select this service to enter a price.</p>
-                {manualDrivewayError ? (
-                  <p className="text-[11px] text-rose-500">Enter a positive amount.</p>
+              <>
+                {manualConcreteSurfaces.length === 0 ? (
+                  <p className="text-xs text-slate-500">No manual surfaces added.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {manualConcreteSurfaces.map((surface, index) => (
+                      <div
+                        key={surface.id}
+                        className="grid gap-3 rounded-xl border border-slate-200 bg-white/90 p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end"
+                      >
+                        <label className="flex flex-col gap-1 text-xs text-slate-600">
+                          <span>Surface type {index + 1}</span>
+                          <select
+                            value={surface.kind}
+                            onChange={(event) =>
+                              updateManualConcreteSurface(surface.id, {
+                                kind: event.target.value as ConcreteSurfaceKind
+                              })
+                            }
+                            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                          >
+                            {concreteSurfaceOptions.map((option) => (
+                              <option key={option.value} value={option.value}>
+                                {option.label}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs text-slate-600">
+                          <span>Custom price (total)</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={surface.amount}
+                            onChange={(event) =>
+                              updateManualConcreteSurface(surface.id, {
+                                amount: event.target.value
+                              })
+                            }
+                            placeholder="Enter total price"
+                            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => removeManualConcreteSurface(surface.id)}
+                          className="inline-flex items-center justify-center rounded-lg border border-rose-200 px-3 py-2 text-xs font-semibold text-rose-600 transition hover:bg-rose-50"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {normalizedManualConcreteSurfaces.length > 0 ? (
+                  <p className="text-xs font-medium text-slate-600">
+                    Manual driveway total: ${manualConcreteTotal.toFixed(2)}
+                  </p>
                 ) : null}
-              </div>
+                {drivewayPricingMode === "manual" && !manualConcreteValid ? (
+                  <p className="text-xs text-rose-500">Enter a positive amount for each surface.</p>
+                ) : null}
+              </>
             ) : (
               <>
                 {concreteSurfaces.length === 0 ? (
@@ -578,6 +789,7 @@ export function QuoteBuilderClient({
                   requiresCustomPrice &&
                   checked &&
                   (trimmedPrice.length === 0 || !Number.isFinite(numericPrice) || numericPrice <= 0);
+                const detailEntries = serviceDetails[service.id] ?? [""];
                 return (
                   <div
                     key={service.id}
@@ -598,6 +810,27 @@ export function QuoteBuilderClient({
                         ) : null}
                       </div>
                     </label>
+                    {checked ? (
+                      <div className="mt-3 space-y-2 rounded-xl border border-slate-200 bg-white/70 p-3">
+                        <span className="text-xs font-semibold text-slate-700">Job specifics (optional)</span>
+                        {detailEntries.map((detail, index) => (
+                          <input
+                            key={`${service.id}-detail-${index}`}
+                            type="text"
+                            value={detail}
+                            onChange={(event) => handleServiceDetailChange(service.id, index, event.target.value)}
+                            placeholder={
+                              index === 0 ? "e.g., Rust removal on front steps" : "Additional detail"
+                            }
+                            maxLength={240}
+                            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                          />
+                        ))}
+                        <p className="text-[11px] text-slate-500">
+                          These appear beneath {service.label} on the customer quote.
+                        </p>
+                      </div>
+                    ) : null}
                     {requiresCustomPrice ? (
                       <div className="mt-3 space-y-1 pl-8">
                         <label className="flex flex-col gap-1 text-xs text-slate-600">

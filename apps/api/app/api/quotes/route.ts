@@ -3,7 +3,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { calculateQuoteBreakdown } from "@myst-os/pricing/src/engine/calculate";
 import { serviceRates } from "@myst-os/pricing/src/config/defaults";
-import type { ConcreteSurfaceInput, ServiceCategory } from "@myst-os/pricing/src/types";
+import type {
+  ConcreteSurfaceInput,
+  ManualConcreteSurfaceInput,
+  ServiceCategory
+} from "@myst-os/pricing/src/types";
 import { getDb, quotes, contacts, properties } from "@/db";
 import { isAdminRequest } from "../web/admin";
 import { eq, desc } from "drizzle-orm";
@@ -42,6 +46,18 @@ const CreateQuoteSchema = z.object({
       })
     )
     .max(3)
+    .optional(),
+  manualConcreteSurfaces: z
+    .array(
+      z.object({
+        kind: z.enum(["driveway", "deck", "other"]),
+        amount: z.number().positive()
+      })
+    )
+    .max(3)
+    .optional(),
+  serviceDetails: z
+    .record(z.string(), z.array(z.string().min(1).max(240)).max(5))
     .optional()
 });
 
@@ -192,7 +208,28 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const selectedServices = body.selectedServices as ServiceCategory[];
   const concreteSurfaces = (body.concreteSurfaces ?? []) as ConcreteSurfaceInput[];
+  const manualConcreteSurfaces = (body.manualConcreteSurfaces ?? []) as ManualConcreteSurfaceInput[];
   const hasConcreteSurfaces = concreteSurfaces.length > 0;
+  const hasManualConcreteSurfaces = manualConcreteSurfaces.length > 0;
+  const normalizedServiceDetails: Partial<Record<ServiceCategory, string[]>> = {};
+  if (body.serviceDetails) {
+    for (const [serviceId, details] of Object.entries(body.serviceDetails)) {
+      if (
+        !SERVICE_ID_SET.has(serviceId as ServiceCategory) ||
+        !selectedServices.includes(serviceId as ServiceCategory)
+      ) {
+        continue;
+      }
+
+      const cleaned = details
+        .map((detail) => detail.trim())
+        .filter((detail) => detail.length > 0)
+        .slice(0, 5);
+      if (cleaned.length) {
+        normalizedServiceDetails[serviceId as ServiceCategory] = cleaned;
+      }
+    }
+  }
   const sanitizedOverrides: Partial<Record<ServiceCategory, number>> = {};
   if (body.serviceOverrides) {
     for (const [serviceId, amount] of Object.entries(body.serviceOverrides)) {
@@ -206,7 +243,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       }
 
       if (serviceId === "driveway") {
-        if (!hasConcreteSurfaces) {
+        if (!hasConcreteSurfaces && hasManualConcreteSurfaces) {
           sanitizedOverrides[serviceId as ServiceCategory] = amount;
         }
         continue;
@@ -225,8 +262,24 @@ export async function POST(request: NextRequest): Promise<Response> {
     discountValue: body.discountValue,
     depositRate: body.depositRate,
     serviceOverrides: sanitizedOverrides,
-    concreteSurfaces
+    concreteSurfaces,
+    manualConcreteSurfaces
   });
+  const lineItemsWithDetails = breakdown.lineItems.map((item) => {
+    if (typeof item.id !== "string" || !item.id.startsWith("service-")) {
+      return item;
+    }
+    const serviceId = item.id.slice("service-".length) as ServiceCategory;
+    const details = normalizedServiceDetails[serviceId];
+    if (details && details.length) {
+      return { ...item, details };
+    }
+    return item;
+  });
+  const enrichedBreakdown = {
+    ...breakdown,
+    lineItems: lineItemsWithDetails
+  };
 
   const expiresAt = body.expiresInDays
     ? new Date(Date.now() + body.expiresInDays * 24 * 60 * 60 * 1000)
@@ -240,15 +293,15 @@ export async function POST(request: NextRequest): Promise<Response> {
     addOns: body.selectedAddOns ?? null,
     surfaceArea: toOptionalPgNumeric(body.surfaceArea),
     zoneId: body.zoneId,
-    travelFee: toPgNumeric(breakdown.travelFee),
-    discounts: toPgNumeric(breakdown.discounts),
-    addOnsTotal: toPgNumeric(breakdown.addOnsTotal),
-    subtotal: toPgNumeric(breakdown.subtotal),
-    total: toPgNumeric(breakdown.total),
-    depositDue: toPgNumeric(breakdown.depositDue),
-    depositRate: toPgNumeric(breakdown.depositRate),
-    balanceDue: toPgNumeric(breakdown.balanceDue),
-    lineItems: breakdown.lineItems,
+    travelFee: toPgNumeric(enrichedBreakdown.travelFee),
+    discounts: toPgNumeric(enrichedBreakdown.discounts),
+    addOnsTotal: toPgNumeric(enrichedBreakdown.addOnsTotal),
+    subtotal: toPgNumeric(enrichedBreakdown.subtotal),
+    total: toPgNumeric(enrichedBreakdown.total),
+    depositDue: toPgNumeric(enrichedBreakdown.depositDue),
+    depositRate: toPgNumeric(enrichedBreakdown.depositRate),
+    balanceDue: toPgNumeric(enrichedBreakdown.balanceDue),
+    lineItems: enrichedBreakdown.lineItems,
     notes: body.notes ?? null,
     expiresAt
   };
@@ -268,7 +321,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       sentAt: inserted.sentAt ? inserted.sentAt.toISOString() : null,
       expiresAt: inserted.expiresAt ? inserted.expiresAt.toISOString() : null
     },
-    breakdown
+    breakdown: enrichedBreakdown
   });
 }
 

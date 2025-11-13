@@ -144,6 +144,8 @@ export async function createQuoteAction(formData: FormData) {
   const discountValue = formData.get("discountValue");
   const notes = formData.get("notes");
   const concreteSurfacesRaw = formData.get("concreteSurfaces");
+  const manualConcreteSurfacesRaw = formData.get("manualConcreteSurfaces");
+  const serviceDetailsRaw = formData.get("serviceDetails");
   const serviceOverridesRaw = formData.get("serviceOverrides");
 
   if (typeof contactId !== "string" || typeof propertyId !== "string" || typeof zoneId !== "string") {
@@ -237,6 +239,7 @@ export async function createQuoteAction(formData: FormData) {
 
   const allowedConcreteKinds = new Set(["driveway", "deck", "other"]);
   const concreteSurfaces: Array<{ kind: string; squareFeet: number }> = [];
+  const manualConcreteSurfaces: Array<{ kind: string; amount: number }> = [];
 
   if (typeof concreteSurfacesRaw === "string" && concreteSurfacesRaw.trim().length > 0) {
     try {
@@ -270,6 +273,53 @@ export async function createQuoteAction(formData: FormData) {
 
   if (concreteSurfaces.length > 0) {
     payload["concreteSurfaces"] = concreteSurfaces.slice(0, 3);
+  }
+
+  if (typeof manualConcreteSurfacesRaw === "string" && manualConcreteSurfacesRaw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(manualConcreteSurfacesRaw) as Array<{ kind?: string; amount?: number }>;
+      if (Array.isArray(parsed)) {
+        for (const entry of parsed) {
+          if (!entry || typeof entry.kind !== "string") continue;
+          if (!allowedConcreteKinds.has(entry.kind)) continue;
+          const value = Number(entry.amount);
+          if (!Number.isFinite(value) || value <= 0) continue;
+          if (manualConcreteSurfaces.length >= 3) break;
+          manualConcreteSurfaces.push({ kind: entry.kind, amount: value });
+        }
+      }
+    } catch {
+      // ignore malformed entries
+    }
+  }
+
+  if (manualConcreteSurfaces.length > 0) {
+    payload["manualConcreteSurfaces"] = manualConcreteSurfaces.slice(0, 3);
+  }
+
+  if (typeof serviceDetailsRaw === "string" && serviceDetailsRaw.trim().length > 0) {
+    try {
+      const parsed = JSON.parse(serviceDetailsRaw) as Record<string, unknown>;
+      if (parsed && typeof parsed === "object") {
+        const serviceDetails: Record<string, string[]> = {};
+        for (const [key, value] of Object.entries(parsed)) {
+          if (!services.includes(key)) continue;
+          if (!Array.isArray(value)) continue;
+          const details = value
+            .map((entry) => (typeof entry === "string" ? entry.trim() : ""))
+            .filter((entry) => entry.length > 0)
+            .slice(0, 5);
+          if (details.length) {
+            serviceDetails[key] = details;
+          }
+        }
+        if (Object.keys(serviceDetails).length > 0) {
+          payload["serviceDetails"] = serviceDetails;
+        }
+      }
+    } catch {
+      // ignore malformed service details
+    }
   }
 
   const response = await callAdminApi(`/api/quotes`, {

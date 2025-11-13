@@ -57,6 +57,10 @@ export interface ConcreteSurfaceInput {
     kind: ConcreteSurfaceKind;
     squareFeet: number;
 }
+export interface ManualConcreteSurfaceInput {
+    kind: ConcreteSurfaceKind;
+    amount: number;
+}
 export type LineItemCategory = "service" | "add-on" | "travel" | "discount" | "deposit" | "fee" | "other";
 export interface QuoteRequestInput {
     zoneId: string;
@@ -68,12 +72,14 @@ export interface QuoteRequestInput {
     depositRate?: number;
     serviceOverrides?: Partial<Record<ServiceCategory, number>>;
     concreteSurfaces?: ConcreteSurfaceInput[];
+    manualConcreteSurfaces?: ManualConcreteSurfaceInput[];
 }
 export interface LineItem {
     id: string;
     label: string;
     amount: number;
     category?: LineItemCategory;
+    details?: string[];
 }
 export interface QuoteBreakdown {
     subtotal: number;
