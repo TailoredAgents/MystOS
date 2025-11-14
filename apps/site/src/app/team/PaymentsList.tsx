@@ -32,7 +32,7 @@ type ServerAction = (formData: FormData) => void;
 type ApptItem = {
   id: string;
   startAt: string | null;
-  contact: { name: string };
+  contact: { name: string; email?: string | null };
   property: { addressLine1: string; city: string };
 };
 
@@ -53,6 +53,15 @@ export function PaymentsList({
   const [scope, setScope] = useState<string>("all");
   const [appts, setAppts] = useState<ApptItem[]>([]);
   const [appointmentFilter, setAppointmentFilter] = useState("");
+  const [linkSearch, setLinkSearch] = useState("");
+  const [linkAppointmentId, setLinkAppointmentId] = useState("");
+  const [linkAmount, setLinkAmount] = useState("");
+  const [linkCurrency, setLinkCurrency] = useState("USD");
+  const [linkEmail, setLinkEmail] = useState("");
+  const [linkEmailDirty, setLinkEmailDirty] = useState(false);
+  const [linkStatus, setLinkStatus] = useState<"idle" | "pending" | "success" | "error">("idle");
+  const [linkUrl, setLinkUrl] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   useEffect(() => {
     void (async () => {
@@ -79,6 +88,36 @@ export function PaymentsList({
       );
     });
   }, [initial, q, scope]);
+
+  const filterAppointments = (term: string) => {
+    const hay = term.trim().toLowerCase();
+    if (!hay) {
+      return appts.slice(0, 50);
+    }
+    return appts
+      .filter((appt) => {
+        const base = [
+          appt.contact.name,
+          appt.contact.email ?? "",
+          appt.property.addressLine1,
+          appt.property.city,
+          appt.startAt ? new Date(appt.startAt).toLocaleDateString() : ""
+        ]
+          .join(" ")
+          .toLowerCase();
+        return base.includes(hay);
+      })
+      .slice(0, 50);
+  };
+
+  const recordFilteredAppts = useMemo(
+    () => filterAppointments(appointmentFilter),
+    [appointmentFilter, appts]
+  );
+  const stripeFilteredAppts = useMemo(
+    () => filterAppointments(linkSearch),
+    [linkSearch, appts]
+  );
 
   const metadataNote = (payment: Payment) => {
     if (!payment.metadata || typeof payment.metadata !== "object") {
@@ -115,6 +154,70 @@ export function PaymentsList({
     return `${appt.contact.name} — ${date} — ${appt.property.addressLine1}, ${appt.property.city}`;
   };
 
+  const formatAppointmentLabel = (appt: ApptItem) => {
+    const date = appt.startAt ? new Date(appt.startAt).toLocaleDateString() : "Unscheduled";
+    return `${appt.contact.name} — ${date} — ${appt.property.addressLine1}, ${appt.property.city}`;
+  };
+
+  useEffect(() => {
+    if (!linkAppointmentId || linkEmailDirty) {
+      return;
+    }
+    const match = appts.find((appt) => appt.id === linkAppointmentId);
+    if (match?.contact.email) {
+      setLinkEmail(match.contact.email);
+    }
+  }, [linkAppointmentId, appts, linkEmailDirty]);
+
+  const handleSendStripeLink = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!linkAppointmentId) {
+      setLinkError("Select an appointment");
+      setLinkStatus("error");
+      return;
+    }
+
+    const amountValue = Number(linkAmount);
+    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+      setLinkError("Enter a valid amount");
+      setLinkStatus("error");
+      return;
+    }
+
+    setLinkStatus("pending");
+    setLinkError(null);
+    setLinkUrl(null);
+
+    try {
+      const response = await fetch("/api/stripe-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointmentId: linkAppointmentId,
+          amount: amountValue,
+          currency: linkCurrency,
+          email: linkEmail.trim().length ? linkEmail.trim() : undefined
+        })
+      });
+
+      const data = (await response.json().catch(() => ({}))) as { url?: string; error?: string };
+
+      if (!response.ok || !data?.url) {
+        setLinkStatus("error");
+        setLinkError(data?.error ?? "Unable to generate link");
+        return;
+      }
+
+      setLinkStatus("success");
+      setLinkUrl(data.url);
+    } catch (error) {
+      console.error("[payments] send_stripe_link_failed", error);
+      setLinkStatus("error");
+      setLinkError("Failed to reach Stripe");
+    }
+  };
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
@@ -146,7 +249,7 @@ export function PaymentsList({
               <option value="" disabled>
                 Choose a job
               </option>
-              {filteredAppts.map((appt) => (
+              {recordFilteredAppts.map((appt) => (
                 <option key={appt.id} value={appt.id}>
                   {formatAppointmentLabel(appt)}
                 </option>
@@ -199,6 +302,105 @@ export function PaymentsList({
             <SubmitButton className="rounded-md bg-emerald-600 px-4 py-2 text-xs font-semibold text-white" pendingLabel="Saving...">
               Record payment
             </SubmitButton>
+          </div>
+        </form>
+      </details>
+      <details className="rounded-xl border border-primary-200 bg-primary-50/70 p-4 text-xs text-neutral-700">
+        <summary className="cursor-pointer font-semibold text-primary-900">Send Stripe payment link</summary>
+        <form onSubmit={handleSendStripeLink} className="mt-3 space-y-3 text-xs text-neutral-700">
+          <label className="flex flex-col gap-1">
+            <span>Search appointments</span>
+            <input
+              type="text"
+              value={linkSearch}
+              onChange={(event) => setLinkSearch(event.target.value)}
+              placeholder="Type a customer, address, or date"
+              className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            />
+          </label>
+          <label className="flex flex-col gap-1">
+            <span>Select appointment</span>
+            <select
+              value={linkAppointmentId}
+              onChange={(event) => {
+                setLinkAppointmentId(event.target.value);
+                setLinkEmailDirty(false);
+              }}
+              className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              required
+            >
+              <option value="" disabled>
+                Choose a job
+              </option>
+              {stripeFilteredAppts.map((appt) => (
+                <option key={appt.id} value={appt.id}>
+                  {formatAppointmentLabel(appt)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <label className="flex flex-col gap-1">
+              <span>Amount</span>
+              <input
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={linkAmount}
+                onChange={(event) => setLinkAmount(event.target.value)}
+                placeholder="120.00"
+                required
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </label>
+            <label className="flex flex-col gap-1">
+              <span>Currency</span>
+              <select
+                value={linkCurrency}
+                onChange={(event) => setLinkCurrency(event.target.value)}
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              >
+                <option value="USD">USD</option>
+                <option value="CAD">CAD</option>
+              </select>
+            </label>
+            <label className="flex flex-col gap-1">
+              <span>Customer email (optional)</span>
+              <input
+                type="email"
+                value={linkEmail}
+                onChange={(event) => {
+                  setLinkEmail(event.target.value);
+                  setLinkEmailDirty(true);
+                }}
+                placeholder="customer@email.com"
+                className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                className="rounded-md bg-primary-700 px-4 py-2 text-xs font-semibold text-white disabled:opacity-60"
+                disabled={linkStatus === "pending"}
+              >
+                {linkStatus === "pending" ? "Generating..." : "Generate link"}
+              </button>
+            </div>
+            {linkStatus === "success" && linkUrl ? (
+              <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-800">
+                Stripe checkout link ready:{" "}
+                <a href={linkUrl} target="_blank" rel="noreferrer" className="underline">
+                  Open checkout
+                </a>
+              </div>
+            ) : null}
+            {linkStatus === "error" && linkError ? (
+              <div className="rounded-md border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+                {linkError}
+              </div>
+            ) : null}
           </div>
         </form>
       </details>
