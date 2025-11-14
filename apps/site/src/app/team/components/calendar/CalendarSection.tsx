@@ -88,11 +88,8 @@ export function CalendarSection() {
     }
 
     for (const appt of data.appointments) {
-      const key =
-        appt.startAt ?? appt.id ??
-        new Date().toISOString();
       const day = appt.startAt ? new Date(appt.startAt) : null;
-      const dayKey = day ? day.toISOString().split("T")[0] : "unscheduled";
+      const dayKey = day ? day.toISOString().slice(0, 10) : "unscheduled";
       const existing = map.get(dayKey) ?? [];
       existing.push(appt);
       map.set(dayKey, existing);
