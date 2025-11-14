@@ -16,7 +16,14 @@ type Quote = {
   shareToken: string | null;
   contact: { name: string; email: string | null };
   property: { addressLine1: string; city: string; state: string; postalCode: string };
-  appointment: { id: string; status: string; startAt: string | null } | null;
+  appointment: {
+    id: string;
+    status: string;
+    startAt: string | null;
+    durationMinutes: number | null;
+    travelBufferMinutes: number | null;
+    rescheduleToken: string | null;
+  } | null;
 };
 
 type ServerAction = (formData: FormData) => void;
@@ -34,8 +41,10 @@ export function QuotesList({
   scheduleAction?: ServerAction;
   updateStatusAction?: ServerAction;
 }) {
-  const [q, setQ] = useState("");
+  const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("all");
+  const [expandedQuoteId, setExpandedQuoteId] = useState<string | null>(null);
+
   const defaultScheduleStart = useMemo(() => {
     const dt = new Date();
     dt.setHours(dt.getHours() + 24);
@@ -44,18 +53,22 @@ export function QuotesList({
   const minScheduleValue = useMemo(() => new Date().toISOString().slice(0, 16), []);
 
   const filtered = useMemo(() => {
-    const hay = q.trim().toLowerCase();
-    return initial.filter((it) => {
-      if (status !== "all" && it.status !== status) return false;
-      if (!hay) return true;
-      const addr = `${it.property.addressLine1} ${it.property.city} ${it.property.state} ${it.property.postalCode}`.toLowerCase();
+    const hay = query.trim().toLowerCase();
+    return initial.filter((item) => {
+      if (status !== "all" && item.status !== status) {
+        return false;
+      }
+      if (!hay) {
+        return true;
+      }
+      const address = `${item.property.addressLine1} ${item.property.city} ${item.property.state} ${item.property.postalCode}`.toLowerCase();
       return (
-        it.contact.name.toLowerCase().includes(hay) ||
-        addr.includes(hay) ||
-        it.services.join(" ").toLowerCase().includes(hay)
+        item.contact.name.toLowerCase().includes(hay) ||
+        address.includes(hay) ||
+        item.services.join(" ").toLowerCase().includes(hay)
       );
     });
-  }, [initial, q, status]);
+  }, [initial, query, status]);
 
   function formatDisplayDate(value: string | null): string {
     if (!value) return "Unscheduled";
@@ -84,16 +97,24 @@ export function QuotesList({
     return local.toISOString().slice(0, 16);
   }
 
+  const togglePanel = (quoteId: string) => {
+    setExpandedQuoteId((prev) => (prev === quoteId ? null : quoteId));
+  };
+
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
           placeholder="Search name, address, service"
           className="min-w-[240px] flex-1 rounded-md border border-neutral-300 px-2 py-1 text-sm"
         />
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-md border border-neutral-300 px-2 py-1 text-sm">
+        <select
+          value={status}
+          onChange={(e) => setStatus(e.target.value)}
+          className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+        >
           <option value="all">All</option>
           <option value="pending">Pending</option>
           <option value="sent">Sent</option>
@@ -102,137 +123,208 @@ export function QuotesList({
         </select>
       </div>
       {filtered.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-500">No quotes found.</p>
+        <p className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-500">
+          No quotes found.
+        </p>
       ) : (
-        filtered.map((q) => (
-          <article key={q.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-neutral-500">{q.status.toUpperCase()} • {q.contact.name}</p>
-                <p className="text-sm text-neutral-700">{q.property.addressLine1}, {q.property.city}</p>
+        filtered.map((quote) => {
+          const appointment = quote.appointment;
+          const hasAppointment = Boolean(appointment);
+          const isExpanded = expandedQuoteId === quote.id;
+          const displayDate = formatDisplayDate(appointment?.startAt ?? null);
+          const myDayHref = appointment
+            ? `/team?tab=myday&appointmentId=${encodeURIComponent(appointment.id)}`
+            : null;
+          const rescheduleHref =
+            appointment?.rescheduleToken && appointment?.id
+              ? `/schedule?appointmentId=${encodeURIComponent(appointment.id)}&token=${encodeURIComponent(
+                  appointment.rescheduleToken
+                )}`
+              : null;
+          const defaultDuration = appointment?.durationMinutes ?? 90;
+          const defaultTravel = appointment?.travelBufferMinutes ?? 30;
+
+          return (
+            <article key={quote.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm text-neutral-500">
+                    {quote.status.toUpperCase()} - {quote.contact.name}
+                  </p>
+                  <p className="text-sm text-neutral-700">
+                    {quote.property.addressLine1}, {quote.property.city}
+                  </p>
+                </div>
+                <p className="text-sm font-semibold text-primary-900">
+                  {quote.total.toLocaleString("en-US", { style: "currency", currency: "USD" })}
+                </p>
               </div>
-              <p className="text-sm font-semibold text-primary-900">{q.total.toLocaleString("en-US", { style: "currency", currency: "USD" })}</p>
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {(q.status === "pending" || q.status === "sent") ? (
-                <form action={sendAction}>
-                  <input type="hidden" name="quoteId" value={q.id} />
-                  <SubmitButton className="rounded-md bg-accent-600 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Sending...">Send</SubmitButton>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(quote.status === "pending" || quote.status === "sent") && (
+                  <form action={sendAction}>
+                    <input type="hidden" name="quoteId" value={quote.id} />
+                    <SubmitButton className="rounded-md bg-accent-600 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Sending...">
+                      Send
+                    </SubmitButton>
+                  </form>
+                )}
+                <form action={decisionAction}>
+                  <input type="hidden" name="quoteId" value={quote.id} />
+                  <input type="hidden" name="decision" value="accepted" />
+                  <SubmitButton
+                    className="rounded-md border border-emerald-400 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+                    pendingLabel="Saving..."
+                  >
+                    Mark accepted
+                  </SubmitButton>
                 </form>
-              ) : null}
-              <form action={decisionAction}>
-                <input type="hidden" name="quoteId" value={q.id} />
-                <input type="hidden" name="decision" value="accepted" />
-                <SubmitButton className="rounded-md border border-emerald-400 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700" pendingLabel="Saving...">Mark accepted</SubmitButton>
-              </form>
-              <form action={decisionAction}>
-                <input type="hidden" name="quoteId" value={q.id} />
-                <input type="hidden" name="decision" value="declined" />
-                <SubmitButton className="rounded-md border border-rose-400 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700" pendingLabel="Saving...">Mark declined</SubmitButton>
-              </form>
-              {q.shareToken ? (
-                <a href={`/quote/${q.shareToken}`} target="_blank" rel="noreferrer" className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700">Open link</a>
-              ) : null}
-            </div>
-              {scheduleAction && q.status === "accepted" ? (
-              <details className="mt-4 space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/60 p-4 text-xs text-neutral-700">
-                <summary className="cursor-pointer text-sm font-semibold text-emerald-800">
-                  {q.appointment ? "Update job schedule" : "Schedule job"}
-                </summary>
-                {q.appointment ? (
-                  <div className="rounded-lg border border-emerald-300 bg-white/80 p-3 text-sm text-emerald-900">
-                    <p className="font-semibold">
-                      Scheduled for: <span>{formatDisplayDate(q.appointment.startAt)}</span>
-                    </p>
-                    <p className="text-xs uppercase tracking-wide text-emerald-600">
-                      Status: {q.appointment.status.toUpperCase()}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                      <a
-                        href="/team?tab=myday"
-                        className="inline-flex items-center rounded-md border border-emerald-300 px-2.5 py-1 font-medium text-emerald-700 transition hover:bg-emerald-100"
+                <form action={decisionAction}>
+                  <input type="hidden" name="quoteId" value={quote.id} />
+                  <input type="hidden" name="decision" value="declined" />
+                  <SubmitButton
+                    className="rounded-md border border-rose-400 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700"
+                    pendingLabel="Saving..."
+                  >
+                    Mark declined
+                  </SubmitButton>
+                </form>
+                {quote.shareToken ? (
+                  <a
+                    href={`/quote/${quote.shareToken}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="rounded-md border border-neutral-300 px-3 py-1 text-xs text-neutral-700"
+                  >
+                    Open link
+                  </a>
+                ) : null}
+              </div>
+
+              {scheduleAction && quote.status === "accepted" ? (
+                <div className="mt-4 space-y-3 rounded-lg border border-emerald-200 bg-emerald-50/80 p-4 text-xs text-neutral-700">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-emerald-600">
+                        {hasAppointment ? "Job scheduled" : "Job not scheduled"}
+                      </p>
+                      <p className="text-base font-semibold text-emerald-900">{displayDate}</p>
+                      <p className="text-[11px] uppercase tracking-[0.15em] text-emerald-600">
+                        Status: {hasAppointment ? appointment.status.replace("_", " ").toUpperCase() : "PENDING"}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap justify-end gap-2 text-xs">
+                      {myDayHref ? (
+                        <a
+                          href={myDayHref}
+                          className="inline-flex items-center rounded-md border border-emerald-300 bg-white px-3 py-1 font-semibold text-emerald-700 hover:bg-emerald-100"
+                        >
+                          View job
+                        </a>
+                      ) : null}
+                      {rescheduleHref ? (
+                        <a
+                          href={rescheduleHref}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center rounded-md border border-emerald-200 px-3 py-1 font-semibold text-emerald-700 hover:bg-emerald-100"
+                        >
+                          Share reschedule link
+                        </a>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => togglePanel(quote.id)}
+                        className="inline-flex items-center rounded-md border border-emerald-200 px-3 py-1 font-semibold text-emerald-700 hover:bg-emerald-100"
                       >
-                        Open in My Day
-                      </a>
-                      {updateStatusAction ? (
+                        {isExpanded
+                          ? hasAppointment
+                            ? "Hide reschedule form"
+                            : "Hide schedule form"
+                          : hasAppointment
+                            ? "Reschedule job"
+                            : "Schedule job"}
+                      </button>
+                      {hasAppointment && updateStatusAction ? (
                         <form action={updateStatusAction}>
-                          <input type="hidden" name="appointmentId" value={q.appointment.id} />
+                          <input type="hidden" name="appointmentId" value={appointment.id} />
                           <input type="hidden" name="status" value="canceled" />
-                          <SubmitButton className="rounded-md border border-rose-200 px-2.5 py-1 text-rose-600" pendingLabel="Canceling...">
+                          <SubmitButton className="rounded-md border border-rose-200 px-3 py-1 text-rose-600" pendingLabel="Canceling...">
                             Cancel job
                           </SubmitButton>
                         </form>
                       ) : null}
                     </div>
                   </div>
-                ) : null}
-                <form action={scheduleAction} className="space-y-3">
-                  <input type="hidden" name="quoteId" value={q.id} />
-                  <label className="flex flex-col gap-1 text-xs text-neutral-600">
-                    <span>Start date & time</span>
-                    <input
-                      type="datetime-local"
-                      name="startAt"
-                      required
-                      defaultValue={q.appointment ? toInputValue(q.appointment.startAt) : defaultScheduleStart}
-                      min={minScheduleValue}
-                      className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
-                    />
-                  </label>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="flex flex-col gap-1 text-xs text-neutral-600">
-                      <span>Duration (minutes)</span>
-                      <input
-                        type="number"
-                        name="durationMinutes"
-                        min={15}
-                        step={15}
-                        defaultValue={90}
-                        className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
-                      />
-                    </label>
-                    <label className="flex flex-col gap-1 text-xs text-neutral-600">
-                      <span>Travel buffer (minutes)</span>
-                      <input
-                        type="number"
-                        name="travelBufferMinutes"
-                        min={0}
-                        step={5}
-                        defaultValue={30}
-                        className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
-                      />
-                    </label>
-                  </div>
-                  <label className="flex flex-col gap-1 text-xs text-neutral-600">
-                    <span>Internal notes (optional)</span>
-                    <textarea
-                      name="notes"
-                      rows={3}
-                      placeholder="Crew instructions or customer preferences"
-                      className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
-                    />
-                  </label>
-                  <div className="flex items-center justify-between text-[11px] text-neutral-500">
-                    <span>
-                      {q.appointment
-                        ? "Updates the existing job and syncs Google Calendar."
-                        : "Creates a confirmed job synced to Google Calendar."}
-                    </span>
-                    <SubmitButton
-                      className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white"
-                      pendingLabel={q.appointment ? "Updating..." : "Scheduling..."}
-                    >
-                      {q.appointment ? "Update job" : "Schedule job"}
-                    </SubmitButton>
-                  </div>
-                </form>
-              </details>
-            ) : null}
-          </article>
-        ))
+
+                  {isExpanded ? (
+                    <form action={scheduleAction} className="space-y-3 rounded-lg border border-emerald-200 bg-white/90 p-4 text-neutral-700">
+                      <input type="hidden" name="quoteId" value={quote.id} />
+                      <label className="flex flex-col gap-1 text-xs text-neutral-600">
+                        <span>Start date & time</span>
+                        <input
+                          type="datetime-local"
+                          name="startAt"
+                          required
+                          defaultValue={appointment ? toInputValue(appointment.startAt) : defaultScheduleStart}
+                          min={minScheduleValue}
+                          className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                        />
+                      </label>
+                      <div className="grid gap-3 sm:grid-cols-2">
+                        <label className="flex flex-col gap-1 text-xs text-neutral-600">
+                          <span>Duration (minutes)</span>
+                          <input
+                            type="number"
+                            name="durationMinutes"
+                            min={15}
+                            step={15}
+                            defaultValue={defaultDuration}
+                            className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                          />
+                        </label>
+                        <label className="flex flex-col gap-1 text-xs text-neutral-600">
+                          <span>Travel buffer (minutes)</span>
+                          <input
+                            type="number"
+                            name="travelBufferMinutes"
+                            min={0}
+                            step={5}
+                            defaultValue={defaultTravel}
+                            className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                          />
+                        </label>
+                      </div>
+                      <label className="flex flex-col gap-1 text-xs text-neutral-600">
+                        <span>Internal notes (optional)</span>
+                        <textarea
+                          name="notes"
+                          rows={3}
+                          placeholder="Crew instructions or customer preferences"
+                          className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
+                        />
+                      </label>
+                      <div className="flex items-center justify-between text-[11px] text-neutral-500">
+                        <span>
+                          {appointment
+                            ? "Updates this job immediately and syncs Google Calendar."
+                            : "Creates a confirmed job synced to Google Calendar."}
+                        </span>
+                        <SubmitButton
+                          className="rounded-md bg-emerald-600 px-3 py-1 text-xs font-semibold text-white"
+                          pendingLabel={appointment ? "Updating..." : "Scheduling..."}
+                        >
+                          {appointment ? "Update job" : "Schedule job"}
+                        </SubmitButton>
+                      </div>
+                    </form>
+                  ) : null}
+                </div>
+              ) : null}
+            </article>
+          );
+        })
       )}
     </section>
   );
 }
-
-

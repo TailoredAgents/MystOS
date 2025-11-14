@@ -3,11 +3,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { calculateQuoteBreakdown } from "@myst-os/pricing/src/engine/calculate";
 import { serviceRates } from "@myst-os/pricing/src/config/defaults";
-import type {
-  ConcreteSurfaceInput,
-  ManualConcreteSurfaceInput,
-  ServiceCategory
-} from "@myst-os/pricing/src/types";
+import type { ServiceCategory } from "@myst-os/pricing/src/types";
 import { getDb, quotes, contacts, properties, appointments } from "@/db";
 import { isAdminRequest } from "../web/admin";
 import { eq, desc } from "drizzle-orm";
@@ -89,6 +85,9 @@ function formatQuoteResponse(row: {
   jobAppointmentId: string | null;
   jobAppointmentStatus: string | null;
   jobAppointmentStartAt: Date | null;
+  jobAppointmentDuration: number | null;
+  jobAppointmentTravel: number | null;
+  jobAppointmentToken: string | null;
 }) {
   const contactName = row.contactName?.trim();
   const addressLine1 = row.propertyAddressLine1?.trim();
@@ -122,7 +121,10 @@ function formatQuoteResponse(row: {
         ? {
             id: row.jobAppointmentId,
             status: row.jobAppointmentStatus,
-            startAt: row.jobAppointmentStartAt ? row.jobAppointmentStartAt.toISOString() : null
+            startAt: row.jobAppointmentStartAt ? row.jobAppointmentStartAt.toISOString() : null,
+            durationMinutes: row.jobAppointmentDuration,
+            travelBufferMinutes: row.jobAppointmentTravel,
+            rescheduleToken: row.jobAppointmentToken
           }
         : null
   };
@@ -163,7 +165,10 @@ export async function GET(request: NextRequest): Promise<Response> {
         propertyPostalCode: properties.postalCode,
         jobAppointmentId: quotes.jobAppointmentId,
         jobAppointmentStatus: appointments.status,
-        jobAppointmentStartAt: appointments.startAt
+        jobAppointmentStartAt: appointments.startAt,
+        jobAppointmentDuration: appointments.durationMinutes,
+        jobAppointmentTravel: appointments.travelBufferMinutes,
+        jobAppointmentToken: appointments.rescheduleToken
       })
       .from(quotes)
       .leftJoin(contacts, eq(quotes.contactId, contacts.id))
@@ -175,7 +180,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     return query.orderBy(desc(quotes.updatedAt));
   };
 
-  let rows = await runQuery().catch(async (error) => {
+  const rows = await runQuery().catch(async (error) => {
     if (isMissingJobAppointmentColumnError(error)) {
       await ensureJobAppointmentSupport(db, { force: true });
       return runQuery();
@@ -234,9 +239,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: "property_contact_mismatch" }, { status: 400 });
   }
 
-  const selectedServices = body.selectedServices as ServiceCategory[];
-  const concreteSurfaces = (body.concreteSurfaces ?? []) as ConcreteSurfaceInput[];
-  const manualConcreteSurfaces = (body.manualConcreteSurfaces ?? []) as ManualConcreteSurfaceInput[];
+  const selectedServices = body.selectedServices;
+  const concreteSurfaces = body.concreteSurfaces ?? [];
+  const manualConcreteSurfaces = body.manualConcreteSurfaces ?? [];
   const hasConcreteSurfaces = concreteSurfaces.length > 0;
   const hasManualConcreteSurfaces = manualConcreteSurfaces.length > 0;
   const normalizedServiceDetails: Partial<Record<ServiceCategory, string[]>> = {};

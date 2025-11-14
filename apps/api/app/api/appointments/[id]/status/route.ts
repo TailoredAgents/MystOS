@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { eq } from "drizzle-orm";
-import { getDb, appointments, leads, outboxEvents, quotes } from "@/db";
+import { getDb, appointments, leads, outboxEvents, quotes, crmPipeline } from "@/db";
 import { isAdminRequest } from "../../../web/admin";
 import { deleteCalendarEvent } from "@/lib/calendar";
 import {
@@ -50,6 +50,7 @@ export async function POST(
     .returning({
       id: appointments.id,
       leadId: appointments.leadId,
+      contactId: appointments.contactId,
       calendarEventId: appointments.calendarEventId
     });
 
@@ -84,8 +85,42 @@ export async function POST(
     }
   }
 
-  if (updated.leadId && status === "confirmed") {
-    await db.update(leads).set({ status: "scheduled" }).where(eq(leads.id, updated.leadId));
+  const leadStatusUpdate =
+    status === "confirmed" || status === "completed"
+      ? "scheduled"
+      : status === "canceled" || status === "no_show"
+        ? "quoted"
+        : null;
+  if (updated.leadId && leadStatusUpdate) {
+    await db.update(leads).set({ status: leadStatusUpdate }).where(eq(leads.id, updated.leadId));
+  }
+
+  const pipelineStage =
+    status === "canceled"
+      ? "quoted"
+      : status === "no_show"
+        ? "qualified"
+        : status === "confirmed" || status === "completed"
+          ? "won"
+          : null;
+
+  if (updated.contactId && pipelineStage) {
+    const now = new Date();
+    await db
+      .insert(crmPipeline)
+      .values({
+        contactId: updated.contactId,
+        stage: pipelineStage,
+        updatedAt: now,
+        createdAt: now
+      })
+      .onConflictDoUpdate({
+        target: crmPipeline.contactId,
+        set: {
+          stage: pipelineStage,
+          updatedAt: now
+        }
+      });
   }
 
   await db.insert(outboxEvents).values({

@@ -36,7 +36,11 @@ interface AppointmentDto {
   notes: Array<{ id: string; body: string; createdAt: string }>;
 }
 
-export async function MyDaySection(): Promise<ReactElement> {
+export async function MyDaySection({
+  focusAppointmentId
+}: {
+  focusAppointmentId?: string;
+} = {}): Promise<ReactElement> {
   const res = await callAdminApi("/api/appointments?status=confirmed");
   if (!res.ok) {
     throw new Error("Failed to load appointments");
@@ -48,15 +52,39 @@ export async function MyDaySection(): Promise<ReactElement> {
     return ax - bx;
   });
 
+  const focusId = focusAppointmentId?.trim() ?? "";
+  const focusIndex = focusId ? appts.findIndex((appt) => appt.id === focusId) : -1;
+  const ordered =
+    focusIndex > -1 ? [appts[focusIndex], ...appts.filter((_, idx) => idx !== focusIndex)] : appts;
+  const focusMissing = Boolean(focusId) && focusIndex === -1;
+
   return (
     <section className="space-y-4">
-      {appts.length === 0 ? (
+      {focusId ? (
+        <div className="rounded-lg border border-primary-100 bg-primary-50/60 p-3 text-xs text-primary-800">
+          {focusMissing
+            ? "Requested job is not in today's confirmed list. Showing all confirmed jobs."
+            : "Showing requested job first so you can jump straight to it."}
+        </div>
+      ) : null}
+      {ordered.length === 0 ? (
         <p className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-500">
           No confirmed visits.
         </p>
       ) : (
-        appts.map((a) => (
-          <article key={a.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+        ordered.map((a) => {
+          const isFocus = Boolean(focusId) && a.id === focusId;
+          const articleClass = [
+            "rounded-lg border bg-white p-4 shadow-sm",
+            isFocus ? "border-primary-300 shadow-primary-200/70 ring-1 ring-primary-200" : "border-neutral-200"
+          ].join(" ");
+          return (
+            <article key={a.id} id={`appointment-${a.id}`} className={articleClass}>
+            {isFocus ? (
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-600">
+                Focused from Quotes tab
+              </p>
+            ) : null}
             <div className="flex items-center gap-2 text-sm text-neutral-500">
               <span className="rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
                 Confirmed
@@ -227,7 +255,8 @@ export async function MyDaySection(): Promise<ReactElement> {
               </SubmitButton>
             </form>
           </article>
-        ))
+        );
+      })
       )}
     </section>
   );

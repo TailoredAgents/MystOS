@@ -44,6 +44,10 @@ export default async function TeamPage({
     }
   }
   const quoteContactId = typeof params?.contactId === "string" ? params.contactId : undefined;
+  const focusAppointmentId =
+    typeof params?.appointmentId === "string" && params.appointmentId.trim().length > 0
+      ? params.appointmentId
+      : undefined;
 
   const flash = cookieStore.get("myst-flash")?.value ?? null;
   const flashError = cookieStore.get("myst-flash-error")?.value ?? null;
@@ -154,7 +158,7 @@ export default async function TeamPage({
             }
           >
             <MyDayAutoRefresh>
-              <MyDaySection />
+              <MyDaySection focusAppointmentId={focusAppointmentId} />
             </MyDayAutoRefresh>
           </React.Suspense>
         ) : null}

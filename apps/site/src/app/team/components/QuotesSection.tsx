@@ -16,7 +16,14 @@ interface QuoteDto {
   shareToken: string | null;
   contact: { name: string; email: string | null };
   property: { addressLine1: string; city: string; state: string; postalCode: string };
-  appointment: { id: string; status: string; startAt: string | null } | null;
+  appointment: {
+    id: string;
+    status: string;
+    startAt: string | null;
+    durationMinutes: number | null;
+    travelBufferMinutes: number | null;
+    rescheduleToken: string | null;
+  } | null;
 }
 
 export async function QuotesSection(): Promise<ReactElement> {
