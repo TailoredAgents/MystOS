@@ -17,7 +17,7 @@ import { QuoteBuilderSection } from "./components/QuoteBuilderSection";
 import { ChatSection } from "./components/ChatSection";
 import { TabNav, type TabNavItem } from "./components/TabNav";
 import { callAdminApi } from "./lib/api";
-import { CalendarSection } from "./components/calendar/CalendarSection";
+import { CalendarFullView } from "./components/calendar";
 
 const ADMIN_COOKIE = "myst-admin-session";
 const CREW_COOKIE = "myst-crew-session";
@@ -33,6 +33,7 @@ export default async function TeamPage({
     offset?: string;
     contactId?: string;
     appointmentId?: string;
+    view?: "week" | "month";
   }>;
 }) {
   const params = await searchParams;
@@ -54,6 +55,8 @@ export default async function TeamPage({
     typeof params?.appointmentId === "string" && params.appointmentId.trim().length > 0
       ? params.appointmentId
       : undefined;
+  const calendarViewParam =
+    params?.view === "month" || params?.view === "week" ? (params.view as "month" | "week") : undefined;
 
   const flash = cookieStore.get("myst-flash")?.value ?? null;
   const flashError = cookieStore.get("myst-flash-error")?.value ?? null;
@@ -177,7 +180,7 @@ export default async function TeamPage({
               </div>
             }
           >
-            <CalendarSection />
+            <CalendarFullView initialViewMode={calendarViewParam} />
           </React.Suspense>
         ) : null}
 

@@ -225,6 +225,12 @@ export function QuotesList({
                           View job
                         </a>
                       ) : null}
+                      <a
+                        href="/team?tab=calendar&view=month"
+                        className="inline-flex items-center rounded-md border border-emerald-200 px-3 py-1 font-semibold text-emerald-700 hover:bg-emerald-100"
+                      >
+                        Open calendar
+                      </a>
                       {rescheduleHref ? (
                         <a
                           href={rescheduleHref}

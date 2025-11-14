@@ -1,1 +1,1 @@
-export { CalendarSection } from "./CalendarSection";
+export { CalendarFullView, useCalendarFeed } from "./CalendarFullView";
