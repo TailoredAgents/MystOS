@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { and, between, desc, eq, gte, lte, or } from "drizzle-orm";
+import { and, between, desc, eq, gte, isNull, lte, or } from "drizzle-orm";
 import { getDb, appointments, contacts, properties, quotes } from "@/db";
 import { isAdminRequest } from "../web/admin";
 
@@ -55,7 +55,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         or(
           and(gte(appointments.startAt, startAt), lte(appointments.startAt, endAt)),
           and(
-            appointments.startAt.isNull(),
+            isNull(appointments.startAt),
             between(appointments.createdAt, startAt, endAt)
           )
         )
