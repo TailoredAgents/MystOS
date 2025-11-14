@@ -27,7 +27,13 @@ export const metadata = { title: "Myst Team Console" };
 export default async function TeamPage({
   searchParams
 }: {
-  searchParams: Promise<{ tab?: string; q?: string; offset?: string; contactId?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    q?: string;
+    offset?: string;
+    contactId?: string;
+    appointmentId?: string;
+  }>;
 }) {
   const params = await searchParams;
   const cookieStore = await cookies();
