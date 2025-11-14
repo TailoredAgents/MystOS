@@ -17,6 +17,7 @@ import { QuoteBuilderSection } from "./components/QuoteBuilderSection";
 import { ChatSection } from "./components/ChatSection";
 import { TabNav, type TabNavItem } from "./components/TabNav";
 import { callAdminApi } from "./lib/api";
+import { CalendarSection } from "./components/calendar/CalendarSection";
 
 const ADMIN_COOKIE = "myst-admin-session";
 const CREW_COOKIE = "myst-crew-session";
@@ -48,6 +49,7 @@ export default async function TeamPage({
   const flashError = cookieStore.get("myst-flash-error")?.value ?? null;
   const tabs: TabNavItem[] = [
     { id: "myday", label: "My Day", href: "/team?tab=myday" },
+    { id: "calendar", label: "Calendar", href: "/team?tab=calendar", requires: "owner" },
     { id: "estimates", label: "Estimates", href: "/team?tab=estimates", requires: "owner" },
     { id: "quotes", label: "Quotes", href: "/team?tab=quotes", requires: "owner" },
     { id: "quote-builder", label: "Quote Builder", href: "/team?tab=quote-builder", requires: "crew" },
@@ -154,6 +156,18 @@ export default async function TeamPage({
             <MyDayAutoRefresh>
               <MyDaySection />
             </MyDayAutoRefresh>
+          </React.Suspense>
+        ) : null}
+
+        {tab === "calendar" && hasOwner ? (
+          <React.Suspense
+            fallback={
+              <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
+                Loading calendar
+              </div>
+            }
+          >
+            <CalendarSection />
           </React.Suspense>
         ) : null}
 
