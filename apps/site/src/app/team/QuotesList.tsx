@@ -130,6 +130,9 @@ export function QuotesList({
         filtered.map((quote) => {
           const appointment = quote.appointment;
           const hasAppointment = Boolean(appointment);
+          const appointmentStatus = hasAppointment
+            ? (appointment?.status ?? "pending")
+            : "pending";
           const isExpanded = expandedQuoteId === quote.id;
           const displayDate = formatDisplayDate(appointment?.startAt ?? null);
           const myDayHref = appointment
@@ -210,7 +213,7 @@ export function QuotesList({
                       </p>
                       <p className="text-base font-semibold text-emerald-900">{displayDate}</p>
                       <p className="text-[11px] uppercase tracking-[0.15em] text-emerald-600">
-                        Status: {hasAppointment ? appointment.status.replace("_", " ").toUpperCase() : "PENDING"}
+                        Status: {appointmentStatus.replace("_", " ").toUpperCase()}
                       </p>
                     </div>
                     <div className="flex flex-wrap justify-end gap-2 text-xs">
@@ -245,7 +248,7 @@ export function QuotesList({
                             ? "Reschedule job"
                             : "Schedule job"}
                       </button>
-                      {hasAppointment && updateStatusAction ? (
+                      {hasAppointment && appointment && updateStatusAction ? (
                         <form action={updateStatusAction}>
                           <input type="hidden" name="appointmentId" value={appointment.id} />
                           <input type="hidden" name="status" value="canceled" />
