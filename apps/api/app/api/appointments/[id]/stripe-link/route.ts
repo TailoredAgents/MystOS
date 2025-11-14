@@ -5,10 +5,16 @@ import { eq } from "drizzle-orm";
 import { getDb, appointments, contacts } from "@/db";
 import { isAdminRequest } from "../../../web/admin";
 
+const LineItemSchema = z.object({
+  label: z.string().min(1).max(120),
+  amount: z.number().positive()
+});
+
 const PayloadSchema = z.object({
   amount: z.number().positive(),
   currency: z.string().min(3).max(10).default("USD"),
-  email: z.string().email().optional()
+  email: z.string().email().optional(),
+  lineItems: z.array(LineItemSchema).max(20).optional()
 });
 
 function ensureStripeSecret(): string {
@@ -57,6 +63,14 @@ export async function POST(
   if (!Number.isFinite(amountInCents) || amountInCents <= 0) {
     return NextResponse.json({ error: "invalid_amount" }, { status: 400 });
   }
+  const normalizedLineItems =
+    payload.lineItems?.map((item) => ({
+      label: item.label,
+      amountInCents: Math.round(item.amount * 100)
+    })) ?? [];
+  if (normalizedLineItems.some((item) => !Number.isFinite(item.amountInCents) || item.amountInCents <= 0)) {
+    return NextResponse.json({ error: "invalid_line_item" }, { status: 400 });
+  }
 
   const db = getDb();
   const [appt] = await db
@@ -83,10 +97,15 @@ export async function POST(
     params.set("mode", "payment");
     params.set("success_url", successUrl());
     params.set("cancel_url", cancelUrl());
-    params.set("line_items[0][price_data][currency]", payload.currency.toLowerCase());
-    params.set("line_items[0][price_data][product_data][name]", descriptor);
-    params.set("line_items[0][price_data][unit_amount]", String(amountInCents));
-    params.set("line_items[0][quantity]", "1");
+    const itemsToSend = normalizedLineItems.length
+      ? normalizedLineItems
+      : [{ label: descriptor, amountInCents }];
+    itemsToSend.forEach((item, index) => {
+      params.set(`line_items[${index}][price_data][currency]`, payload.currency.toLowerCase());
+      params.set(`line_items[${index}][price_data][product_data][name]`, item.label);
+      params.set(`line_items[${index}][price_data][unit_amount]`, String(item.amountInCents));
+      params.set(`line_items[${index}][quantity]`, "1");
+    });
     params.set("metadata[appointment_id]", appointmentId);
     if (customerEmail) {
       params.set("customer_email", customerEmail);

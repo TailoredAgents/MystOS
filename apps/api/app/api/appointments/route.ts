@@ -1,7 +1,15 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { inArray, asc, desc, eq } from "drizzle-orm";
-import { getDb, appointments, contacts, properties, leads, appointmentNotes } from "@/db";
+import {
+  getDb,
+  appointments,
+  contacts,
+  properties,
+  leads,
+  appointmentNotes,
+  quotes
+} from "@/db";
 import { isAdminRequest } from "../web/admin";
 
 const STATUS_OPTIONS = ["requested", "confirmed", "completed", "no_show", "canceled"] as const;
@@ -58,12 +66,17 @@ export async function GET(request: NextRequest): Promise<Response> {
       postalCode: properties.postalCode,
       servicesRequested: leads.servicesRequested,
       rescheduleToken: appointments.rescheduleToken,
-      calendarEventId: appointments.calendarEventId
+      calendarEventId: appointments.calendarEventId,
+      quoteId: quotes.id,
+      quoteStatus: quotes.status,
+      quoteLineItems: quotes.lineItems,
+      quoteTotal: quotes.total
     })
     .from(appointments)
     .leftJoin(contacts, eq(appointments.contactId, contacts.id))
     .leftJoin(properties, eq(appointments.propertyId, properties.id))
-    .leftJoin(leads, eq(appointments.leadId, leads.id));
+    .leftJoin(leads, eq(appointments.leadId, leads.id))
+    .leftJoin(quotes, eq(quotes.jobAppointmentId, appointments.id));
 
   const filteredQuery =
     statusFilter && statusFilter.length > 0
@@ -139,7 +152,15 @@ export async function GET(request: NextRequest): Promise<Response> {
       },
       calendarEventId: row.calendarEventId,
       rescheduleToken: row.rescheduleToken,
-      notes: notesMap.get(row.id) ?? []
+      notes: notesMap.get(row.id) ?? [],
+      quote: row.quoteId
+        ? {
+            id: row.quoteId,
+            status: row.quoteStatus,
+            total: Number(row.quoteTotal ?? 0),
+            lineItems: row.quoteLineItems ?? []
+          }
+        : null
     };
   });
 

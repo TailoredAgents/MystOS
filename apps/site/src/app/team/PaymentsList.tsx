@@ -34,6 +34,18 @@ type ApptItem = {
   startAt: string | null;
   contact: { name: string; email?: string | null };
   property: { addressLine1: string; city: string };
+  quote?: {
+    id: string;
+    status: string;
+    total: number;
+    lineItems: Array<{ id: string; label: string; amount: number }>;
+  } | null;
+};
+
+type PaymentLineItem = {
+  id: string;
+  label: string;
+  amount: string;
 };
 
 export function PaymentsList({
@@ -55,13 +67,18 @@ export function PaymentsList({
   const [appointmentFilter, setAppointmentFilter] = useState("");
   const [linkSearch, setLinkSearch] = useState("");
   const [linkAppointmentId, setLinkAppointmentId] = useState("");
-  const [linkAmount, setLinkAmount] = useState("");
   const [linkCurrency, setLinkCurrency] = useState("USD");
   const [linkEmail, setLinkEmail] = useState("");
   const [linkEmailDirty, setLinkEmailDirty] = useState(false);
   const [linkStatus, setLinkStatus] = useState<"idle" | "pending" | "success" | "error">("idle");
   const [linkUrl, setLinkUrl] = useState<string | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkLineItems, setLinkLineItems] = useState<PaymentLineItem[]>([createLineItem("", "")]);
+  const createLineItem = (label = "", amount = ""): PaymentLineItem => ({
+    id: Math.random().toString(36).slice(2),
+    label,
+    amount
+  });
 
   useEffect(() => {
     void (async () => {
@@ -75,6 +92,25 @@ export function PaymentsList({
       }
     })();
   }, []);
+
+  useEffect(() => {
+    if (!linkAppointmentId) {
+      setLinkLineItems([createLineItem("", "")]);
+      return;
+    }
+    const match = appts.find((appt) => appt.id === linkAppointmentId);
+    if (match?.quote?.lineItems && match.quote.lineItems.length > 0) {
+      setLinkLineItems(
+        match.quote.lineItems.map((item) =>
+          createLineItem(item.label, item.amount ? item.amount.toFixed(2) : "")
+        )
+      );
+    } else if (match?.quote?.total && match.quote.total > 0) {
+      setLinkLineItems([createLineItem("Quoted services", match.quote.total.toFixed(2))]);
+    } else {
+      setLinkLineItems([createLineItem("", "")]);
+    }
+  }, [appts, linkAppointmentId]);
 
   const filtered = useMemo(() => {
     const hay = q.trim().toLowerCase();
@@ -119,6 +155,27 @@ export function PaymentsList({
     [linkSearch, appts]
   );
 
+  const updateLineItem = (id: string, updates: Partial<PaymentLineItem>) => {
+    setLinkLineItems((items) =>
+      items.map((item) => (item.id === id ? { ...item, ...updates } : item))
+    );
+  };
+
+  const removeLineItem = (id: string) => {
+    setLinkLineItems((items) => (items.length > 1 ? items.filter((item) => item.id !== id) : items));
+  };
+
+  const addLineItem = () => {
+    setLinkLineItems((items) => [...items, createLineItem("", "")]);
+  };
+
+  const linkTotal = useMemo(() => {
+    return linkLineItems.reduce((sum, item) => {
+      const value = Number(item.amount);
+      return Number.isFinite(value) && value > 0 ? sum + value : sum;
+    }, 0);
+  }, [linkLineItems]);
+
   const metadataNote = (payment: Payment) => {
     if (!payment.metadata || typeof payment.metadata !== "object") {
       return null;
@@ -129,27 +186,6 @@ export function PaymentsList({
     ) : null;
   };
 
-  const filteredAppts = useMemo(() => {
-    const hay = appointmentFilter.trim().toLowerCase();
-    if (!hay) {
-      return appts.slice(0, 50);
-    }
-    return appts
-      .filter((appt) => {
-        const base = [
-          appt.contact.name,
-          appt.property.addressLine1,
-          appt.property.city,
-          appt.startAt ? new Date(appt.startAt).toLocaleDateString() : ""
-        ]
-          .join(" ")
-          .toLowerCase();
-        return base.includes(hay);
-      })
-      .slice(0, 50);
-  }, [appts, appointmentFilter]);
-
-  
   const formatAppointmentLabel = (appt: ApptItem) => {
     const date = appt.startAt ? new Date(appt.startAt).toLocaleDateString() : "Unscheduled";
     return `${appt.contact.name} — ${date} — ${appt.property.addressLine1}, ${appt.property.city}`;
@@ -174,8 +210,21 @@ export function PaymentsList({
       return;
     }
 
-    const amountValue = Number(linkAmount);
-    if (!Number.isFinite(amountValue) || amountValue <= 0) {
+    const validItems = linkLineItems
+      .map((item) => ({
+        label: item.label.trim(),
+        amount: Number(item.amount)
+      }))
+      .filter((item) => item.label.length > 0 && Number.isFinite(item.amount) && item.amount > 0);
+
+    if (!validItems.length) {
+      setLinkError("Add at least one line item with an amount");
+      setLinkStatus("error");
+      return;
+    }
+
+    const totalValue = validItems.reduce((sum, item) => sum + item.amount, 0);
+    if (!Number.isFinite(totalValue) || totalValue <= 0) {
       setLinkError("Enter a valid amount");
       setLinkStatus("error");
       return;
@@ -191,9 +240,10 @@ export function PaymentsList({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           appointmentId: linkAppointmentId,
-          amount: amountValue,
+          amount: totalValue,
           currency: linkCurrency,
-          email: linkEmail.trim().length ? linkEmail.trim() : undefined
+          email: linkEmail.trim().length ? linkEmail.trim() : undefined,
+          lineItems: validItems
         })
       });
 
@@ -335,20 +385,47 @@ export function PaymentsList({
               ))}
             </select>
           </label>
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="flex flex-col gap-1">
-              <span>Amount</span>
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                value={linkAmount}
-                onChange={(event) => setLinkAmount(event.target.value)}
-                placeholder="120.00"
-                required
-                className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
-              />
-            </label>
+          <div className="space-y-2">
+            <span className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-800">
+              Line items
+            </span>
+            {linkLineItems.map((item) => (
+              <div key={item.id} className="grid gap-2 sm:grid-cols-[2fr_minmax(100px,1fr)_auto]">
+                <input
+                  type="text"
+                  value={item.label}
+                  onChange={(event) => updateLineItem(item.id, { label: event.target.value })}
+                  placeholder="Service description"
+                  className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                />
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={item.amount}
+                  onChange={(event) => updateLineItem(item.id, { amount: event.target.value })}
+                  placeholder="120.00"
+                  className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+                />
+                <button
+                  type="button"
+                  className="rounded-md border border-neutral-300 px-3 py-2 text-xs font-semibold text-neutral-700 disabled:opacity-50"
+                  onClick={() => removeLineItem(item.id)}
+                  disabled={linkLineItems.length === 1}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="rounded-md border border-dashed border-neutral-300 px-3 py-2 text-xs font-semibold text-neutral-700"
+              onClick={addLineItem}
+            >
+              Add line item
+            </button>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1">
               <span>Currency</span>
               <select
@@ -375,6 +452,9 @@ export function PaymentsList({
             </label>
           </div>
           <div className="flex flex-col gap-2">
+            <p className="text-[11px] text-neutral-600">
+              Total: {linkTotal > 0 ? fmtMoney(Math.round(linkTotal * 100), linkCurrency) : "—"}
+            </p>
             <div className="flex justify-end">
               <button
                 type="submit"
