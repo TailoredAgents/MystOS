@@ -1,7 +1,7 @@
 import React, { type ReactElement } from "react";
 import { PaymentsList } from "../PaymentsList";
 import { callAdminApi } from "../lib/api";
-import { attachPaymentAction, detachPaymentAction } from "../actions";
+import { attachPaymentAction, detachPaymentAction, recordPaymentAction } from "../actions";
 
 type PaymentDto = {
   id: string;
@@ -14,6 +14,8 @@ type PaymentDto = {
   last4: string | null;
   receiptUrl: string | null;
   createdAt: string;
+  metadata: Record<string, unknown> | null;
+  capturedAt: string | null;
   appointment: null | { id: string; status: string; startAt: string | null; contactName: string | null };
 };
 
@@ -32,6 +34,7 @@ export async function PaymentsSection(): Promise<ReactElement> {
       summary={payload.summary}
       attachAction={attachPaymentAction}
       detachAction={detachPaymentAction}
+      recordAction={recordPaymentAction}
     />
   );
 }

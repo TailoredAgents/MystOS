@@ -170,6 +170,70 @@ export async function detachPaymentAction(formData: FormData) {
   revalidatePath("/team");
 }
 
+export async function recordPaymentAction(formData: FormData) {
+  const jar = await cookies();
+  const appointmentId = formData.get("appointmentId");
+  const amountRaw = formData.get("amount");
+  const currency = (formData.get("currency") || "USD") as string | null;
+  const method = formData.get("method");
+  const note = formData.get("note");
+
+  if (typeof appointmentId !== "string" || appointmentId.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Select an appointment", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  if (typeof amountRaw !== "string" || amountRaw.trim().length === 0) {
+    jar.set({ name: "myst-flash-error", value: "Amount required", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const parsedAmount = Number(amountRaw);
+  if (!Number.isFinite(parsedAmount) || parsedAmount <= 0) {
+    jar.set({ name: "myst-flash-error", value: "Enter a valid amount", path: "/" });
+    revalidatePath("/team");
+    return;
+  }
+
+  const payload: Record<string, unknown> = {
+    appointmentId: appointmentId.trim(),
+    amount: parsedAmount,
+    currency: typeof currency === "string" && currency.trim().length ? currency.trim().toUpperCase() : "USD"
+  };
+
+  if (typeof method === "string" && method.trim().length > 0) {
+    payload["method"] = method.trim();
+  }
+
+  if (typeof note === "string" && note.trim().length > 0) {
+    payload["note"] = note.trim();
+  }
+
+  const response = await callAdminApi("/api/payments", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    let message = "Unable to record payment";
+    try {
+      const data = (await response.json()) as { error?: string };
+      if (data?.error) {
+        message = data.error.replace(/_/g, " ");
+      }
+    } catch {
+      // ignore
+    }
+    jar.set({ name: "myst-flash-error", value: message, path: "/" });
+  } else {
+    jar.set({ name: "myst-flash", value: "Payment recorded", path: "/" });
+  }
+
+  revalidatePath("/team");
+}
+
 export async function rescheduleAppointmentAction(formData: FormData) {
   const id = formData.get("appointmentId");
   const preferredDate = formData.get("preferredDate");
