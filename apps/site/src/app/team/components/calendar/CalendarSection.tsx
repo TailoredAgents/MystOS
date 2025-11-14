@@ -146,10 +146,10 @@ export function CalendarSection() {
 
       <div className="grid gap-4 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-xl shadow-slate-200/60 md:grid-cols-2 lg:grid-cols-4">
         {days.map((day) => {
-          const key = day.toISOString().split("T")[0];
-          const entries = grouped.get(key) ?? [];
+          const dateKey = day.toISOString().split("T")[0] ?? "unscheduled";
+          const entries = grouped.get(dateKey) ?? [];
           return (
-            <article key={key} className="flex flex-col rounded-2xl border border-slate-100 bg-white/80 p-3">
+            <article key={dateKey} className="flex flex-col rounded-2xl border border-slate-100 bg-white/80 p-3">
               <header className="flex items-center justify-between text-xs text-slate-500">
                 <span>{day.toLocaleDateString("en-US", { weekday: "short" })}</span>
                 <span className="font-semibold text-slate-900">{formatDay(day)}</span>
