@@ -129,13 +129,16 @@ export function CalendarSection() {
     days.push(day);
   }
 
+  const firstDay = days[0] ?? start;
+  const lastDay = days[days.length - 1] ?? end;
+
   return (
     <section className="space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Week of</p>
           <h2 className="text-xl font-semibold text-slate-900">
-            {formatDay(days[0])} – {formatDay(days[days.length - 1])}
+            {formatDay(firstDay)} – {formatDay(lastDay)}
           </h2>
         </div>
         <p className="text-xs text-slate-500">Auto-refreshes every 5 minutes</p>
