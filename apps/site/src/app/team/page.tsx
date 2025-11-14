@@ -49,7 +49,7 @@ export default async function TeamPage({
   const flashError = cookieStore.get("myst-flash-error")?.value ?? null;
   const tabs: TabNavItem[] = [
     { id: "myday", label: "My Day", href: "/team?tab=myday" },
-    { id: "calendar", label: "Calendar", href: "/team?tab=calendar", requires: "owner" },
+    { id: "calendar", label: "Calendar", href: "/team?tab=calendar", requires: "crew" },
     { id: "estimates", label: "Estimates", href: "/team?tab=estimates", requires: "owner" },
     { id: "quotes", label: "Quotes", href: "/team?tab=quotes", requires: "owner" },
     { id: "quote-builder", label: "Quote Builder", href: "/team?tab=quote-builder", requires: "crew" },
@@ -159,7 +159,7 @@ export default async function TeamPage({
           </React.Suspense>
         ) : null}
 
-        {tab === "calendar" && hasOwner ? (
+        {tab === "calendar" && (hasCrew || hasOwner) ? (
           <React.Suspense
             fallback={
               <div className="rounded-2xl border border-slate-200 bg-white/80 p-8 text-sm text-slate-500 shadow-lg shadow-slate-200/50">
