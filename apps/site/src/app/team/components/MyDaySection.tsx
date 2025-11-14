@@ -73,6 +73,9 @@ export async function MyDaySection({
         </p>
       ) : (
         ordered.map((a) => {
+          if (!a) {
+            return null;
+          }
           const isFocus = Boolean(focusId) && a.id === focusId;
           const articleClass = [
             "rounded-lg border bg-white p-4 shadow-sm",
