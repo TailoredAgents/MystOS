@@ -113,7 +113,7 @@ export function PaymentsList({
                 <option
                   key={appt.id}
                   value={appt.id}
-                >{`${appt.contact.name} · ${appt.property.addressLine1}, ${appt.property.city}`}</option>
+                >{`${appt.contact.name} - ${appt.property.addressLine1}, ${appt.property.city}`}</option>
               ))}
             </datalist>
           </label>
@@ -187,12 +187,12 @@ export function PaymentsList({
               <div className="space-y-1">
                 <p className="text-sm font-medium text-primary-900">{fmtMoney(p.amount, p.currency)}</p>
                 <p className="text-xs text-neutral-500">
-                  {p.stripeChargeId.slice(0, 14)} • {p.status}
-                  {p.method ? ` • ${p.method}` : null}
+                  {p.stripeChargeId.slice(0, 14)} - {p.status}
+                  {p.method ? ` - ${p.method}` : null}
                 </p>
                 <p className="text-[11px] text-neutral-500">
                   {new Date(p.createdAt).toLocaleString()}
-                  {p.capturedAt ? ` • Captured ${new Date(p.capturedAt).toLocaleDateString()}` : null}
+                  {p.capturedAt ? ` - Captured ${new Date(p.capturedAt).toLocaleDateString()}` : null}
                 </p>
                 {p.appointment ? (
                   <p className="text-xs text-neutral-600">
@@ -231,7 +231,7 @@ export function PaymentsList({
                   />
                   <datalist id={`appts-${p.id}`}>
                     {appts.map((a) => (
-                      <option key={a.id} value={a.id}>{`${a.contact.name} · ${a.property.addressLine1}, ${a.property.city}`}</option>
+                      <option key={a.id} value={a.id}>{`${a.contact.name} - ${a.property.addressLine1}, ${a.property.city}`}</option>
                     ))}
                   </datalist>
                   <SubmitButton className="rounded-md bg-primary-800 px-3 py-1 text-xs font-semibold text-white" pendingLabel="Attaching...">
@@ -245,4 +245,4 @@ export function PaymentsList({
       </ul>
     </section>
   );
-}
+}
