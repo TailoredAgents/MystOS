@@ -149,11 +149,7 @@ export function PaymentsList({
       .slice(0, 50);
   }, [appts, appointmentFilter]);
 
-  const formatAppointmentLabel = (appt: ApptItem) => {
-    const date = appt.startAt ? new Date(appt.startAt).toLocaleDateString() : "Unscheduled";
-    return `${appt.contact.name} — ${date} — ${appt.property.addressLine1}, ${appt.property.city}`;
-  };
-
+  
   const formatAppointmentLabel = (appt: ApptItem) => {
     const date = appt.startAt ? new Date(appt.startAt).toLocaleDateString() : "Unscheduled";
     return `${appt.contact.name} — ${date} — ${appt.property.addressLine1}, ${appt.property.city}`;
@@ -486,4 +482,5 @@ export function PaymentsList({
       </ul>
     </section>
   );
-}
+}
+
