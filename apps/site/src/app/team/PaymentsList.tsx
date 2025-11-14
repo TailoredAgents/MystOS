@@ -52,6 +52,7 @@ export function PaymentsList({
   const [q, setQ] = useState("");
   const [scope, setScope] = useState<string>("all");
   const [appts, setAppts] = useState<ApptItem[]>([]);
+  const [appointmentFilter, setAppointmentFilter] = useState("");
 
   useEffect(() => {
     void (async () => {
@@ -89,6 +90,31 @@ export function PaymentsList({
     ) : null;
   };
 
+  const filteredAppts = useMemo(() => {
+    const hay = appointmentFilter.trim().toLowerCase();
+    if (!hay) {
+      return appts.slice(0, 50);
+    }
+    return appts
+      .filter((appt) => {
+        const base = [
+          appt.contact.name,
+          appt.property.addressLine1,
+          appt.property.city,
+          appt.startAt ? new Date(appt.startAt).toLocaleDateString() : ""
+        ]
+          .join(" ")
+          .toLowerCase();
+        return base.includes(hay);
+      })
+      .slice(0, 50);
+  }, [appts, appointmentFilter]);
+
+  const formatAppointmentLabel = (appt: ApptItem) => {
+    const date = appt.startAt ? new Date(appt.startAt).toLocaleDateString() : "Unscheduled";
+    return `${appt.contact.name} — ${date} — ${appt.property.addressLine1}, ${appt.property.city}`;
+  };
+
   return (
     <section className="space-y-4">
       <div className="flex flex-wrap items-center gap-2 text-sm text-neutral-700">
@@ -100,22 +126,35 @@ export function PaymentsList({
         <summary className="cursor-pointer font-semibold text-emerald-900">Record payment</summary>
         <form action={recordAction} className="mt-3 space-y-3 text-xs text-neutral-700">
           <label className="flex flex-col gap-1">
-            <span>Appointment</span>
+            <span>Search appointments</span>
             <input
-              list="record-payment-appointments"
-              name="appointmentId"
-              required
-              placeholder="Search or enter appointment ID"
+              type="text"
+              value={appointmentFilter}
+              onChange={(event) => setAppointmentFilter(event.target.value)}
+              placeholder="Type a customer, address, or date"
               className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
             />
-            <datalist id="record-payment-appointments">
-              {appts.map((appt) => (
-                <option
-                  key={appt.id}
-                  value={appt.id}
-                >{`${appt.contact.name} - ${appt.property.addressLine1}, ${appt.property.city}`}</option>
+          </label>
+          <label className="flex flex-col gap-1">
+            <span>Select appointment</span>
+            <select
+              name="appointmentId"
+              required
+              className="rounded-md border border-neutral-300 px-3 py-2 text-sm"
+              defaultValue=""
+            >
+              <option value="" disabled>
+                Choose a job
+              </option>
+              {filteredAppts.map((appt) => (
+                <option key={appt.id} value={appt.id}>
+                  {formatAppointmentLabel(appt)}
+                </option>
               ))}
-            </datalist>
+            </select>
+            {appts.length === 0 ? (
+              <p className="text-[11px] text-neutral-500">Loading recent appointments...</p>
+            ) : null}
           </label>
           <div className="grid gap-3 sm:grid-cols-3">
             <label className="flex flex-col gap-1">
