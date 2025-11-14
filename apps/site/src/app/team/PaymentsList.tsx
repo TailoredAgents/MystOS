@@ -73,12 +73,12 @@ export function PaymentsList({
   const [linkStatus, setLinkStatus] = useState<"idle" | "pending" | "success" | "error">("idle");
   const [linkUrl, setLinkUrl] = useState<string | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
-  const [linkLineItems, setLinkLineItems] = useState<PaymentLineItem[]>([createLineItem("", "")]);
   const createLineItem = (label = "", amount = ""): PaymentLineItem => ({
     id: Math.random().toString(36).slice(2),
     label,
     amount
   });
+  const [linkLineItems, setLinkLineItems] = useState<PaymentLineItem[]>([createLineItem("", "")]);
 
   useEffect(() => {
     void (async () => {
