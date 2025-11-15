@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 
 type Quote = {
@@ -26,6 +26,18 @@ type Quote = {
   } | null;
 };
 
+type ScheduleSuggestion = {
+  window: string;
+  reasoning: string;
+  startAtIso?: string | null;
+};
+
+type SuggestionEnvelope = {
+  loading: boolean;
+  error: string | null;
+  items: ScheduleSuggestion[];
+};
+
 type ServerAction = (formData: FormData) => void;
 
 export function QuotesList({
@@ -44,6 +56,8 @@ export function QuotesList({
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<string>("all");
   const [expandedQuoteId, setExpandedQuoteId] = useState<string | null>(null);
+  const [suggestions, setSuggestions] = useState<Record<string, SuggestionEnvelope>>({});
+  const startAtRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const defaultScheduleStart = useMemo(() => {
     const dt = new Date();
@@ -101,6 +115,89 @@ export function QuotesList({
     setExpandedQuoteId((prev) => (prev === quoteId ? null : quoteId));
   };
 
+  const mapSuggestionError = (code: string): string => {
+    switch (code) {
+      case "quote_not_found":
+        return "Quote no longer exists.";
+      case "quote_not_accepted":
+        return "Mark the quote as accepted before requesting suggestions.";
+      case "unauthorized":
+        return "You need to sign in again.";
+      default:
+        return "Unable to fetch suggestions right now.";
+    }
+  };
+
+  const requestSuggestions = async (quoteId: string) => {
+    setSuggestions((prev) => ({
+      ...prev,
+      [quoteId]: {
+        loading: true,
+        error: null,
+        items: prev[quoteId]?.items ?? []
+      }
+    }));
+    try {
+      const response = await fetch(`/api/quotes/${quoteId}/schedule-suggestions`, {
+        method: "GET",
+        cache: "no-store"
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload || !Array.isArray(payload.suggestions)) {
+        const errorCode =
+          payload && typeof payload.error === "string"
+            ? payload.error
+            : "schedule_suggestions_unavailable";
+        throw new Error(mapSuggestionError(errorCode));
+      }
+
+      setSuggestions((prev) => ({
+        ...prev,
+        [quoteId]: {
+          loading: false,
+          error: null,
+          items: payload.suggestions as ScheduleSuggestion[]
+        }
+      }));
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unable to fetch suggestions right now.";
+      setSuggestions((prev) => ({
+        ...prev,
+        [quoteId]: {
+          loading: false,
+          error: message,
+          items: prev[quoteId]?.items ?? []
+        }
+      }));
+    }
+  };
+
+  const applySuggestion = (quoteId: string, iso?: string | null) => {
+    if (!iso) {
+      return;
+    }
+    setExpandedQuoteId((prev) => (prev === quoteId ? prev : quoteId));
+    const applyValue = () => {
+      const targetInput = startAtRefs.current[quoteId];
+      if (!targetInput) {
+        return false;
+      }
+      const nextValue = toInputValue(iso);
+      targetInput.value = nextValue;
+      targetInput.dispatchEvent(new Event("input", { bubbles: true }));
+      targetInput.dispatchEvent(new Event("change", { bubbles: true }));
+      targetInput.focus();
+      return true;
+    };
+
+    if (!applyValue()) {
+      setTimeout(() => {
+        applyValue();
+      }, 60);
+    }
+  };
+
   return (
     <section className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
@@ -146,6 +243,10 @@ export function QuotesList({
               : null;
           const defaultDuration = appointment?.durationMinutes ?? 90;
           const defaultTravel = appointment?.travelBufferMinutes ?? 30;
+          const suggestionState = suggestions[quote.id];
+          const suggestionItems = suggestionState?.items ?? [];
+          const isLoadingSuggestions = suggestionState?.loading ?? false;
+          const suggestionError = suggestionState?.error ?? null;
 
           return (
             <article key={quote.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
@@ -266,6 +367,58 @@ export function QuotesList({
                     </div>
                   </div>
 
+                  <div className="rounded-lg border border-emerald-100 bg-white/70 p-3 text-[11px] text-neutral-600">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div>
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-600">Need a fast slot?</p>
+                        <p className="text-sm font-semibold text-emerald-900">
+                          Let Myst Assist check nearby jobs for you.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => requestSuggestions(quote.id)}
+                        disabled={isLoadingSuggestions}
+                        className="inline-flex items-center rounded-md border border-emerald-300 px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {isLoadingSuggestions ? "Scanning..." : "Schedule suggestions"}
+                      </button>
+                    </div>
+                    {suggestionError ? (
+                      <p className="mt-2 text-xs text-rose-600">{suggestionError}</p>
+                    ) : null}
+                    {suggestionItems.length > 0 ? (
+                      <ul className="mt-2 space-y-2 text-neutral-700">
+                        {suggestionItems.map((item, idx) => (
+                          <li
+                            key={`${quote.id}-suggestion-${idx}`}
+                            className="rounded-md border border-emerald-100 bg-white/90 p-2"
+                          >
+                            <p className="text-sm font-semibold text-emerald-900">{item.window}</p>
+                            <p className="text-xs text-neutral-600">{item.reasoning}</p>
+                            <div className="mt-1 flex flex-wrap gap-2 text-[11px]">
+                              <button
+                                type="button"
+                                onClick={() => applySuggestion(quote.id, item.startAtIso)}
+                                disabled={!item.startAtIso}
+                                className="inline-flex items-center rounded border border-emerald-300 px-2 py-0.5 font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                Apply to form
+                              </button>
+                              {!item.startAtIso ? (
+                                <span className="text-neutral-500">Start time estimate unavailable</span>
+                              ) : null}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-xs text-neutral-500">
+                        Suggestions will appear here after you click the button.
+                      </p>
+                    )}
+                  </div>
+
                   {isExpanded ? (
                     <form action={scheduleAction} className="space-y-3 rounded-lg border border-emerald-200 bg-white/90 p-4 text-neutral-700">
                       <input type="hidden" name="quoteId" value={quote.id} />
@@ -277,6 +430,9 @@ export function QuotesList({
                           required
                           defaultValue={appointment ? toInputValue(appointment.startAt) : defaultScheduleStart}
                           min={minScheduleValue}
+                          ref={(el) => {
+                            startAtRefs.current[quote.id] = el;
+                          }}
                           className="rounded-md border border-neutral-300 px-3 py-2 text-sm text-neutral-800 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-200"
                         />
                       </label>
