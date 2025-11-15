@@ -8,7 +8,7 @@ const CREW_COOKIE = "myst-crew-session";
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ): Promise<Response> {
   const jar = await cookies();
   const hasOwner = Boolean(jar.get(ADMIN_COOKIE)?.value);
@@ -18,7 +18,7 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
-  const quoteId = context.params?.id;
+  const { id: quoteId } = await context.params;
   if (!quoteId) {
     return NextResponse.json({ error: "missing_id" }, { status: 400 });
   }

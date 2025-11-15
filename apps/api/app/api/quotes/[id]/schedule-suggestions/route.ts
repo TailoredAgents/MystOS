@@ -11,7 +11,8 @@ import { generateScheduleSuggestions, type ScheduleSuggestion } from "@/lib/ai";
 
 const UPCOMING_WINDOW_DAYS = 14;
 const UPCOMING_LIMIT = 120;
-const SCHEDULABLE_STATUSES = ["confirmed", "requested"];
+type AppointmentStatus = (typeof appointments.$inferSelect)["status"];
+const SCHEDULABLE_STATUSES: AppointmentStatus[] = ["confirmed", "requested"];
 
 type UpcomingSlot = {
   startAt: Date;
@@ -102,7 +103,10 @@ function buildFallbackSuggestions(
     if (suggestions.length >= 3) {
       break;
     }
-    const key = slot.startAt.toISOString().split("T")[0];
+    const [key] = slot.startAt.toISOString().split("T");
+    if (!key) {
+      continue;
+    }
     if (byDay.has(key)) continue;
     byDay.add(key);
     const fallback: ScheduleSuggestion = {
@@ -213,26 +217,25 @@ export async function GET(
     .orderBy(asc(appointments.startAt))
     .limit(UPCOMING_LIMIT);
 
-  const slots: UpcomingSlot[] = upcomingRows
-    .map((row) => {
-      if (!row.startAt) {
-        return null;
-      }
-      const slotLat = parseCoord(row.lat);
-      const slotLng = parseCoord(row.lng);
-      return {
-        startAt: row.startAt,
-        durationMinutes: row.durationMinutes,
-        address: {
-          line1: row.addressLine1 ?? "Unspecified address",
-          city: row.city ?? "",
-          state: row.state ?? "",
-          postalCode: row.postalCode ?? ""
-        },
-        distanceMiles: computeDistanceMiles(targetLat, targetLng, slotLat, slotLng)
-      } satisfies UpcomingSlot;
-    })
-    .filter((slot): slot is UpcomingSlot => Boolean(slot));
+  const slots: UpcomingSlot[] = [];
+  for (const row of upcomingRows) {
+    if (!row.startAt) {
+      continue;
+    }
+    const slotLat = parseCoord(row.lat);
+    const slotLng = parseCoord(row.lng);
+    slots.push({
+      startAt: row.startAt,
+      durationMinutes: row.durationMinutes ?? null,
+      address: {
+        line1: row.addressLine1 ?? "Unspecified address",
+        city: row.city ?? "",
+        state: row.state ?? "",
+        postalCode: row.postalCode ?? ""
+      },
+      distanceMiles: computeDistanceMiles(targetLat, targetLng, slotLat, slotLng)
+    });
+  }
 
   const contextPayload = {
     targetAddress,
