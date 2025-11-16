@@ -5,6 +5,7 @@ import { getDb, quotes, outboxEvents } from "@/db";
 import { isAdminRequest } from "../../../web/admin";
 import { eq } from "drizzle-orm";
 import { nanoid } from "nanoid";
+import { enqueueStageRequest } from "@/lib/pipeline-stage";
 
 const SendQuoteSchema = z.object({
   expiresInDays: z.number().int().min(1).max(120).optional(),
@@ -99,6 +100,7 @@ export async function POST(
       shareToken
     }
   });
+  await enqueueStageRequest(db, existing.contactId, "quoted", "quote.sent");
 
   const shareUrl = buildShareUrl(shareToken, parsedBody.data.shareBaseUrl);
 

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getDb, quotes, outboxEvents, crmPipeline } from "@/db";
 import { isAdminRequest } from "../../../web/admin";
 import { eq } from "drizzle-orm";
+import { enqueueStageRequest } from "@/lib/pipeline-stage";
 
 const AdminDecisionSchema = z.object({
   decision: z.enum(["accepted", "declined"]),
@@ -106,6 +107,7 @@ export async function POST(
       notes: parsedBody.data.notes ?? null
     }
   });
+  await enqueueStageRequest(db, existing.contactId, targetStage, `quote.${parsedBody.data.decision}`);
 
   return NextResponse.json({
     ok: true,

@@ -5,6 +5,7 @@ import { z } from "zod";
 import { nanoid } from "nanoid";
 import { getDb, payments, appointments, contacts, quotes, outboxEvents } from "@/db";
 import { isAdminRequest } from "../web/admin";
+import { enqueueStageRequest } from "@/lib/pipeline-stage";
 
 const RecordPaymentSchema = z.object({
   appointmentId: z.string().uuid(),
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const db = getDb();
   const [appointment] = await db
-    .select({ id: appointments.id })
+    .select({ id: appointments.id, contactId: appointments.contactId })
     .from(appointments)
     .where(eq(appointments.id, data.appointmentId))
     .limit(1);
@@ -228,6 +229,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     } catch (error) {
       console.warn("[payments] outbox_emit_failed", { paymentId, error: String(error) });
     }
+
+    await enqueueStageRequest(db, appointment.contactId, "won", "payment.recorded");
   }
 
   return NextResponse.json({ ok: true, id: paymentId });

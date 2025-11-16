@@ -21,6 +21,7 @@ import {
   ensureJobAppointmentSupport,
   isMissingJobAppointmentColumnError
 } from "@/lib/ensure-job-appointment-column";
+import { enqueueStageRequest } from "@/lib/pipeline-stage";
 
 const ScheduleQuoteSchema = z.object({
   startAt: z.string().min(1),
@@ -75,6 +76,8 @@ type ScheduleSuccess = {
     message: string;
   };
 
+  let quoteContactId: string | null = null;
+
   try {
     const withJobColumnRetry = async <T>(operation: () => Promise<T>): Promise<T> => {
       try {
@@ -123,6 +126,8 @@ type ScheduleSuccess = {
       if (!quote) {
         return { success: false, status: 404, message: "quote_not_found" };
       }
+
+      quoteContactId = quote.contactId ?? null;
 
       if (quote.status !== "accepted") {
         return { success: false, status: 400, message: "quote_not_accepted" };
@@ -326,6 +331,13 @@ type ScheduleSuccess = {
     }
 
     const wasRescheduled = "rescheduled" in result ? Boolean(result.rescheduled) : false;
+
+    await enqueueStageRequest(
+      db,
+      quoteContactId,
+      "won",
+      wasRescheduled ? "quote.rescheduled" : "quote.scheduled"
+    );
 
     return NextResponse.json({
       ok: true,
