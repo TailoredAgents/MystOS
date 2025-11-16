@@ -5,6 +5,8 @@ import { SubmitButton } from "@/components/SubmitButton";
 import { updatePipelineStageAction } from "../actions";
 import type { PipelineContact, PipelineLane } from "./pipeline.types";
 
+const moneyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+
 const STAGE_LABELS: Record<string, string> = {
   new: "New",
   contacted: "Contacted",
@@ -291,6 +293,32 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
                             {contact.property.addressLine1}, {contact.property.city}
                           </p>
                         ) : null}
+                        {contact.jobSummary ? (
+                          <div className="mt-3 rounded-2xl border border-white/60 bg-white/70 p-3 text-[11px] text-slate-600 shadow-inner shadow-slate-200/40">
+                            <p className="text-[11px] font-semibold text-slate-900">
+                              Next job{" "}
+                              {contact.jobSummary.startAt ? formatShortDate(contact.jobSummary.startAt) : "TBD"}
+                            </p>
+                            <p
+                              className={`mt-1 ${
+                                contact.jobSummary.outstandingCents > 0 ? "text-amber-700" : "text-emerald-700"
+                              }`}
+                            >
+                              {formatMoney(contact.jobSummary.paidCents)} / {formatMoney(contact.jobSummary.totalCents)}{" "}
+                              {contact.jobSummary.outstandingCents > 0
+                                ? `• ${formatMoney(contact.jobSummary.outstandingCents)} due`
+                                : "• Paid"}
+                            </p>
+                            {contact.jobSummary.lastPaymentMethod ? (
+                              <p className="mt-0.5 text-[10px] text-slate-500">
+                                Last payment {contact.jobSummary.lastPaymentMethod}
+                                {contact.jobSummary.lastPaymentAt
+                                  ? ` · ${formatShortDate(contact.jobSummary.lastPaymentAt)}`
+                                  : ""}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : null}
                         <div className="mt-3 flex flex-wrap gap-2 text-[11px]">
                           <a
                             className="rounded-full border border-slate-200 px-3 py-1.5 text-slate-600 transition hover:border-primary-300 hover:text-primary-700"
@@ -345,5 +373,9 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
       {isPending ? <div className="mt-4 text-center text-xs text-slate-500">Saving updates...</div> : null}
     </div>
   );
+}
+
+function formatMoney(cents: number): string {
+  return moneyFormatter.format((cents ?? 0) / 100);
 }
 

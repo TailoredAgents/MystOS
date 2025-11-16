@@ -21,6 +21,17 @@ export type PipelineContact = {
     quotes: number;
   };
   openTasks: number;
+  jobSummary?: {
+    quoteId: string;
+    appointmentId: string | null;
+    appointmentStatus: string | null;
+    startAt: string | null;
+    totalCents: number;
+    paidCents: number;
+    outstandingCents: number;
+    lastPaymentAt: string | null;
+    lastPaymentMethod: string | null;
+  } | null;
   lastActivityAt: string | null;
   updatedAt: string;
   createdAt: string;

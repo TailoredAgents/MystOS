@@ -3,6 +3,8 @@
 import { useMemo, useRef, useState } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 
+const currencyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+
 type Quote = {
   id: string;
   status: string;
@@ -24,6 +26,14 @@ type Quote = {
     travelBufferMinutes: number | null;
     rescheduleToken: string | null;
   } | null;
+  paymentSummary: {
+    totalCents: number;
+    paidCents: number;
+    outstandingCents: number;
+    hasOutstanding: boolean;
+    lastPaymentAt: string | null;
+    lastPaymentMethod: string | null;
+  };
 };
 
 type ScheduleSuggestion = {
@@ -113,6 +123,20 @@ export function QuotesList({
 
   const togglePanel = (quoteId: string) => {
     setExpandedQuoteId((prev) => (prev === quoteId ? null : quoteId));
+  };
+
+  const formatCurrency = (value: number): string => currencyFormatter.format(value);
+  const formatCents = (cents: number): string => currencyFormatter.format(cents / 100);
+  const formatPaymentDate = (iso: string | null): string | null => {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) {
+      return null;
+    }
+    return new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric"
+    }).format(date);
   };
 
   const mapSuggestionError = (code: string): string => {
@@ -247,6 +271,7 @@ export function QuotesList({
           const suggestionItems = suggestionState?.items ?? [];
           const isLoadingSuggestions = suggestionState?.loading ?? false;
           const suggestionError = suggestionState?.error ?? null;
+          const lastPaymentDisplay = formatPaymentDate(quote.paymentSummary.lastPaymentAt);
 
           return (
             <article key={quote.id} className="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
@@ -365,6 +390,23 @@ export function QuotesList({
                         </form>
                       ) : null}
                     </div>
+                  </div>
+
+                  <div className="rounded-lg border border-emerald-100 bg-white/80 p-3 text-[11px] text-neutral-600">
+                    <p className="text-xs font-semibold text-neutral-900">
+                      Payments · {formatCents(quote.paymentSummary.paidCents)} / {formatCurrency(quote.total)}
+                    </p>
+                    <p
+                      className={`mt-1 text-[11px] ${
+                        quote.paymentSummary.hasOutstanding ? "text-amber-700" : "text-emerald-700"
+                      }`}
+                    >
+                      {quote.paymentSummary.hasOutstanding
+                        ? `${formatCents(quote.paymentSummary.outstandingCents)} outstanding`
+                        : "Paid in full"}
+                      {quote.paymentSummary.lastPaymentMethod ? ` · ${quote.paymentSummary.lastPaymentMethod}` : ""}
+                      {lastPaymentDisplay ? ` · ${lastPaymentDisplay}` : ""}
+                    </p>
                   </div>
 
                   <div className="rounded-lg border border-emerald-100 bg-white/70 p-3 text-[11px] text-neutral-600">

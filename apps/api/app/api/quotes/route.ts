@@ -4,9 +4,9 @@ import { z } from "zod";
 import { calculateQuoteBreakdown } from "@myst-os/pricing/src/engine/calculate";
 import { serviceRates } from "@myst-os/pricing/src/config/defaults";
 import type { ServiceCategory } from "@myst-os/pricing/src/types";
-import { getDb, quotes, contacts, properties, appointments } from "@/db";
+import { getDb, quotes, contacts, properties, appointments, payments } from "@/db";
 import { isAdminRequest } from "../web/admin";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, inArray, sql } from "drizzle-orm";
 import {
   ensureJobAppointmentSupport,
   isMissingJobAppointmentColumnError
@@ -65,7 +65,14 @@ const toPgNumeric = (value: number | string): string => value.toString();
 const toOptionalPgNumeric = (value?: number | string | null): string | null =>
   value === null || value === undefined ? null : value.toString();
 
-function formatQuoteResponse(row: {
+type PaymentAggregate = {
+  totalPaidCents: number;
+  lastPaymentAt: Date | null;
+  lastPaymentMethod: string | null;
+};
+
+function formatQuoteResponse(
+  row: {
   id: string;
   status: string;
   services: string[];
@@ -88,12 +95,18 @@ function formatQuoteResponse(row: {
   jobAppointmentDuration: number | null;
   jobAppointmentTravel: number | null;
   jobAppointmentToken: string | null;
-}) {
+},
+  payment: PaymentAggregate | null
+) {
   const contactName = row.contactName?.trim();
   const addressLine1 = row.propertyAddressLine1?.trim();
   const city = row.propertyCity?.trim();
   const state = row.propertyState?.trim();
   const postalCode = row.propertyPostalCode?.trim();
+  const totalNumber = Number(row.total);
+  const totalCents = Number.isFinite(totalNumber) ? Math.round(totalNumber * 100) : 0;
+  const paidCents = payment?.totalPaidCents ?? 0;
+  const outstandingCents = Math.max(totalCents - paidCents, 0);
 
   return {
     id: row.id,
@@ -126,7 +139,15 @@ function formatQuoteResponse(row: {
             travelBufferMinutes: row.jobAppointmentTravel,
             rescheduleToken: row.jobAppointmentToken
           }
-        : null
+        : null,
+    paymentSummary: {
+      totalCents,
+      paidCents,
+      outstandingCents,
+      hasOutstanding: outstandingCents > 0,
+      lastPaymentAt: payment?.lastPaymentAt ? payment.lastPaymentAt.toISOString() : null,
+      lastPaymentMethod: payment?.lastPaymentMethod ?? null
+    }
   };
 }
 
@@ -188,8 +209,42 @@ export async function GET(request: NextRequest): Promise<Response> {
     throw error;
   });
 
+  const appointmentIds = Array.from(
+    new Set(
+      rows
+        .map((row) => row.jobAppointmentId)
+        .filter((id): id is string => typeof id === "string" && id.length > 0)
+    )
+  );
+
+  const paymentMap = new Map<string, PaymentAggregate>();
+  if (appointmentIds.length > 0) {
+    const paymentRows = await db
+      .select({
+        appointmentId: payments.appointmentId,
+        totalPaidCents: sql<number>`coalesce(sum(${payments.amount}), 0)`,
+        lastPaymentAt: sql<Date | null>`max(${payments.capturedAt})`,
+        lastPaymentMethod: sql<string | null>`max(${payments.method})`
+      })
+      .from(payments)
+      .where(inArray(payments.appointmentId, appointmentIds))
+      .groupBy(payments.appointmentId);
+
+    for (const summary of paymentRows) {
+      if (summary.appointmentId) {
+        paymentMap.set(summary.appointmentId, {
+          totalPaidCents: Number(summary.totalPaidCents ?? 0),
+          lastPaymentAt: summary.lastPaymentAt,
+          lastPaymentMethod: summary.lastPaymentMethod
+        });
+      }
+    }
+  }
+
   return NextResponse.json({
-    quotes: rows.map(formatQuoteResponse)
+    quotes: rows.map((row) =>
+      formatQuoteResponse(row, row.jobAppointmentId ? paymentMap.get(row.jobAppointmentId) ?? null : null)
+    )
   });
 }
 

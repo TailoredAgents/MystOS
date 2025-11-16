@@ -24,6 +24,14 @@ interface QuoteDto {
     travelBufferMinutes: number | null;
     rescheduleToken: string | null;
   } | null;
+  paymentSummary: {
+    totalCents: number;
+    paidCents: number;
+    outstandingCents: number;
+    hasOutstanding: boolean;
+    lastPaymentAt: string | null;
+    lastPaymentMethod: string | null;
+  };
 }
 
 export async function QuotesSection(): Promise<ReactElement> {
