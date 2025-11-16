@@ -29,15 +29,33 @@ type CalendarAppointment = {
   } | null;
 };
 
+type DayLoad = {
+  jobs: number;
+  minutes: number;
+  travelMinutes: number;
+};
+
+type CalendarTotals = {
+  jobs: number;
+  minutes: number;
+  travelMinutes: number;
+  unscheduled: number;
+};
+
 type CalendarResponse = {
   start: string;
   end: string;
   appointments: CalendarAppointment[];
+  summary?: {
+    totals: CalendarTotals;
+    byDay: Record<string, DayLoad>;
+  };
 };
 
 type CalendarViewMode = "week" | "month";
 
 const REFRESH_INTERVAL_MS = 10 * 60 * 1000;
+const MAX_MINUTES_PER_DAY = 8 * 60;
 
 const VIEW_MODE_OPTIONS: Array<{ id: CalendarViewMode; label: string }> = [
   { id: "week", label: "Week" },
@@ -86,6 +104,20 @@ function endOfMonth(anchor: Date) {
   const end = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 0);
   end.setHours(23, 59, 59, 999);
   return end;
+}
+
+function formatHours(minutes: number) {
+  return `${(minutes / 60).toFixed(1)}h`;
+}
+
+function loadTone(minutes: number) {
+  if (minutes >= MAX_MINUTES_PER_DAY) {
+    return "text-rose-600";
+  }
+  if (minutes >= MAX_MINUTES_PER_DAY * 0.75) {
+    return "text-amber-600";
+  }
+  return "text-emerald-700";
 }
 
 function buildMonthMatrix(anchor: Date) {
@@ -148,6 +180,8 @@ export function CalendarFullView({ initialViewMode }: { initialViewMode?: Calend
   const { data, error, isLoading } = useCalendarFeed(period.start, period.end);
 
   const appointments = data?.appointments ?? [];
+  const summaryByDay = React.useMemo(() => data?.summary?.byDay ?? {}, [data]);
+  const summaryTotals = data?.summary?.totals;
   const grouped = React.useMemo(() => {
     const map = new Map<string, CalendarAppointment[]>();
     for (const appt of appointments) {
@@ -272,14 +306,21 @@ export function CalendarFullView({ initialViewMode }: { initialViewMode?: Calend
         </div>
       </header>
 
+      <LoadTotalsCard totals={summaryTotals} />
+
       {isLoading ? (
         <div className="rounded-3xl border border-slate-200 bg-white/80 p-10 text-center text-sm text-slate-500 shadow-lg shadow-slate-200/50">
           Loading calendar...
         </div>
       ) : viewMode === "week" ? (
-        <WeeklyView days={weekDays} grouped={grouped} />
+        <WeeklyView days={weekDays} grouped={grouped} summaryByDay={summaryByDay} />
       ) : (
-        <MonthlyView weeks={monthMatrix} grouped={grouped} referenceDate={referenceDate} />
+        <MonthlyView
+          weeks={monthMatrix}
+          grouped={grouped}
+          referenceDate={referenceDate}
+          summaryByDay={summaryByDay}
+        />
       )}
 
       {unscheduledEntries.length > 0 ? (
@@ -317,24 +358,71 @@ export function CalendarFullView({ initialViewMode }: { initialViewMode?: Calend
   );
 }
 
+function DailyLoadBadge({ day, load }: { day: Date; load?: DayLoad }) {
+  const labelDate = day.toLocaleDateString("en-US", { weekday: "short" });
+  if (!load) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white/80 p-2 text-[11px] shadow-inner">
+        <p className="font-semibold text-slate-700">{labelDate}</p>
+        <p className="text-[10px] text-slate-400">Open</p>
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white/80 p-2 text-[11px] shadow-inner">
+      <p className="font-semibold text-slate-700">{labelDate}</p>
+      <p className={cn("text-[10px] font-medium", loadTone(load.minutes))}>
+        {load.jobs} {load.jobs === 1 ? "job" : "jobs"} · {formatHours(load.minutes)}
+      </p>
+    </div>
+  );
+}
+
+function LoadTotalsCard({ totals }: { totals?: CalendarTotals }) {
+  if (!totals) {
+    return null;
+  }
+  return (
+    <div className="rounded-3xl border border-slate-200 bg-white/80 p-4 shadow-inner shadow-slate-200/60">
+      <div className="flex flex-wrap items-center gap-6 text-sm text-slate-700">
+        <p className="font-semibold">
+          {totals.jobs} {totals.jobs === 1 ? "job" : "jobs"} scheduled
+        </p>
+        <p>{formatHours(totals.minutes)} of crew time</p>
+        <p>
+          Travel buffers {formatHours(totals.travelMinutes)} · {totals.unscheduled} unscheduled
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function WeeklyView({
   days,
-  grouped
+  grouped,
+  summaryByDay
 }: {
   days: Date[];
   grouped: Map<string, CalendarAppointment[]>;
+  summaryByDay: Record<string, DayLoad>;
 }) {
   return (
     <div className="grid gap-4 rounded-3xl border border-slate-200 bg-white/90 p-4 shadow-xl shadow-slate-200/60 md:grid-cols-2 lg:grid-cols-4">
       {days.map((day) => {
         const key = getDayKey(day);
         const entries = grouped.get(key) ?? [];
+        const load = summaryByDay[key];
         return (
           <article key={key} className="flex flex-col rounded-2xl border border-slate-100 bg-white/80 p-3">
             <header className="flex items-center justify-between text-xs text-slate-500">
               <span>{day.toLocaleDateString("en-US", { weekday: "short" })}</span>
               <span className="font-semibold text-slate-900">{formatDateLabel(day, { month: "short", day: "numeric" })}</span>
             </header>
+            {load ? (
+              <p className={cn("mt-1 text-[11px] font-semibold", loadTone(load.minutes))}>
+                {load.jobs} {load.jobs === 1 ? "job" : "jobs"} · {formatHours(load.minutes)}
+              </p>
+            ) : null}
             <div className="mt-3 flex flex-col gap-2">
               {entries.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-slate-200 px-3 py-4 text-center text-[11px] text-slate-400">
@@ -388,11 +476,13 @@ function WeeklyView({
 function MonthlyView({
   weeks,
   grouped,
-  referenceDate
+  referenceDate,
+  summaryByDay
 }: {
   weeks: Date[][];
   grouped: Map<string, CalendarAppointment[]>;
   referenceDate: Date;
+  summaryByDay: Record<string, DayLoad>;
 }) {
   const currentMonth = referenceDate.getMonth();
   return (
@@ -412,6 +502,7 @@ function MonthlyView({
             const inMonth = day.getMonth() === currentMonth;
             const limited = entries.slice(0, 3);
             const remainder = entries.length - limited.length;
+            const load = summaryByDay[key];
             return (
               <article
                 key={key}
@@ -428,6 +519,11 @@ function MonthlyView({
                     </span>
                   ) : null}
                 </header>
+                {load ? (
+                  <p className={cn("mt-1 text-[10px] font-medium", loadTone(load.minutes))}>
+                    {load.jobs} · {formatHours(load.minutes)}
+                  </p>
+                ) : null}
                 <div className="mt-2 space-y-1">
                   {limited.map((appt) => {
                     const startLabel = appt.startAt

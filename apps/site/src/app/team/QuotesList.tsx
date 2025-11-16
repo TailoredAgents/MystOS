@@ -1,9 +1,23 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
+import { cn } from "@myst-os/ui";
 import { SubmitButton } from "@/components/SubmitButton";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const shortDateFormatter = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" });
+
+function formatHoursFromMinutes(minutes: number): string {
+  return `${(minutes / 60).toFixed(1)}h`;
+}
+
+function formatLoadDate(dateStr: string): string {
+  const parsed = new Date(`${dateStr}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return dateStr;
+  }
+  return shortDateFormatter.format(parsed);
+}
 
 type Quote = {
   id: string;
@@ -48,6 +62,12 @@ type SuggestionEnvelope = {
   items: ScheduleSuggestion[];
 };
 
+type CalendarLoadEntry = {
+  date: string;
+  jobs: number;
+  minutes: number;
+};
+
 type ServerAction = (formData: FormData) => void;
 
 export function QuotesList({
@@ -68,6 +88,8 @@ export function QuotesList({
   const [expandedQuoteId, setExpandedQuoteId] = useState<string | null>(null);
   const [suggestions, setSuggestions] = useState<Record<string, SuggestionEnvelope>>({});
   const startAtRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [loadSnapshot, setLoadSnapshot] = useState<CalendarLoadEntry[]>([]);
+  const [loadStatus, setLoadStatus] = useState<"idle" | "loading" | "error">("idle");
 
   const defaultScheduleStart = useMemo(() => {
     const dt = new Date();
@@ -124,6 +146,40 @@ export function QuotesList({
   const togglePanel = (quoteId: string) => {
     setExpandedQuoteId((prev) => (prev === quoteId ? null : quoteId));
   };
+
+  useEffect(() => {
+    const loadUpcoming = async () => {
+      setLoadStatus("loading");
+      try {
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(start);
+        end.setDate(end.getDate() + 6);
+        const url = `/api/calendar?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(
+          end.toISOString()
+        )}&summaryOnly=1`;
+        const response = await fetch(url, { cache: "no-store" });
+        if (!response.ok) {
+          throw new Error("load_failed");
+        }
+        const payload = (await response.json()) as {
+          summary?: { byDay?: Record<string, { jobs: number; minutes: number }> };
+        };
+        const entries = Object.entries(payload.summary?.byDay ?? {}).map(([date, stats]) => ({
+          date,
+          jobs: stats.jobs,
+          minutes: stats.minutes
+        }));
+        entries.sort((a, b) => a.date.localeCompare(b.date));
+        setLoadSnapshot(entries.slice(0, 7));
+        setLoadStatus("idle");
+      } catch (error) {
+        console.warn("load_snapshot_failed", error);
+        setLoadStatus("error");
+      }
+    };
+    loadUpcoming();
+  }, []);
 
   const formatCurrency = (value: number): string => currencyFormatter.format(value);
   const formatCents = (cents: number): string => currencyFormatter.format(cents / 100);
@@ -242,6 +298,40 @@ export function QuotesList({
           <option value="accepted">Accepted</option>
           <option value="declined">Declined</option>
         </select>
+      </div>
+      <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-3 text-xs text-emerald-900">
+        <div className="flex items-center justify-between gap-2">
+          <p className="font-semibold uppercase tracking-[0.2em] text-emerald-700">Next 7 days load</p>
+          <span className="text-[11px] text-emerald-600">{loadSnapshot.length} days</span>
+        </div>
+        {loadStatus === "loading" ? (
+          <p className="mt-2 text-[11px] text-emerald-700">Checking crew capacity...</p>
+        ) : loadSnapshot.length === 0 ? (
+          <p className="mt-2 text-[11px] text-emerald-700">
+            No confirmed jobs yet. Plenty of room on the calendar.
+          </p>
+        ) : (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {loadSnapshot.map((day) => (
+              <div
+                key={day.date}
+                className={cn(
+                  "rounded-md border px-3 py-2",
+                  day.minutes >= 7 * 60
+                    ? "border-rose-200 bg-rose-50 text-rose-800"
+                    : day.minutes >= 4 * 60
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : "border-emerald-200 bg-white text-emerald-700"
+                )}
+              >
+                <p className="text-[11px] font-semibold">{formatLoadDate(day.date)}</p>
+                <p className="text-[11px]">
+                  {day.jobs} {day.jobs === 1 ? "job" : "jobs"} · {formatHoursFromMinutes(day.minutes)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       {filtered.length === 0 ? (
         <p className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-500">
