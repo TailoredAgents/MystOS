@@ -9,6 +9,7 @@ import {
   updateApptStatus
 } from "../actions";
 import { callAdminApi, fmtTime } from "../lib/api";
+import { ContextSummaryButton } from "./ContextSummaryButton";
 
 type AppointmentStatus = "requested" | "confirmed" | "completed" | "no_show" | "canceled";
 
@@ -157,6 +158,14 @@ export async function MyDaySection({
                   </p>
                 ) : null}
               </div>
+            ) : null}
+            {a.contact.id ? (
+              <ContextSummaryButton
+                contactId={a.contact.id}
+                appointmentId={a.id}
+                className="mt-2"
+                label="AI customer summary"
+              />
             ) : null}
 
             <div className="mt-3 flex flex-wrap gap-2">

@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { cn } from "@myst-os/ui";
 import { SubmitButton } from "@/components/SubmitButton";
+import { ContextSummaryButton } from "./components/ContextSummaryButton";
 
 const currencyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const shortDateFormatter = new Intl.DateTimeFormat("en-US", { weekday: "short", month: "short", day: "numeric" });
@@ -30,7 +31,7 @@ type Quote = {
   sentAt: string | null;
   expiresAt: string | null;
   shareToken: string | null;
-  contact: { name: string; email: string | null };
+  contact: { id?: string | null; name: string; email: string | null };
   property: { addressLine1: string; city: string; state: string; postalCode: string };
   appointment: {
     id: string;
@@ -550,6 +551,15 @@ export function QuotesList({
                       </p>
                     )}
                   </div>
+                  {quote.contact?.id ? (
+                    <ContextSummaryButton
+                      contactId={quote.contact.id ?? undefined}
+                      quoteId={quote.id}
+                      appointmentId={quote.appointment?.id}
+                      className="text-[11px]"
+                      label="AI customer summary"
+                    />
+                  ) : null}
 
                   {isExpanded ? (
                     <form action={scheduleAction} className="space-y-3 rounded-lg border border-emerald-200 bg-white/90 p-4 text-neutral-700">

@@ -83,6 +83,7 @@ function formatQuoteResponse(
   sentAt: Date | null;
   expiresAt: Date | null;
   shareToken: string | null;
+  contactId: string | null;
   contactName: string | null;
   contactEmail: string | null;
   propertyAddressLine1: string | null;
@@ -120,6 +121,7 @@ function formatQuoteResponse(
     expiresAt: row.expiresAt ? row.expiresAt.toISOString() : null,
     shareToken: row.shareToken,
     contact: {
+      id: row.contactId,
       name: contactName && contactName.length ? contactName : "Customer",
       email: row.contactEmail
     },
@@ -178,6 +180,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         sentAt: quotes.sentAt,
         expiresAt: quotes.expiresAt,
         shareToken: quotes.shareToken,
+        contactId: contacts.id,
         contactName: contacts.firstName,
         contactEmail: contacts.email,
         propertyAddressLine1: properties.addressLine1,

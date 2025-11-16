@@ -53,6 +53,30 @@ export interface ScheduleSuggestionContext {
   }>;
 }
 
+export interface CustomerContextInput {
+  customer: {
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+  };
+  quote?: {
+    status?: string | null;
+    total?: number | null;
+    services?: string[];
+    outstandingCents?: number | null;
+    updatedAtIso?: string | null;
+  };
+  appointment?: {
+    status?: string | null;
+    startAtIso?: string | null;
+    location?: string | null;
+  };
+  history: Array<{
+    heading: string;
+    detail: string;
+  }>;
+}
+
 const CopySchema = z.object({
   email_subject: z.string().min(3).max(120).optional(),
   email_body: z.string().min(3).max(1200).optional(),
@@ -371,6 +395,82 @@ Guidelines:
     });
   } catch (error) {
     console.warn("[ai] schedule_suggestions.error", { error: String(error) });
+    return null;
+  }
+}
+
+export async function generateCustomerSummary(context: CustomerContextInput): Promise<string | null> {
+  const config = getOpenAIConfig();
+  if (!config) {
+    return null;
+  }
+
+  const systemPrompt = `You are Myst Assist, a proactive account coordinator for a residential services company. Summarize the customer's current situation in a friendly, actionable tone. Highlight readiness to proceed, upcoming appointments, payment standing, and any red flags like missed visits. Keep it under 120 words.`;
+
+  const historyText =
+    context.history.length > 0
+      ? context.history.map((item) => `- ${item.heading}: ${item.detail}`).join("\n")
+      : "No prior activity logged.";
+
+  const summaryPayload = {
+    customer: context.customer,
+    quote: context.quote ?? null,
+    appointment: context.appointment ?? null,
+    history: context.history
+  };
+
+  const userPrompt = [
+    `Customer: ${context.customer.name}`,
+    context.customer.email ? `Email: ${context.customer.email}` : null,
+    context.customer.phone ? `Phone: ${context.customer.phone}` : null,
+    context.quote
+      ? `Quote: status=${context.quote.status ?? "n/a"}, total=${context.quote.total ?? 0}, services=${(context.quote.services ?? []).join(", ")}, outstanding=${context.quote.outstandingCents ?? "n/a"}`
+      : "Quote: none",
+    context.appointment
+      ? `Appointment: status=${context.appointment.status ?? "n/a"}, start=${context.appointment.startAtIso ?? "tbd"}, location=${context.appointment.location ?? "tbd"}`
+      : "Appointment: none scheduled",
+    `Recent activity:\n${historyText}`,
+    `Context JSON:\n${JSON.stringify(summaryPayload)}`
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const response = await fetch("https://api.openai.com/v1/responses", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${config.apiKey}`
+    },
+    body: JSON.stringify({
+      model: config.model,
+      input: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.4,
+      max_output_tokens: 400,
+      text: { verbosity: "medium" }
+    })
+  });
+
+  if (!response.ok) {
+    const bodyText = await response.text().catch(() => "");
+    console.warn("[ai] customer_summary_failed", { status: response.status, bodyText });
+    return null;
+  }
+
+  try {
+    const data = (await response.json()) as {
+      output?: Array<{ content?: Array<{ text?: string }> }>;
+    };
+    const raw =
+      data.output
+        ?.flatMap((item) => item.content ?? [])
+        .find((c) => typeof c.text === "string")
+        ?.text ?? null;
+    return raw ? raw.trim() : null;
+  } catch (error) {
+    console.warn("[ai] customer_summary.error", { error: String(error) });
     return null;
   }
 }
