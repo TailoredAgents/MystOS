@@ -8,11 +8,24 @@ import {
   DEFAULT_APPOINTMENT_DURATION_MIN
 } from "../../../web/scheduling";
 import { generateScheduleSuggestions, type ScheduleSuggestion } from "@/lib/ai";
+import type { ServiceCategory } from "@myst-os/pricing/src/types";
 
 const UPCOMING_WINDOW_DAYS = 14;
 const UPCOMING_LIMIT = 120;
 type AppointmentStatus = (typeof appointments.$inferSelect)["status"];
 const SCHEDULABLE_STATUSES: AppointmentStatus[] = ["confirmed", "requested"];
+const SERVICE_DURATION_ESTIMATES: Record<ServiceCategory, number> = {
+  "house-wash": 120,
+  driveway: 90,
+  roof: 150,
+  deck: 120,
+  gutter: 75,
+  commercial: 210,
+  windows: 75,
+  other: 60
+};
+const ADD_ON_DURATION_MIN = 15;
+const MAX_DURATION_MIN = 6 * 60;
 
 type UpcomingSlot = {
   startAt: Date;
@@ -142,6 +155,33 @@ function buildFallbackSuggestions(
   return suggestions;
 }
 
+function estimateDurationFromQuote(
+  services: string[] | null | undefined,
+  addOns: string[] | null | undefined
+): number {
+  const list = Array.isArray(services) ? services.filter(Boolean) : [];
+  if (list.length === 0) {
+    return DEFAULT_APPOINTMENT_DURATION_MIN;
+  }
+
+  let total = 0;
+  for (const serviceId of list) {
+    const normalized = serviceId as ServiceCategory;
+    total += SERVICE_DURATION_ESTIMATES[normalized] ?? DEFAULT_APPOINTMENT_DURATION_MIN;
+  }
+
+  if (list.length > 1) {
+    total = Math.round(total * 0.9);
+  }
+
+  if (Array.isArray(addOns) && addOns.length > 0) {
+    total += addOns.length * ADD_ON_DURATION_MIN;
+  }
+
+  const clamped = Math.min(Math.max(total, DEFAULT_APPOINTMENT_DURATION_MIN), MAX_DURATION_MIN);
+  return clamped;
+}
+
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -160,6 +200,8 @@ export async function GET(
     .select({
       id: quotes.id,
       status: quotes.status,
+      services: quotes.services,
+      addOns: quotes.addOns,
       addressLine1: properties.addressLine1,
       city: properties.city,
       state: properties.state,
@@ -188,6 +230,8 @@ export async function GET(
   };
   const targetLat = parseCoord(quote.lat);
   const targetLng = parseCoord(quote.lng);
+  const hasGeo = targetLat !== null && targetLng !== null;
+  const durationMinutes = estimateDurationFromQuote(quote.services, quote.addOns);
   const now = new Date();
   const windowEnd = new Date(
     now.getTime() + UPCOMING_WINDOW_DAYS * 24 * 60 * 60 * 1000
@@ -239,7 +283,7 @@ export async function GET(
 
   const contextPayload = {
     targetAddress,
-    durationMinutes: DEFAULT_APPOINTMENT_DURATION_MIN,
+    durationMinutes,
     upcoming: slots.map((slot) => ({
       startAtIso: slot.startAt.toISOString(),
       durationMinutes: slot.durationMinutes,
@@ -248,11 +292,18 @@ export async function GET(
     }))
   };
 
-  const aiSuggestions = await generateScheduleSuggestions(contextPayload);
-  const suggestions =
-    aiSuggestions && aiSuggestions.length > 0
-      ? aiSuggestions
-      : buildFallbackSuggestions(slots, contextPayload.durationMinutes);
+  const aiSuggestions = hasGeo ? await generateScheduleSuggestions(contextPayload) : null;
+  const usedFallback = !(aiSuggestions && aiSuggestions.length > 0);
+  const suggestions = usedFallback
+    ? buildFallbackSuggestions(slots, contextPayload.durationMinutes)
+    : (aiSuggestions as ScheduleSuggestion[]);
 
-  return NextResponse.json({ suggestions });
+  return NextResponse.json({
+    suggestions,
+    meta: {
+      durationMinutes: contextPayload.durationMinutes,
+      missingLocation: !hasGeo,
+      usedFallback
+    }
+  });
 }

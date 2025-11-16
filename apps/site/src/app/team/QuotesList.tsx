@@ -20,6 +20,22 @@ function formatLoadDate(dateStr: string): string {
   return shortDateFormatter.format(parsed);
 }
 
+function formatDurationEstimate(minutes: number | null | undefined): string {
+  const value = typeof minutes === "number" && Number.isFinite(minutes) ? minutes : null;
+  if (!value || value <= 0) {
+    return "about 1 hr";
+  }
+  const hours = Math.floor(value / 60);
+  const remainder = value % 60;
+  if (hours > 0 && remainder > 0) {
+    return `${hours}h ${remainder}m`;
+  }
+  if (hours > 0) {
+    return `${hours}h`;
+  }
+  return `${value}m`;
+}
+
 type Quote = {
   id: string;
   status: string;
@@ -57,10 +73,24 @@ type ScheduleSuggestion = {
   startAtIso?: string | null;
 };
 
+type SuggestionMeta = {
+  durationMinutes: number;
+  missingLocation?: boolean;
+  usedFallback?: boolean;
+};
+
 type SuggestionEnvelope = {
   loading: boolean;
   error: string | null;
   items: ScheduleSuggestion[];
+  meta?: SuggestionMeta | null;
+  appliedWindow?: string | null;
+};
+
+type SuggestionResponse = {
+  suggestions?: ScheduleSuggestion[];
+  meta?: SuggestionMeta | null;
+  error?: string;
 };
 
 type CalendarLoadEntry = {
@@ -223,7 +253,7 @@ export function QuotesList({
         method: "GET",
         cache: "no-store"
       });
-      const payload = await response.json().catch(() => null);
+      const payload = (await response.json().catch(() => null)) as SuggestionResponse | null;
       if (!response.ok || !payload || !Array.isArray(payload.suggestions)) {
         const errorCode =
           payload && typeof payload.error === "string"
@@ -237,7 +267,9 @@ export function QuotesList({
         [quoteId]: {
           loading: false,
           error: null,
-          items: payload.suggestions as ScheduleSuggestion[]
+          items: payload.suggestions as ScheduleSuggestion[],
+          meta: payload.meta ?? null,
+          appliedWindow: null
         }
       }));
     } catch (error) {
@@ -248,13 +280,16 @@ export function QuotesList({
         [quoteId]: {
           loading: false,
           error: message,
-          items: prev[quoteId]?.items ?? []
+          items: prev[quoteId]?.items ?? [],
+          meta: prev[quoteId]?.meta ?? null,
+          appliedWindow: prev[quoteId]?.appliedWindow ?? null
         }
       }));
     }
   };
 
-  const applySuggestion = (quoteId: string, iso?: string | null) => {
+  const applySuggestion = (quoteId: string, suggestion: ScheduleSuggestion) => {
+    const iso = suggestion.startAtIso;
     if (!iso) {
       return;
     }
@@ -277,6 +312,20 @@ export function QuotesList({
         applyValue();
       }, 60);
     }
+
+    setSuggestions((prev) => {
+      const current = prev[quoteId];
+      if (!current) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [quoteId]: {
+          ...current,
+          appliedWindow: suggestion.window
+        }
+      };
+    });
   };
 
   return (
@@ -362,6 +411,8 @@ export function QuotesList({
           const suggestionItems = suggestionState?.items ?? [];
           const isLoadingSuggestions = suggestionState?.loading ?? false;
           const suggestionError = suggestionState?.error ?? null;
+          const suggestionMeta = suggestionState?.meta ?? null;
+          const appliedWindow = suggestionState?.appliedWindow ?? null;
           const lastPaymentDisplay = formatPaymentDate(quote.paymentSummary.lastPaymentAt);
 
           return (
@@ -517,6 +568,25 @@ export function QuotesList({
                         {isLoadingSuggestions ? "Scanning..." : "Schedule suggestions"}
                       </button>
                     </div>
+                    {suggestionMeta ? (
+                      <div className="mt-2 rounded-md border border-emerald-100 bg-emerald-50/70 p-2 text-[11px] text-emerald-900">
+                        <p>
+                          Estimated job duration {formatDurationEstimate(suggestionMeta.durationMinutes)} based on the selected
+                          services.
+                        </p>
+                        {suggestionMeta.missingLocation ? (
+                          <p className="mt-1 text-amber-700">
+                            Property is missing map coordinates, so distances are approximate. Update the property pin for
+                            route-aware picks.
+                          </p>
+                        ) : null}
+                        {suggestionMeta.usedFallback ? (
+                          <p className="mt-1 text-neutral-600">
+                            Using backup suggestions from calendar data while the AI helper is unavailable.
+                          </p>
+                        ) : null}
+                      </div>
+                    ) : null}
                     {suggestionError ? (
                       <p className="mt-2 text-xs text-rose-600">{suggestionError}</p>
                     ) : null}
@@ -532,7 +602,7 @@ export function QuotesList({
                             <div className="mt-1 flex flex-wrap gap-2 text-[11px]">
                               <button
                                 type="button"
-                                onClick={() => applySuggestion(quote.id, item.startAtIso)}
+                                onClick={() => applySuggestion(quote.id, item)}
                                 disabled={!item.startAtIso}
                                 className="inline-flex items-center rounded border border-emerald-300 px-2 py-0.5 font-semibold text-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
                               >
@@ -550,6 +620,11 @@ export function QuotesList({
                         Suggestions will appear here after you click the button.
                       </p>
                     )}
+                    {appliedWindow ? (
+                      <p className="mt-2 text-xs text-emerald-700">
+                        Applied <span className="font-semibold">{appliedWindow}</span> to the schedule form below.
+                      </p>
+                    ) : null}
                   </div>
                   {quote.contact?.id ? (
                     <ContextSummaryButton
