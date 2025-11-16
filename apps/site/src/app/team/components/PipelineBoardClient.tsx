@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { SubmitButton } from "@/components/SubmitButton";
 import { updatePipelineStageAction } from "../actions";
 import type { PipelineContact, PipelineLane } from "./pipeline.types";
+import { formatStageReason, formatStageUpdatedAt } from "./pipelineStageMeta";
 
 const moneyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 
@@ -261,6 +262,8 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
                 ) : (
                   lane.contacts.map((contact) => {
                     const theme = themeForStage(contact.pipeline.stage);
+                    const stageReason = formatStageReason(contact.pipeline.notes);
+                    const stageUpdatedOn = formatStageUpdatedAt(contact.pipeline.updatedAt);
                     return (
                       <article
                         key={contact.id}
@@ -288,6 +291,12 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
                             {labelForStage(contact.pipeline.stage)}
                           </span>
                         </div>
+                        {stageUpdatedOn || stageReason ? (
+                          <p className="mt-1 text-[11px] text-slate-500">
+                            Stage updated {stageUpdatedOn ?? "recently"}
+                            {stageReason ? ` - ${stageReason}` : ""}
+                          </p>
+                        ) : null}
                         {contact.property ? (
                           <p className="mt-3 text-[11px] text-slate-600">
                             {contact.property.addressLine1}, {contact.property.city}
@@ -296,8 +305,7 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
                         {contact.jobSummary ? (
                           <div className="mt-3 rounded-2xl border border-white/60 bg-white/70 p-3 text-[11px] text-slate-600 shadow-inner shadow-slate-200/40">
                             <p className="text-[11px] font-semibold text-slate-900">
-                              Next job{" "}
-                              {contact.jobSummary.startAt ? formatShortDate(contact.jobSummary.startAt) : "TBD"}
+                              Next job {contact.jobSummary.startAt ? formatShortDate(contact.jobSummary.startAt) : "TBD"}
                             </p>
                             <p
                               className={`mt-1 ${
@@ -306,14 +314,14 @@ export default function PipelineBoardClient({ stages, lanes }: PipelineBoardClie
                             >
                               {formatMoney(contact.jobSummary.paidCents)} / {formatMoney(contact.jobSummary.totalCents)}{" "}
                               {contact.jobSummary.outstandingCents > 0
-                                ? `• ${formatMoney(contact.jobSummary.outstandingCents)} due`
-                                : "• Paid"}
+                                ? `- ${formatMoney(contact.jobSummary.outstandingCents)} due`
+                                : "- Paid"}
                             </p>
                             {contact.jobSummary.lastPaymentMethod ? (
                               <p className="mt-0.5 text-[10px] text-slate-500">
                                 Last payment {contact.jobSummary.lastPaymentMethod}
                                 {contact.jobSummary.lastPaymentAt
-                                  ? ` · ${formatShortDate(contact.jobSummary.lastPaymentAt)}`
+                                  ? ` - ${formatShortDate(contact.jobSummary.lastPaymentAt)}`
                                   : ""}
                               </p>
                             ) : null}

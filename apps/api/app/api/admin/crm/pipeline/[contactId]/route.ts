@@ -59,22 +59,28 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
 
   const now = new Date();
 
+  const insertValues = {
+    contactId,
+    stage: targetStage,
+    notes: noteValue ?? null,
+    createdAt: now,
+    updatedAt: now
+  };
+
+  const updateSet: Partial<typeof crmPipeline.$inferInsert> = {
+    stage: targetStage,
+    updatedAt: now
+  };
+  if (noteValue !== undefined) {
+    updateSet.notes = noteValue ?? null;
+  }
+
   const [pipeline] = await db
     .insert(crmPipeline)
-    .values({
-      contactId,
-      stage: targetStage,
-      notes: noteValue ?? null,
-      createdAt: now,
-      updatedAt: now
-    })
+    .values(insertValues)
     .onConflictDoUpdate({
       target: crmPipeline.contactId,
-      set: {
-        stage: targetStage,
-        notes: noteValue ?? null,
-        updatedAt: now
-      }
+      set: updateSet
     })
     .returning({
       contactId: crmPipeline.contactId,

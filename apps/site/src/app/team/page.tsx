@@ -34,6 +34,7 @@ export default async function TeamPage({
     offset?: string;
     contactId?: string;
     appointmentId?: string;
+    filter?: string;
     view?: "week" | "month";
   }>;
 }) {
@@ -52,6 +53,7 @@ export default async function TeamPage({
     }
   }
   const quoteContactId = typeof params?.contactId === "string" ? params.contactId : undefined;
+  const contactsFilter = params?.filter === "stalled" ? "stalled" : undefined;
   const focusAppointmentId =
     typeof params?.appointmentId === "string" && params.appointmentId.trim().length > 0
       ? params.appointmentId
@@ -254,7 +256,7 @@ export default async function TeamPage({
               </div>
             }
           >
-            <ContactsSection search={contactsQuery} offset={contactsOffset} />
+            <ContactsSection search={contactsQuery} offset={contactsOffset} filter={contactsFilter} />
           </React.Suspense>
         ) : null}
 

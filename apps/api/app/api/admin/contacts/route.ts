@@ -12,10 +12,11 @@ import {
 import { isAdminRequest } from "../../web/admin";
 import { normalizePhone } from "../../web/utils";
 import type { SQL } from "drizzle-orm";
-import { asc, desc, inArray, ilike, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, ilike, lt, or, sql } from "drizzle-orm";
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 200;
+const STALLED_WINDOW_DAYS = 7;
 
 function parseLimit(value: string | null): number {
   if (!value) return DEFAULT_LIMIT;
@@ -46,6 +47,8 @@ export async function GET(request: NextRequest): Promise<Response> {
   const searchTerm = rawSearch ? sanitizeSearchTerm(rawSearch) : null;
   const limit = parseLimit(searchParams.get("limit"));
   const offset = parseOffset(searchParams.get("offset"));
+  const filterParam = searchParams.get("filter");
+  const contactFilter = filterParam === "stalled" ? "stalled" : null;
 
   const likePattern =
     searchTerm && searchTerm.length > 0 ? `%${searchTerm.replace(/\s+/g, "%")}%` : null;
@@ -88,11 +91,38 @@ export async function GET(request: NextRequest): Promise<Response> {
   const whereClause =
     filters.length === 0 ? undefined : filters.length === 1 ? filters[0] : or(...filters);
 
-  const totalResult = whereClause
+  let finalWhere = whereClause;
+  if (contactFilter === "stalled") {
+    const threshold = new Date(Date.now() - STALLED_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+    const stalledContacts = await db
+      .select({ contactId: crmPipeline.contactId })
+      .from(crmPipeline)
+      .where(and(eq(crmPipeline.stage, "quoted"), lt(crmPipeline.updatedAt, threshold)));
+    const stalledIds = stalledContacts
+      .map((row) => row.contactId)
+      .filter((value): value is string => Boolean(value));
+
+    if (stalledIds.length === 0) {
+      return NextResponse.json({
+        contacts: [],
+        pagination: {
+          limit,
+          offset,
+          total: 0,
+          nextOffset: null
+        }
+      });
+    }
+
+    const stalledCondition = inArray(contacts.id, stalledIds);
+    finalWhere = finalWhere ? and(finalWhere, stalledCondition) : stalledCondition;
+  }
+
+  const totalResult = finalWhere
     ? await db
         .select({ count: sql<number>`count(*)` })
         .from(contacts)
-        .where(whereClause)
+        .where(finalWhere)
     : await db.select({ count: sql<number>`count(*)` }).from(contacts);
   const total = Number(totalResult[0]?.count ?? 0);
 
@@ -109,8 +139,8 @@ export async function GET(request: NextRequest): Promise<Response> {
     })
     .from(contacts);
 
-  const contactRows = await (whereClause
-    ? baseContactsQuery.where(whereClause).orderBy(desc(contacts.updatedAt)).limit(limit).offset(offset)
+  const contactRows = await (finalWhere
+    ? baseContactsQuery.where(finalWhere).orderBy(desc(contacts.updatedAt)).limit(limit).offset(offset)
     : baseContactsQuery.orderBy(desc(contacts.updatedAt)).limit(limit).offset(offset));
 
   const contactIds = contactRows.map((row) => row.id);

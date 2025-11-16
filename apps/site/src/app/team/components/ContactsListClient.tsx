@@ -13,6 +13,7 @@ import {
   updateTaskAction
 } from "../actions";
 import type { ContactSummary, PropertySummary, TaskSummary } from "./contacts.types";
+import { formatStageReason, formatStageUpdatedAt } from "./pipelineStageMeta";
 
 const PIPELINE_STAGE_LABELS: Record<string, string> = {
   new: "New",
@@ -22,6 +23,8 @@ const PIPELINE_STAGE_LABELS: Record<string, string> = {
   won: "Won",
   lost: "Lost"
 };
+
+const STALLED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 function stageLabel(stage: string): string {
   return PIPELINE_STAGE_LABELS[stage] ?? stage;
@@ -73,6 +76,17 @@ function teamLink(tab: string, params?: Record<string, string | null | undefined
   return `/team?${query.toString()}`;
 }
 
+function isStalledQuote(stage: string, updatedAt: string | null): boolean {
+  if (stage !== "quoted" || !updatedAt) {
+    return false;
+  }
+  const time = Date.parse(updatedAt);
+  if (Number.isNaN(time)) {
+    return false;
+  }
+  return Date.now() - time > STALLED_WINDOW_MS;
+}
+
 type ContactCardProps = {
   contact: ContactSummary;
 };
@@ -106,6 +120,10 @@ function ContactCard({ contact }: ContactCardProps) {
     [contactState.tasks]
   );
 
+  const stageReason = formatStageReason(contactState.pipeline.notes);
+  const stageUpdatedOn = formatStageUpdatedAt(contactState.pipeline.updatedAt);
+  const stalledQuote = isStalledQuote(contactState.pipeline.stage, contactState.pipeline.updatedAt);
+
   return (
     <li className="rounded-3xl border border-slate-200 bg-white/90 p-6 shadow-xl shadow-slate-200/60">
       <div className="flex flex-col gap-6">
@@ -117,6 +135,21 @@ function ContactCard({ contact }: ContactCardProps) {
                 {stageLabel(contactState.pipeline.stage)}
               </span>
             </div>
+            {stageUpdatedOn || stageReason || stalledQuote ? (
+              <div className="flex flex-wrap gap-2 text-[11px] text-slate-500">
+                {stageUpdatedOn || stageReason ? (
+                  <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1">
+                    Stage updated {stageUpdatedOn ?? "recently"}
+                    {stageReason ? ` - ${stageReason}` : ""}
+                  </span>
+                ) : null}
+                {stalledQuote ? (
+                  <span className="inline-flex items-center rounded-full bg-amber-100 px-3 py-1 font-semibold uppercase tracking-wide text-amber-700">
+                    Stalled quote - Needs follow-up
+                  </span>
+                ) : null}
+              </div>
+            ) : null}
             <div className="flex flex-wrap gap-3 text-xs text-slate-500">
               {contactState.email ? (
                 <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1">{contactState.email}</span>
@@ -460,8 +493,8 @@ function TaskRow({ task }: { task: TaskSummary }) {
         <div className="space-y-1">
           <p className={`text-sm font-semibold ${isCompleted ? "text-slate-600" : "text-emerald-900"}`}>{task.title}</p>
           <p className="text-[11px]">
-            {taskStatusLabel[task.status] ?? task.status} · {formatDate(task.dueAt)}
-            {task.assignedTo ? ` · ${task.assignedTo}` : ""}
+            {taskStatusLabel[task.status] ?? task.status} - {formatDate(task.dueAt)}
+            {task.assignedTo ? ` - ${task.assignedTo}` : ""}
           </p>
           {task.notes ? <p className="text-[11px] opacity-80">{task.notes}</p> : null}
         </div>

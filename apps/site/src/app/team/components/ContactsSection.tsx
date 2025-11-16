@@ -7,7 +7,7 @@ import type { ContactSummary, PaginationInfo } from "./contacts.types";
 
 const PAGE_SIZE = 25;
 
-function buildHref(args: { search?: string; offset?: number }): string {
+function buildHref(args: { search?: string; offset?: number; filter?: "stalled" | undefined }): string {
   const query = new URLSearchParams();
   query.set("tab", "contacts");
   if (args.search && args.search.trim().length > 0) {
@@ -15,6 +15,9 @@ function buildHref(args: { search?: string; offset?: number }): string {
   }
   if (typeof args.offset === "number" && args.offset > 0) {
     query.set("offset", String(args.offset));
+  }
+  if (args.filter === "stalled") {
+    query.set("filter", "stalled");
   }
   return `/team?${query.toString()}`;
 }
@@ -31,15 +34,18 @@ function formatRange(pagination: PaginationInfo, count: number): string {
 type ContactsSectionProps = {
   search?: string;
   offset?: number;
+  filter?: "stalled";
 };
 
-export async function ContactsSection({ search, offset }: ContactsSectionProps): Promise<ReactElement> {
+export async function ContactsSection({ search, offset, filter }: ContactsSectionProps): Promise<ReactElement> {
   const safeOffset = typeof offset === "number" && offset > 0 ? offset : 0;
+  const filterParam = filter === "stalled" ? "stalled" : undefined;
 
   const params = new URLSearchParams();
   params.set("limit", String(PAGE_SIZE));
   if (safeOffset > 0) params.set("offset", String(safeOffset));
   if (search && search.trim().length > 0) params.set("q", search.trim());
+  if (filterParam) params.set("filter", filterParam);
 
   const response = await callAdminApi(`/api/admin/contacts?${params.toString()}`);
   if (!response.ok) {
@@ -160,6 +166,7 @@ export async function ContactsSection({ search, offset }: ContactsSectionProps):
       >
         <input type="hidden" name="tab" value="contacts" />
         <input type="hidden" name="offset" value="0" />
+        {filterParam ? <input type="hidden" name="filter" value={filterParam} /> : null}
         <input
           name="q"
           defaultValue={search ?? ""}
@@ -173,6 +180,30 @@ export async function ContactsSection({ search, offset }: ContactsSectionProps):
           Search
         </button>
       </form>
+
+      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
+        <span className="font-semibold text-slate-600">Focus:</span>
+        <a
+          className={`rounded-full border px-4 py-1.5 ${
+            !filterParam
+              ? "border-primary-300 bg-primary-50 text-primary-700"
+              : "border-slate-200 text-slate-600 hover:border-primary-300 hover:text-primary-700"
+          }`}
+          href={buildHref({ search, offset: 0 })}
+        >
+          All contacts
+        </a>
+        <a
+          className={`rounded-full border px-4 py-1.5 ${
+            filterParam === "stalled"
+              ? "border-amber-300 bg-amber-50 text-amber-700"
+              : "border-slate-200 text-slate-600 hover:border-amber-300 hover:text-amber-700"
+          }`}
+          href={buildHref({ search, offset: 0, filter: "stalled" })}
+        >
+          Stalled quotes (7+ days)
+        </a>
+      </div>
 
       {contacts.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-slate-200 bg-white/70 p-5 text-sm text-slate-500 shadow-sm">
@@ -188,7 +219,7 @@ export async function ContactsSection({ search, offset }: ContactsSectionProps):
                 className={`rounded-full border border-slate-200 px-4 py-1.5 ${
                   hasPrev ? "text-slate-600 hover:border-primary-300 hover:text-primary-700" : "pointer-events-none opacity-40"
                 }`}
-                href={hasPrev ? buildHref({ search, offset: prevOffset }) : "#"}
+                href={hasPrev ? buildHref({ search, offset: prevOffset, filter: filterParam }) : "#"}
               >
                 Previous
               </a>
@@ -197,7 +228,7 @@ export async function ContactsSection({ search, offset }: ContactsSectionProps):
                 className={`rounded-full border border-slate-200 px-4 py-1.5 ${
                   hasNext ? "text-slate-600 hover:border-primary-300 hover:text-primary-700" : "pointer-events-none opacity-40"
                 }`}
-                href={hasNext ? buildHref({ search, offset: nextOffset }) : "#"}
+                href={hasNext ? buildHref({ search, offset: nextOffset, filter: filterParam }) : "#"}
               >
                 Next
               </a>
@@ -214,7 +245,7 @@ export async function ContactsSection({ search, offset }: ContactsSectionProps):
                 className={`rounded-full border border-slate-200 px-4 py-1.5 ${
                   hasPrev ? "text-slate-600 hover:border-primary-300 hover:text-primary-700" : "pointer-events-none opacity-40"
                 }`}
-                href={hasPrev ? buildHref({ search, offset: prevOffset }) : "#"}
+                href={hasPrev ? buildHref({ search, offset: prevOffset, filter: filterParam }) : "#"}
               >
                 Previous
               </a>
@@ -223,7 +254,7 @@ export async function ContactsSection({ search, offset }: ContactsSectionProps):
                 className={`rounded-full border border-slate-200 px-4 py-1.5 ${
                   hasNext ? "text-slate-600 hover:border-primary-300 hover:text-primary-700" : "pointer-events-none opacity-40"
                 }`}
-                href={hasNext ? buildHref({ search, offset: nextOffset }) : "#"}
+                href={hasNext ? buildHref({ search, offset: nextOffset, filter: filterParam }) : "#"}
               >
                 Next
               </a>

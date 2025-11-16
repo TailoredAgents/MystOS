@@ -7,7 +7,8 @@ import {
   contacts,
   properties,
   quotes,
-  appointmentNotes
+  appointmentNotes,
+  crmPipeline
 } from "@/db";
 import type { EstimateNotificationPayload, QuoteNotificationPayload } from "@/lib/notifications";
 import {
@@ -36,12 +37,25 @@ const APPOINTMENT_STATUS_VALUES = ["requested", "confirmed", "completed", "no_sh
 type AppointmentStatus = (typeof APPOINTMENT_STATUS_VALUES)[number];
 const VALID_APPOINTMENT_STATUSES = new Set<string>(APPOINTMENT_STATUS_VALUES);
 
+type PipelineStageValue = (typeof crmPipeline.$inferInsert)["stage"];
+const PIPELINE_STAGE_VALUES: PipelineStageValue[] = ["new", "contacted", "qualified", "quoted", "won", "lost"];
+const VALID_PIPELINE_STAGES = new Set<PipelineStageValue>(PIPELINE_STAGE_VALUES);
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
 function isValidAppointmentStatus(value: unknown): value is AppointmentStatus {
   return typeof value === "string" && VALID_APPOINTMENT_STATUSES.has(value);
+}
+
+function parsePipelineStage(value: unknown): PipelineStageValue | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim().toLowerCase() as PipelineStageValue;
+  return normalized && VALID_PIPELINE_STAGES.has(normalized) ? normalized : null;
 }
 
 function coerceServices(input: unknown): string[] {
@@ -608,6 +622,24 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
       return "processed";
     }
 
+    case "pipeline.stage_request": {
+      const payload = isRecord(event.payload) ? event.payload : null;
+      const contactId = typeof payload?.["contactId"] === "string" ? payload["contactId"].trim() : null;
+      const stage = parsePipelineStage(payload?.["stage"]);
+      const reason =
+        typeof payload?.["reason"] === "string" && payload["reason"].trim().length > 0
+          ? payload["reason"].trim()
+          : null;
+
+      if (!contactId || !stage) {
+        console.warn("[outbox] pipeline.stage_request.invalid_payload", { id: event.id, payload });
+        return "skipped";
+      }
+
+      await upsertPipelineStage(contactId, stage, reason);
+      return "processed";
+    }
+
     default:
       return "skipped";
   }
@@ -662,4 +694,30 @@ export async function processOutboxBatch(
   }
 
   return stats;
+}
+
+async function upsertPipelineStage(contactId: string, stage: PipelineStageValue, reason: string | null) {
+  try {
+    const db = getDb();
+    const now = new Date();
+    await db
+      .insert(crmPipeline)
+      .values({
+        contactId,
+        stage,
+        notes: reason,
+        createdAt: now,
+        updatedAt: now
+      })
+      .onConflictDoUpdate({
+        target: crmPipeline.contactId,
+        set: {
+          stage,
+          notes: reason ?? null,
+          updatedAt: now
+        }
+      });
+  } catch (error) {
+    console.warn("[pipeline] upsert_failed", { contactId, stage, error: String(error) });
+  }
 }
