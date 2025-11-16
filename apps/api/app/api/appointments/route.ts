@@ -1,6 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { inArray, asc, desc, eq } from "drizzle-orm";
+import { inArray, asc, desc, eq, sql } from "drizzle-orm";
 import {
   getDb,
   appointments,
@@ -8,7 +8,8 @@ import {
   properties,
   leads,
   appointmentNotes,
-  quotes
+  quotes,
+  payments
 } from "@/db";
 import { isAdminRequest } from "../web/admin";
 
@@ -122,10 +123,44 @@ export async function GET(request: NextRequest): Promise<Response> {
     }
   }
 
+  const paymentRows =
+    appointmentIds.length > 0
+      ? await db
+          .select({
+            appointmentId: payments.appointmentId,
+            totalPaidCents: sql<number>`coalesce(sum(${payments.amount}), 0)`,
+            lastPaymentAt: sql<Date | null>`max(coalesce(${payments.capturedAt}, ${payments.createdAt}))`,
+            lastPaymentMethod: sql<string | null>`max(${payments.method})`
+          })
+          .from(payments)
+          .where(inArray(payments.appointmentId, appointmentIds))
+          .groupBy(payments.appointmentId)
+      : [];
+
+  const paymentMap = new Map<
+    string,
+    { totalPaidCents: number; lastPaymentAt: Date | null; lastPaymentMethod: string | null }
+  >();
+  for (const row of paymentRows) {
+    if (!row.appointmentId) continue;
+    paymentMap.set(row.appointmentId, {
+      totalPaidCents: Number(row.totalPaidCents ?? 0),
+      lastPaymentAt: row.lastPaymentAt ?? null,
+      lastPaymentMethod: row.lastPaymentMethod ?? null
+    });
+  }
+
   const appointmentsDto = baseRows.map((row) => {
     const contactName = row.contactFirstName && row.contactLastName
       ? `${row.contactFirstName} ${row.contactLastName}`
       : row.contactFirstName ?? row.contactLastName ?? "Myst Customer";
+    const totalCents =
+      row.quoteTotal !== null && row.quoteTotal !== undefined
+        ? Math.max(Math.round(Number(row.quoteTotal) * 100), 0)
+        : null;
+    const payment = row.id ? paymentMap.get(row.id) ?? null : null;
+    const paidCents = payment ? Number(payment.totalPaidCents ?? 0) : 0;
+    const outstandingCents = totalCents !== null ? Math.max(totalCents - paidCents, 0) : null;
 
     return {
       id: row.id,
@@ -160,7 +195,17 @@ export async function GET(request: NextRequest): Promise<Response> {
             total: Number(row.quoteTotal ?? 0),
             lineItems: row.quoteLineItems ?? []
           }
-        : null
+        : null,
+      paymentSummary:
+        totalCents !== null || payment
+          ? {
+              totalCents,
+              paidCents,
+              outstandingCents,
+              lastPaymentAt: payment?.lastPaymentAt ? payment.lastPaymentAt.toISOString() : null,
+              lastPaymentMethod: payment?.lastPaymentMethod ?? null
+            }
+          : null
     };
   });
 

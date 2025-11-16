@@ -1,9 +1,9 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { desc, eq, isNull, isNotNull, sql } from "drizzle-orm";
+import { desc, eq, inArray, isNull, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { getDb, payments, appointments, contacts } from "@/db";
+import { getDb, payments, appointments, contacts, quotes } from "@/db";
 import { isAdminRequest } from "../web/admin";
 
 const RecordPaymentSchema = z.object({
@@ -41,6 +41,9 @@ export async function GET(request: NextRequest): Promise<Response> {
       appointmentStatus: appointments.status,
       appointmentStartAt: appointments.startAt,
       appointmentUpdatedAt: appointments.updatedAt,
+      quoteId: quotes.id,
+      quoteStatus: quotes.status,
+      quoteTotal: quotes.total,
       contactId: contacts.id,
       contactFirstName: contacts.firstName,
       contactLastName: contacts.lastName,
@@ -50,6 +53,7 @@ export async function GET(request: NextRequest): Promise<Response> {
     })
     .from(payments)
     .leftJoin(appointments, eq(payments.appointmentId, appointments.id))
+    .leftJoin(quotes, eq(quotes.jobAppointmentId, appointments.id))
     .leftJoin(contacts, eq(appointments.contactId, contacts.id));
 
   const filteredQuery =
@@ -78,11 +82,30 @@ export async function GET(request: NextRequest): Promise<Response> {
     unmatched: Math.max(total - matched, 0)
   };
 
+  const paymentTotals = new Map<string, number>();
+  const paymentRecency = new Map<string, { date: Date | null; method: string | null }>();
+  for (const row of rows) {
+    if (!row.appointmentId) continue;
+    paymentTotals.set(row.appointmentId, (paymentTotals.get(row.appointmentId) ?? 0) + Number(row.amount ?? 0));
+    const candidate = row.capturedAt ?? row.createdAt;
+    const existing = paymentRecency.get(row.appointmentId);
+    if (!existing || (!existing.date && candidate) || (candidate && existing.date && candidate > existing.date)) {
+      paymentRecency.set(row.appointmentId, { date: candidate ?? null, method: row.method ?? existing?.method ?? null });
+    }
+  }
+
   const paymentsDto = rows.map((row) => {
     const contactName =
       row.contactFirstName && row.contactLastName
         ? `${row.contactFirstName} ${row.contactLastName}`
         : row.contactFirstName ?? row.contactLastName ?? null;
+    const totalCents =
+      row.quoteTotal !== null && row.quoteTotal !== undefined
+        ? Math.max(Math.round(Number(row.quoteTotal) * 100), 0)
+        : null;
+    const paidCents = row.appointmentId ? paymentTotals.get(row.appointmentId) ?? 0 : 0;
+    const outstandingCents = totalCents !== null ? Math.max(totalCents - paidCents, 0) : null;
+    const recency = row.appointmentId ? paymentRecency.get(row.appointmentId) ?? null : null;
 
     return {
       id: row.id,
@@ -109,6 +132,17 @@ export async function GET(request: NextRequest): Promise<Response> {
             contactEmail: row.contactEmail,
             contactPhone: row.contactPhone,
             contactPhoneE164: row.contactPhoneE164
+          }
+        : null,
+      jobSummary: row.appointmentId
+        ? {
+            quoteId: row.quoteId,
+            quoteStatus: row.quoteStatus,
+            totalCents,
+            paidCents,
+            outstandingCents,
+            lastPaymentAt: recency?.date ? recency.date.toISOString() : null,
+            lastPaymentMethod: recency?.method ?? null
           }
         : null
     };

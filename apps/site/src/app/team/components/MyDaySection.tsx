@@ -34,6 +34,19 @@ interface AppointmentDto {
     postalCode: string;
   };
   notes: Array<{ id: string; body: string; createdAt: string }>;
+  quote: {
+    id: string;
+    status: string | null;
+    total: number;
+    lineItems: Array<Record<string, unknown>>;
+  } | null;
+  paymentSummary: {
+    totalCents: number | null;
+    paidCents: number;
+    outstandingCents: number | null;
+    lastPaymentAt: string | null;
+    lastPaymentMethod: string | null;
+  } | null;
 }
 
 export async function MyDaySection({
@@ -118,6 +131,33 @@ export async function MyDaySection({
                 />
               </span>
             </p>
+            {a.paymentSummary ? (
+              <div
+                className={`mt-3 rounded-lg border px-3 py-2 text-xs ${
+                  typeof a.paymentSummary.outstandingCents === "number" && a.paymentSummary.outstandingCents > 0
+                    ? "border-amber-200 bg-amber-50 text-amber-800"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-800"
+                }`}
+              >
+                <p className="font-semibold">
+                  Payments: {formatMoneyFromCents(a.paymentSummary.paidCents)}{" "}
+                  {typeof a.paymentSummary.totalCents === "number"
+                    ? ` / ${formatMoneyFromCents(a.paymentSummary.totalCents)}`
+                    : ""}
+                </p>
+                {typeof a.paymentSummary.outstandingCents === "number" ? (
+                  <p>
+                    {a.paymentSummary.outstandingCents > 0
+                      ? `${formatMoneyFromCents(a.paymentSummary.outstandingCents)} outstanding`
+                      : "Paid in full"}
+                    {a.paymentSummary.lastPaymentMethod ? ` · ${a.paymentSummary.lastPaymentMethod}` : ""}
+                    {a.paymentSummary.lastPaymentAt
+                      ? ` · ${new Date(a.paymentSummary.lastPaymentAt).toLocaleDateString()}`
+                      : ""}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="mt-3 flex flex-wrap gap-2">
               <form action={updateApptStatus}>
@@ -263,4 +303,13 @@ export async function MyDaySection({
       )}
     </section>
   );
+}
+
+const moneyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+
+function formatMoneyFromCents(cents: number | null | undefined): string {
+  if (typeof cents !== "number") {
+    return "—";
+  }
+  return moneyFormatter.format(cents / 100);
 }

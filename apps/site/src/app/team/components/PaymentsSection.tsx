@@ -17,6 +17,15 @@ type PaymentDto = {
   metadata: Record<string, unknown> | null;
   capturedAt: string | null;
   appointment: null | { id: string; status: string; startAt: string | null; contactName: string | null };
+  jobSummary: {
+    quoteId: string | null;
+    quoteStatus: string | null;
+    totalCents: number | null;
+    paidCents: number;
+    outstandingCents: number | null;
+    lastPaymentAt: string | null;
+    lastPaymentMethod: string | null;
+  } | null;
 };
 
 export async function PaymentsSection(): Promise<ReactElement> {

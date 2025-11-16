@@ -17,6 +17,15 @@ type Payment = {
   capturedAt: string | null;
   metadata: Record<string, unknown> | null;
   appointment: null | { id: string; status: string; startAt: string | null; contactName: string | null };
+  jobSummary: {
+    quoteId: string | null;
+    quoteStatus: string | null;
+    totalCents: number | null;
+    paidCents: number;
+    outstandingCents: number | null;
+    lastPaymentAt: string | null;
+    lastPaymentMethod: string | null;
+  } | null;
 };
 
 function fmtMoney(cents: number, currency: string) {
@@ -25,6 +34,13 @@ function fmtMoney(cents: number, currency: string) {
   } catch {
     return `$${(cents / 100).toFixed(2)}`;
   }
+}
+
+function fmtJobMoney(cents: number | null | undefined, currency: string) {
+  if (typeof cents !== "number") {
+    return "—";
+  }
+  return fmtMoney(cents, currency);
 }
 
 type ServerAction = (formData: FormData) => void;
@@ -518,6 +534,29 @@ export function PaymentsList({
                 ) : (
                   <p className="text-xs text-rose-600">Unmatched</p>
                 )}
+                {p.jobSummary ? (
+                  <div className="mt-2 rounded-md border border-neutral-100 bg-neutral-50/80 p-2 text-[11px] text-neutral-600">
+                    <p className="text-xs font-semibold text-neutral-900">
+                      Job total {fmtJobMoney(p.jobSummary.totalCents, p.currency)} • Paid{" "}
+                      {fmtJobMoney(p.jobSummary.paidCents, p.currency)}
+                    </p>
+                    <p
+                      className={`mt-1 ${
+                        typeof p.jobSummary.outstandingCents === "number" && p.jobSummary.outstandingCents > 0
+                          ? "text-amber-700"
+                          : "text-emerald-700"
+                      }`}
+                    >
+                      {typeof p.jobSummary.outstandingCents === "number" && p.jobSummary.outstandingCents > 0
+                        ? `${fmtJobMoney(p.jobSummary.outstandingCents, p.currency)} outstanding`
+                        : "Paid in full"}
+                      {p.jobSummary.lastPaymentMethod ? ` · ${p.jobSummary.lastPaymentMethod}` : ""}
+                      {p.jobSummary.lastPaymentAt
+                        ? ` · ${new Date(p.jobSummary.lastPaymentAt).toLocaleDateString()}`
+                        : ""}
+                    </p>
+                  </div>
+                ) : null}
                 {metadataNote(p)}
               </div>
               {p.receiptUrl ? (
