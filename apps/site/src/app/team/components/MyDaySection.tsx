@@ -50,6 +50,17 @@ interface AppointmentDto {
   } | null;
 }
 
+interface LoadEntry {
+  date: string;
+  jobs: number;
+  minutes: number;
+}
+
+interface LoadSnapshot {
+  entries: LoadEntry[];
+  unscheduled: number | null;
+}
+
 export async function MyDaySection({
   focusAppointmentId
 }: {
@@ -71,6 +82,7 @@ export async function MyDaySection({
   const ordered =
     focusIndex > -1 ? [appts[focusIndex], ...appts.filter((_, idx) => idx !== focusIndex)] : appts;
   const focusMissing = Boolean(focusId) && focusIndex === -1;
+  const { entries: loadEntries, unscheduled } = await fetchLoadSnapshot();
 
   return (
     <section className="space-y-4">
@@ -81,6 +93,31 @@ export async function MyDaySection({
             : "Showing requested job first so you can jump straight to it."}
         </div>
       ) : null}
+      <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 p-3 text-xs text-emerald-900">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-700">Upcoming crew load</p>
+          {typeof unscheduled === "number" ? (
+            <span className="text-[11px] text-emerald-600">Unscheduled: {unscheduled}</span>
+          ) : null}
+        </div>
+        {loadEntries.length === 0 ? (
+          <p className="mt-2 text-[11px] text-emerald-800">No upcoming visits in the next few days.</p>
+        ) : (
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {loadEntries.map((entry) => (
+              <div
+                key={entry.date}
+                className={`rounded-md border px-3 py-2 ${loadToneClass(entry.minutes)}`}
+              >
+                <p className="text-[11px] font-semibold">{formatLoadLabel(entry.date)}</p>
+                <p>
+                  {entry.jobs} {entry.jobs === 1 ? "job" : "jobs"} · {formatHoursFromMinutes(entry.minutes)}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       {ordered.length === 0 ? (
         <p className="rounded-lg border border-dashed border-neutral-300 bg-neutral-50 p-4 text-sm text-neutral-500">
           No confirmed visits.
@@ -321,4 +358,62 @@ function formatMoneyFromCents(cents: number | null | undefined): string {
     return "—";
   }
   return moneyFormatter.format(cents / 100);
+}
+
+async function fetchLoadSnapshot(): Promise<LoadSnapshot> {
+  try {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 4);
+    const url = `/api/calendar?start=${encodeURIComponent(start.toISOString())}&end=${encodeURIComponent(
+      end.toISOString()
+    )}&summaryOnly=1`;
+    const response = await callAdminApi(url);
+    if (!response.ok) {
+      return { entries: [], unscheduled: null };
+    }
+    const payload = (await response.json().catch(() => null)) as {
+      summary?: {
+        totals?: { unscheduled?: number };
+        byDay?: Record<string, { jobs: number; minutes: number }>;
+      };
+    } | null;
+    const byDay = payload?.summary?.byDay ?? {};
+    const entries = Object.entries(byDay)
+      .map(([date, stats]) => ({
+        date,
+        jobs: stats.jobs,
+        minutes: stats.minutes
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+    return {
+      entries,
+      unscheduled: payload?.summary?.totals?.unscheduled ?? null
+    };
+  } catch {
+    return { entries: [], unscheduled: null };
+  }
+}
+
+function formatLoadLabel(date: string): string {
+  const parsed = new Date(`${date}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return date;
+  }
+  return parsed.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
+
+function formatHoursFromMinutes(minutes: number): string {
+  return `${(minutes / 60).toFixed(1)}h`;
+}
+
+function loadToneClass(minutes: number): string {
+  if (minutes >= 7 * 60) {
+    return "border-rose-200 bg-rose-50 text-rose-800";
+  }
+  if (minutes >= 4 * 60) {
+    return "border-amber-200 bg-amber-50 text-amber-800";
+  }
+  return "border-emerald-200 bg-white text-emerald-700";
 }
