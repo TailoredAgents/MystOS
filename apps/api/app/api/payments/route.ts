@@ -3,7 +3,7 @@ import { NextResponse } from "next/server";
 import { desc, eq, inArray, isNull, isNotNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { nanoid } from "nanoid";
-import { getDb, payments, appointments, contacts, quotes } from "@/db";
+import { getDb, payments, appointments, contacts, quotes, outboxEvents } from "@/db";
 import { isAdminRequest } from "../web/admin";
 
 const RecordPaymentSchema = z.object({
@@ -211,5 +211,24 @@ export async function POST(request: NextRequest): Promise<Response> {
     })
     .returning({ id: payments.id });
 
-  return NextResponse.json({ ok: true, id: inserted?.id ?? null });
+  const paymentId = inserted?.id ?? null;
+  if (paymentId) {
+    try {
+      await db.insert(outboxEvents).values({
+        type: "payment.recorded",
+        payload: {
+          paymentId,
+          appointmentId: data.appointmentId,
+          amountCents: amountInCents,
+          currency: data.currency.toUpperCase(),
+          method: data.method ? data.method.trim() : "offline",
+          source: "manual"
+        }
+      });
+    } catch (error) {
+      console.warn("[payments] outbox_emit_failed", { paymentId, error: String(error) });
+    }
+  }
+
+  return NextResponse.json({ ok: true, id: paymentId });
 }

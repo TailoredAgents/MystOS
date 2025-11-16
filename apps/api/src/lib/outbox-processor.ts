@@ -1,5 +1,14 @@
 import { asc, eq, isNull } from "drizzle-orm";
-import { getDb, outboxEvents, appointments, leads, contacts, properties, quotes } from "@/db";
+import {
+  getDb,
+  outboxEvents,
+  appointments,
+  leads,
+  contacts,
+  properties,
+  quotes,
+  appointmentNotes
+} from "@/db";
 import type { EstimateNotificationPayload, QuoteNotificationPayload } from "@/lib/notifications";
 import {
   sendEstimateConfirmation,
@@ -40,6 +49,15 @@ function coerceServices(input: unknown): string[] {
     return [];
   }
   return input.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function formatCurrencyFromCents(
+  amountCents: number | null | undefined,
+  currency: string | null | undefined
+): string {
+  const cents = typeof amountCents === "number" ? amountCents : 0;
+  const curr = currency && currency.trim().length ? currency.trim().toUpperCase() : "USD";
+  return `${curr} ${(cents / 100).toFixed(2)}`;
 }
 
 function buildQuoteShareUrl(token: string): string {
@@ -542,6 +560,51 @@ async function handleOutboxEvent(event: OutboxEventRecord): Promise<"processed" 
       }
 
       await sendEstimateConfirmation(notification, "requested");
+      return "processed";
+    }
+
+    case "payment.recorded": {
+      const payload = isRecord(event.payload) ? event.payload : null;
+      const appointmentId = typeof payload?.["appointmentId"] === "string" ? payload["appointmentId"] : null;
+      if (!appointmentId) {
+        console.warn("[outbox] payment.recorded.missing_appointment", { id: event.id });
+        return "skipped";
+      }
+
+      const amountCents =
+        typeof payload?.["amountCents"] === "number" && Number.isFinite(payload["amountCents"])
+          ? Number(payload["amountCents"])
+          : null;
+      const currency = typeof payload?.["currency"] === "string" ? payload["currency"] : "USD";
+      const method = typeof payload?.["method"] === "string" ? payload["method"] : null;
+      const source = typeof payload?.["source"] === "string" ? payload["source"] : "system";
+
+      const noteParts = [
+        `Payment recorded ${formatCurrencyFromCents(amountCents, currency)}`,
+        method ? `Method: ${method}` : null,
+        source ? `Source: ${source}` : null
+      ].filter((part): part is string => Boolean(part));
+      const body = noteParts.join(" | ") || "Payment recorded.";
+
+      const db = getDb();
+      try {
+        await db.insert(appointmentNotes).values({
+          appointmentId,
+          body
+        });
+      } catch (error) {
+        console.warn("[outbox] payment.recorded.note_failed", { appointmentId, error: String(error) });
+      }
+
+      try {
+        await db
+          .update(appointments)
+          .set({ updatedAt: new Date() })
+          .where(eq(appointments.id, appointmentId));
+      } catch (error) {
+        console.warn("[outbox] payment.recorded.touch_failed", { appointmentId, error: String(error) });
+      }
+
       return "processed";
     }
 
