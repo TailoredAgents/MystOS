@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getDb, properties } from "@/db";
 import { isAdminRequest } from "../../../../../web/admin";
 import { and, eq } from "drizzle-orm";
+import { geocodeAddress } from "@/lib/mapbox-geocode";
 
 type RouteContext = {
   params: Promise<{ contactId?: string; propertyId?: string }>;
@@ -100,15 +101,20 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     }
   }
 
+  let normalizedLatValue: number | null | undefined;
+  let normalizedLngValue: number | null | undefined;
+
   try {
     const normalizedLat = normalizeCoordinate(lat, { field: "lat", min: -90, max: 90 });
     if (normalizedLat !== undefined) {
-      updates["lat"] = normalizedLat === null ? null : normalizedLat.toString();
+      updates["lat"] = normalizedLat === null ? null : normalizedLat.toFixed(6);
     }
+    normalizedLatValue = normalizedLat;
     const normalizedLng = normalizeCoordinate(lng, { field: "lng", min: -180, max: 180 });
     if (normalizedLng !== undefined) {
-      updates["lng"] = normalizedLng === null ? null : normalizedLng.toString();
+      updates["lng"] = normalizedLng === null ? null : normalizedLng.toFixed(6);
     }
+    normalizedLngValue = normalizedLng;
   } catch (error) {
     const code = error instanceof Error ? error.message : "coordinate_invalid";
     return NextResponse.json({ error: code }, { status: 400 });
@@ -119,6 +125,55 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
   }
 
   const db = getDb();
+  const [existing] = await db
+    .select({
+      id: properties.id,
+      addressLine1: properties.addressLine1,
+      addressLine2: properties.addressLine2,
+      city: properties.city,
+      state: properties.state,
+      postalCode: properties.postalCode,
+      lat: properties.lat,
+      lng: properties.lng
+    })
+    .from(properties)
+    .where(and(eq(properties.id, propertyId), eq(properties.contactId, contactId)))
+    .limit(1);
+
+  if (!existing) {
+    return NextResponse.json({ error: "property_not_found" }, { status: 404 });
+  }
+
+  const addressChanged =
+    "addressLine1" in payload || "city" in payload || "state" in payload || "postalCode" in payload;
+  const autoGeocodeNeeded =
+    normalizedLatValue === undefined &&
+    normalizedLngValue === undefined &&
+    (addressChanged || existing.lat === null || existing.lng === null);
+
+  if (autoGeocodeNeeded) {
+    const resolvedAddress = {
+      line1:
+        typeof addressLine1 === "string" && addressLine1.trim().length > 0
+          ? addressLine1.trim()
+          : existing.addressLine1 ?? "",
+      city:
+        typeof city === "string" && city.trim().length > 0 ? city.trim() : existing.city ?? "",
+      state:
+        typeof state === "string" && state.trim().length > 0
+          ? state.trim()
+          : existing.state ?? "",
+      postalCode:
+        typeof postalCode === "string" && postalCode.trim().length > 0
+          ? postalCode.trim()
+          : existing.postalCode ?? ""
+    };
+    const geocoded = await geocodeAddress(resolvedAddress);
+    if (geocoded) {
+      updates["lat"] = geocoded.lat.toFixed(6);
+      updates["lng"] = geocoded.lng.toFixed(6);
+    }
+  }
 
   const [updated] = await db
     .update(properties)

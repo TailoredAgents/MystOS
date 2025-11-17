@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getDb, contacts, properties } from "@/db";
 import { isAdminRequest } from "../../../../web/admin";
 import { eq } from "drizzle-orm";
+import { geocodeAddress } from "@/lib/mapbox-geocode";
 
 type RouteContext = {
   params: Promise<{ contactId?: string }>;
@@ -94,10 +95,29 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
     return NextResponse.json({ error: "contact_not_found" }, { status: 404 });
   }
 
-  const latPayload =
-    normalizedLat === null || normalizedLat === undefined ? null : normalizedLat.toString();
-  const lngPayload =
-    normalizedLng === null || normalizedLng === undefined ? null : normalizedLng.toString();
+  const latProvided = normalizedLat !== undefined;
+  const lngProvided = normalizedLng !== undefined;
+  let latPayload: string | null | undefined;
+  if (latProvided) {
+    latPayload = normalizedLat === null ? null : normalizedLat!.toFixed(6);
+  }
+  let lngPayload: string | null | undefined;
+  if (lngProvided) {
+    lngPayload = normalizedLng === null ? null : normalizedLng!.toFixed(6);
+  }
+
+  if (!latProvided && !lngProvided) {
+    const geocoded = await geocodeAddress({
+      line1: addressLine1.trim(),
+      city: city.trim(),
+      state: state.trim(),
+      postalCode: postalCode.trim()
+    });
+    if (geocoded) {
+      latPayload = geocoded.lat.toFixed(6);
+      lngPayload = geocoded.lng.toFixed(6);
+    }
+  }
 
   const [property] = await db
     .insert(properties)
@@ -111,8 +131,8 @@ export async function POST(request: NextRequest, context: RouteContext): Promise
       city: city.trim(),
       state: state.trim().slice(0, 2).toUpperCase(),
       postalCode: postalCode.trim(),
-      lat: latPayload,
-      lng: lngPayload
+      lat: latPayload ?? null,
+      lng: lngPayload ?? null
     })
     .returning({
       id: properties.id,
