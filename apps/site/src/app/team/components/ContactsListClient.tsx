@@ -63,6 +63,13 @@ function mapsUrl(property: PropertySummary | undefined): string | null {
   return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(parts.join(", "))}`;
 }
 
+function formatCoordinateValue(value: number | null | undefined): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return "";
+  }
+  return value.toFixed(5);
+}
+
 function teamLink(tab: string, params?: Record<string, string | null | undefined>): string {
   const query = new URLSearchParams();
   query.set("tab", tab);
@@ -289,6 +296,17 @@ function ContactCard({ contact }: ContactCardProps) {
                           {property.city}, {property.state} {property.postalCode}
                         </p>
                         <p className="text-xs text-slate-400">Added {formatDateTime(property.createdAt)}</p>
+                        <p
+                          className={`text-[11px] font-semibold ${
+                            property.lat !== null && property.lat !== undefined && property.lng !== null && property.lng !== undefined
+                              ? "text-emerald-700"
+                              : "text-amber-700"
+                          }`}
+                        >
+                          {property.lat !== null && property.lat !== undefined && property.lng !== null && property.lng !== undefined
+                            ? `Map pin saved · ${formatCoordinateValue(property.lat)}, ${formatCoordinateValue(property.lng)}`
+                            : "Map pin needed for route-aware scheduling"}
+                        </p>
                       </div>
                       <div className="flex gap-2 text-xs">
                         <button
@@ -340,6 +358,35 @@ function ContactCard({ contact }: ContactCardProps) {
                             <input name="postalCode" defaultValue={property.postalCode} required className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
                           </label>
                         </div>
+                        <div className="grid grid-cols-2 gap-3">
+                          <label className="flex flex-col gap-1">
+                            <span>Latitude (optional)</span>
+                            <input
+                              name="lat"
+                              type="number"
+                              step="0.000001"
+                              min="-90"
+                              max="90"
+                              defaultValue={property.lat ?? ""}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                            />
+                          </label>
+                          <label className="flex flex-col gap-1">
+                            <span>Longitude (optional)</span>
+                            <input
+                              name="lng"
+                              type="number"
+                              step="0.000001"
+                              min="-180"
+                              max="180"
+                              defaultValue={property.lng ?? ""}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-2"
+                            />
+                          </label>
+                        </div>
+                        <p className="sm:col-span-2 text-[10px] text-slate-400">
+                          Paste decimal degrees from Google Maps to unlock accurate routing suggestions.
+                        </p>
                         <div className="flex gap-2 sm:col-span-2">
                           <SubmitButton className="rounded-full bg-primary-600 px-4 py-2 font-semibold text-white shadow hover:bg-primary-700" pendingLabel="Saving...">
                             Save property
@@ -386,6 +433,19 @@ function ContactCard({ contact }: ContactCardProps) {
                       <input name="postalCode" required className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
                     </label>
                   </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="flex flex-col gap-1">
+                      <span>Latitude (optional)</span>
+                      <input name="lat" type="number" step="0.000001" min="-90" max="90" className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                    </label>
+                    <label className="flex flex-col gap-1">
+                      <span>Longitude (optional)</span>
+                      <input name="lng" type="number" step="0.000001" min="-180" max="180" className="rounded-xl border border-slate-200 bg-white px-3 py-2" />
+                    </label>
+                  </div>
+                  <p className="sm:col-span-2 text-[10px] text-slate-400">
+                    Optional: paste decimal coordinates to help Myst plot efficient routes.
+                  </p>
                   <div className="flex gap-2 sm:col-span-2">
                     <SubmitButton className="rounded-full bg-primary-600 px-4 py-2 font-semibold text-white shadow hover:bg-primary-700" pendingLabel="Saving...">
                       Save property

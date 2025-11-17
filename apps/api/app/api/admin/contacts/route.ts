@@ -156,6 +156,8 @@ export async function GET(request: NextRequest): Promise<Response> {
             city: properties.city,
             state: properties.state,
             postalCode: properties.postalCode,
+            lat: properties.lat,
+            lng: properties.lng,
             createdAt: properties.createdAt
           })
           .from(properties)
@@ -309,6 +311,10 @@ export async function GET(request: NextRequest): Promise<Response> {
         city: property.city,
         state: property.state,
         postalCode: property.postalCode,
+        lat:
+          property.lat === null || property.lat === undefined ? null : Number(property.lat),
+        lng:
+          property.lng === null || property.lng === undefined ? null : Number(property.lng),
         createdAt: property.createdAt.toISOString()
       })),
       tasks: tasksForContact.map((task) => ({

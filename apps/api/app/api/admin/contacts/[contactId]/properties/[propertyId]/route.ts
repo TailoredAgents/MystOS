@@ -8,6 +8,32 @@ type RouteContext = {
   params: Promise<{ contactId?: string; propertyId?: string }>;
 };
 
+function normalizeCoordinate(
+  value: unknown,
+  { field, min, max }: { field: "lat" | "lng"; min: number; max: number }
+): number | null | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  if (
+    value === null ||
+    (typeof value === "string" && value.trim().length === 0)
+  ) {
+    return null;
+  }
+
+  const raw =
+    typeof value === "number"
+      ? value
+      : typeof value === "string"
+      ? Number(value.trim())
+      : NaN;
+  if (!Number.isFinite(raw) || raw < min || raw > max) {
+    throw new Error(`${field}_invalid`);
+  }
+  return Number(raw.toFixed(6));
+}
+
 export async function PATCH(request: NextRequest, context: RouteContext): Promise<Response> {
   if (!isAdminRequest(request)) {
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
@@ -23,7 +49,7 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     return NextResponse.json({ error: "invalid_payload" }, { status: 400 });
   }
 
-  const { addressLine1, addressLine2, city, state, postalCode } = payload as Record<
+  const { addressLine1, addressLine2, city, state, postalCode, lat, lng } = payload as Record<
     string,
     unknown
   >;
@@ -74,6 +100,20 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
     }
   }
 
+  try {
+    const normalizedLat = normalizeCoordinate(lat, { field: "lat", min: -90, max: 90 });
+    if (normalizedLat !== undefined) {
+      updates["lat"] = normalizedLat === null ? null : normalizedLat.toString();
+    }
+    const normalizedLng = normalizeCoordinate(lng, { field: "lng", min: -180, max: 180 });
+    if (normalizedLng !== undefined) {
+      updates["lng"] = normalizedLng === null ? null : normalizedLng.toString();
+    }
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "coordinate_invalid";
+    return NextResponse.json({ error: code }, { status: 400 });
+  }
+
   if (Object.keys(updates).length === 1) {
     return NextResponse.json({ error: "no_updates_provided" }, { status: 400 });
   }
@@ -91,12 +131,19 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
       city: properties.city,
       state: properties.state,
       postalCode: properties.postalCode,
+      lat: properties.lat,
+      lng: properties.lng,
       updatedAt: properties.updatedAt
     });
 
   if (!updated) {
     return NextResponse.json({ error: "property_not_found" }, { status: 404 });
   }
+
+  const latValue =
+    updated.lat === null || updated.lat === undefined ? null : Number(updated.lat);
+  const lngValue =
+    updated.lng === null || updated.lng === undefined ? null : Number(updated.lng);
 
   return NextResponse.json({
     property: {
@@ -106,6 +153,8 @@ export async function PATCH(request: NextRequest, context: RouteContext): Promis
       city: updated.city,
       state: updated.state,
       postalCode: updated.postalCode,
+      lat: latValue,
+      lng: lngValue,
       updatedAt: updated.updatedAt.toISOString()
     }
   });

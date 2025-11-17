@@ -5,6 +5,20 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { callAdminApi } from "./lib/api";
 
+function readCoordinateInput(
+  value: FormDataEntryValue | null,
+  { allowNull }: { allowNull?: boolean } = {}
+): string | null | undefined {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length === 0) {
+    return allowNull ? null : undefined;
+  }
+  return trimmed;
+}
+
 export async function updateApptStatus(formData: FormData) {
   const id = formData.get("appointmentId");
   const status = formData.get("status");
@@ -691,6 +705,8 @@ export async function addPropertyAction(formData: FormData) {
   const city = formData.get("city");
   const state = formData.get("state");
   const postalCode = formData.get("postalCode");
+  const latInput = readCoordinateInput(formData.get("lat"));
+  const lngInput = readCoordinateInput(formData.get("lng"));
 
   if (
     typeof addressLine1 !== "string" ||
@@ -714,7 +730,9 @@ export async function addPropertyAction(formData: FormData) {
       addressLine2: typeof addressLine2 === "string" && addressLine2.trim().length ? addressLine2.trim() : undefined,
       city: city.trim(),
       state: state.trim(),
-      postalCode: postalCode.trim()
+      postalCode: postalCode.trim(),
+      ...(latInput !== undefined ? { lat: latInput } : {}),
+      ...(lngInput !== undefined ? { lng: lngInput } : {})
     })
   });
 
@@ -757,6 +775,15 @@ export async function updatePropertyAction(formData: FormData) {
     if (typeof value === "string") {
       payload[key] = value.trim();
     }
+  }
+
+  const latValue = readCoordinateInput(formData.get("lat"), { allowNull: true });
+  if (latValue !== undefined) {
+    payload["lat"] = latValue;
+  }
+  const lngValue = readCoordinateInput(formData.get("lng"), { allowNull: true });
+  if (lngValue !== undefined) {
+    payload["lng"] = lngValue;
   }
 
   if (Object.keys(payload).length === 0) {

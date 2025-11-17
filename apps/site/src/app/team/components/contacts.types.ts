@@ -5,6 +5,8 @@ export type PropertySummary = {
   city: string;
   state: string;
   postalCode: string;
+  lat: number | null;
+  lng: number | null;
   createdAt: string;
 };
 
