@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { and, asc, eq, isNull, or } from "drizzle-orm";
 import { getDb, properties } from "@/db";
-import { isAdminRequest } from "../../../../web/admin";
+import { isAdminRequest } from "../../../web/admin";
 import { geocodeAddress } from "@/lib/mapbox-geocode";
 
 const DEFAULT_LIMIT = 25;
