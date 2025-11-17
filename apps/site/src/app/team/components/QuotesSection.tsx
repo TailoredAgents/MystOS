@@ -15,7 +15,7 @@ interface QuoteDto {
   expiresAt: string | null;
   shareToken: string | null;
   contact: { id?: string | null; name: string; email: string | null };
-  property: { addressLine1: string; city: string; state: string; postalCode: string };
+  property: { addressLine1: string; city: string; state: string; postalCode: string; lat: number | null; lng: number | null };
   appointment: {
     id: string;
     status: string;

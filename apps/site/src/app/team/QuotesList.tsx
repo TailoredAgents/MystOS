@@ -48,7 +48,7 @@ type Quote = {
   expiresAt: string | null;
   shareToken: string | null;
   contact: { id?: string | null; name: string; email: string | null };
-  property: { addressLine1: string; city: string; state: string; postalCode: string };
+  property: { addressLine1: string; city: string; state: string; postalCode: string; lat: number | null; lng: number | null };
   appointment: {
     id: string;
     status: string;
@@ -413,6 +413,12 @@ export function QuotesList({
           const suggestionError = suggestionState?.error ?? null;
           const suggestionMeta = suggestionState?.meta ?? null;
           const appliedWindow = suggestionState?.appliedWindow ?? null;
+          const propertyHasPin =
+            typeof quote.property.lat === "number" &&
+            typeof quote.property.lng === "number" &&
+            !Number.isNaN(quote.property.lat) &&
+            !Number.isNaN(quote.property.lng);
+          const contactsHref = `/team?tab=contacts&q=${encodeURIComponent(quote.contact.name)}`;
           const lastPaymentDisplay = formatPaymentDate(quote.paymentSummary.lastPaymentAt);
 
           return (
@@ -568,6 +574,18 @@ export function QuotesList({
                         {isLoadingSuggestions ? "Scanning..." : "Schedule suggestions"}
                       </button>
                     </div>
+                    {!propertyHasPin ? (
+                      <p className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-700">
+                        Add a map pin for this property in{" "}
+                        <a
+                          className="font-semibold underline hover:text-amber-800"
+                          href={contactsHref}
+                        >
+                          Contacts
+                        </a>{" "}
+                        so Myst can give precise routing suggestions.
+                      </p>
+                    ) : null}
                     {suggestionMeta ? (
                       <div className="mt-2 rounded-md border border-emerald-100 bg-emerald-50/70 p-2 text-[11px] text-emerald-900">
                         <p>

@@ -90,6 +90,8 @@ function formatQuoteResponse(
   propertyCity: string | null;
   propertyState: string | null;
   propertyPostalCode: string | null;
+  propertyLat: string | null;
+  propertyLng: string | null;
   jobAppointmentId: string | null;
   jobAppointmentStatus: string | null;
   jobAppointmentStartAt: Date | null;
@@ -104,6 +106,10 @@ function formatQuoteResponse(
   const city = row.propertyCity?.trim();
   const state = row.propertyState?.trim();
   const postalCode = row.propertyPostalCode?.trim();
+  const propertyLat =
+    row.propertyLat === null || row.propertyLat === undefined ? null : Number(row.propertyLat);
+  const propertyLng =
+    row.propertyLng === null || row.propertyLng === undefined ? null : Number(row.propertyLng);
   const totalNumber = Number(row.total);
   const totalCents = Number.isFinite(totalNumber) ? Math.round(totalNumber * 100) : 0;
   const paidCents = payment?.totalPaidCents ?? 0;
@@ -129,7 +135,9 @@ function formatQuoteResponse(
       addressLine1: addressLine1 ?? "",
       city: city ?? "",
       state: state ?? "",
-      postalCode: postalCode ?? ""
+      postalCode: postalCode ?? "",
+      lat: propertyLat,
+      lng: propertyLng
     },
     appointment:
       row.jobAppointmentId && row.jobAppointmentStatus
@@ -187,6 +195,8 @@ export async function GET(request: NextRequest): Promise<Response> {
         propertyCity: properties.city,
         propertyState: properties.state,
         propertyPostalCode: properties.postalCode,
+        propertyLat: properties.lat,
+        propertyLng: properties.lng,
         jobAppointmentId: quotes.jobAppointmentId,
         jobAppointmentStatus: appointments.status,
         jobAppointmentStartAt: appointments.startAt,
